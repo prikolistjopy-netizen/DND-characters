@@ -20,7 +20,7 @@ export type RaceOption = {
   tags: Array<'small' | 'fey' | 'large-presence' | 'draconic' | 'celestial' | 'shadow'>;
 };
 
-export type ArmorTag = 'none' | 'cloth' | 'light' | 'medium' | 'heavy' | 'metal' | 'natural';
+export type ArmorTag = 'none' | 'cloth' | 'light' | 'medium' | 'heavy' | 'metal' | 'natural' | 'shield';
 
 export type ArmorOption = {
   name: string;
@@ -38,20 +38,30 @@ export type WeaponTag =
   | 'melee'
   | 'ranged'
   | 'bow'
+  | 'shortbow'
   | 'longbow'
   | 'shield'
   | 'tool'
   | 'magic-focus'
   | 'holy-focus'
   | 'mechanical-focus'
+  | 'mechanical-weapon'
   | 'orb'
+  | 'wand'
   | 'book'
+  | 'scroll'
+  | 'compass'
   | 'map'
   | 'instrument'
+  | 'flute'
+  | 'fey-focus'
   | 'rapier'
   | 'dual-blades'
+  | 'dagger'
   | 'spear'
   | 'mace'
+  | 'warhammer'
+  | 'handaxe'
   | 'greatsword'
   | 'greataxe';
 
@@ -67,8 +77,13 @@ export type ArchetypeTag =
   | 'hunter'
   | 'streetwise'
   | 'fey'
+  | 'trickster'
   | 'mage'
+  | 'academy'
+  | 'arcane'
   | 'nature'
+  | 'frontier'
+  | 'scout'
   | 'scholar'
   | 'cartographer'
   | 'tools'
@@ -76,7 +91,9 @@ export type ArchetypeTag =
   | 'noble'
   | 'shadow'
   | 'draconic'
-  | 'pirate';
+  | 'pirate'
+  | 'oathkeeper'
+  | 'fallen';
 
 export type ArchetypeOption = {
   name: string;
@@ -84,7 +101,7 @@ export type ArchetypeOption = {
   tags: ArchetypeTag[];
 };
 
-export type SilhouetteTag = 'nimble' | 'robed' | 'shield' | 'bestial' | 'fey' | 'broad' | 'compact';
+export type SilhouetteTag = 'nimble' | 'robed' | 'shield' | 'bestial' | 'fey' | 'broad' | 'compact' | 'engineer';
 
 export type SilhouetteOption = {
   name: string;
@@ -100,6 +117,9 @@ export type PoseTag =
   | 'map'
   | 'tools'
   | 'monk'
+  | 'prayer'
+  | 'tracking'
+  | 'performance'
   | 'general';
 
 export type PoseOption = {
@@ -109,9 +129,33 @@ export type PoseOption = {
 
 export type MoodOption = {
   name: string;
-  light: string;
-  fx: string;
   tags: ArchetypeTag[];
+};
+
+export type LightOption = {
+  name: string;
+  tags: ArchetypeTag[];
+};
+
+export type FxOption = {
+  name: string;
+  tags: ArchetypeTag[];
+};
+
+export type BuildTemplate = {
+  id: string;
+  label: string;
+  allowedClasses: CharacterClass[];
+  preferredArchetypes: string[];
+  preferredArchetypeTags: ArchetypeTag[];
+  allowedArmor: string[];
+  allowedWeapons: string[];
+  allowedPoses: string[];
+  allowedSilhouettes: string[];
+  allowedMoods: string[];
+  allowedLights: string[];
+  allowedFx: string[];
+  forbiddenTags: string[];
 };
 
 export const modeWeights = [
@@ -153,57 +197,22 @@ export const races: Array<WeightedOption<RaceOption>> = [
 
 export const archetypes: Array<WeightedOption<ArchetypeOption>> = [
   { name: 'haunted noble heir', classes: ['bard', 'paladin', 'rogue', 'warlock'], tags: ['noble', 'shadow'], weight: 6 },
-  {
-    name: 'streetwise monster hunter',
-    classes: ['fighter', 'ranger', 'rogue', 'cleric'],
-    tags: ['streetwise', 'hunter'],
-    weight: 8,
-  },
+  { name: 'streetwise monster hunter', classes: ['fighter', 'ranger', 'rogue', 'cleric'], tags: ['streetwise', 'hunter'], weight: 8 },
   { name: 'exiled temple guardian', classes: ['cleric', 'monk', 'paladin'], tags: ['holy'], weight: 7 },
-  {
-    name: 'wandering battlefield medic',
-    classes: ['cleric', 'fighter', 'paladin', 'bard'],
-    tags: ['holy', 'battlefield'],
-    weight: 6,
-  },
-  {
-    name: 'cursed cartographer',
-    classes: ['wizard', 'warlock', 'ranger', 'rogue'],
-    tags: ['cursed', 'cartographer', 'mage'],
-    weight: 6,
-  },
-  {
-    name: 'clockwork scholar',
-    classes: ['artificer', 'wizard', 'bard'],
-    tags: ['scholar', 'tools', 'mage'],
-    weight: 6,
-  },
-  { name: 'wild frontier scout', classes: ['ranger', 'druid', 'rogue'], tags: ['nature', 'hunter'], weight: 7 },
-  { name: 'fallen oathkeeper', classes: ['paladin', 'warlock', 'fighter'], tags: ['cursed', 'holy'], weight: 5 },
-  {
-    name: 'fey-touched trickster',
-    classes: ['bard', 'druid', 'rogue', 'sorcerer', 'warlock'],
-    tags: ['fey'],
-    weight: 6,
-  },
-  {
-    name: 'dragon cult defector',
-    classes: ['sorcerer', 'warlock', 'fighter', 'barbarian'],
-    tags: ['draconic', 'cursed'],
-    weight: 4,
-  },
-  {
-    name: 'arcane academy dropout',
-    classes: ['wizard', 'sorcerer', 'warlock', 'bard', 'artificer'],
-    tags: ['mage', 'scholar'],
-    weight: 7,
-  },
+  { name: 'wandering battlefield medic', classes: ['cleric', 'fighter', 'paladin', 'bard'], tags: ['holy', 'battlefield'], weight: 6 },
+  { name: 'cursed cartographer', classes: ['wizard', 'warlock', 'ranger', 'rogue', 'cleric'], tags: ['cursed', 'cartographer', 'mage', 'scholar'], weight: 6 },
+  { name: 'clockwork scholar', classes: ['artificer', 'wizard', 'bard'], tags: ['scholar', 'tools', 'mage'], weight: 6 },
+  { name: 'wild frontier scout', classes: ['ranger', 'druid', 'rogue', 'barbarian'], tags: ['nature', 'hunter', 'frontier', 'scout'], weight: 7 },
+  { name: 'fallen oathkeeper', classes: ['paladin', 'warlock', 'fighter', 'barbarian'], tags: ['cursed', 'holy', 'oathkeeper', 'fallen'], weight: 5 },
+  { name: 'fey-touched trickster', classes: ['bard', 'druid', 'rogue', 'sorcerer', 'warlock'], tags: ['fey', 'trickster'], weight: 6 },
+  { name: 'dragon cult defector', classes: ['sorcerer', 'warlock', 'fighter', 'barbarian'], tags: ['draconic', 'cursed'], weight: 4 },
+  { name: 'arcane academy dropout', classes: ['wizard', 'sorcerer', 'warlock', 'bard', 'artificer'], tags: ['mage', 'scholar', 'academy', 'arcane'], weight: 7 },
   { name: 'rage-scarred clan champion', classes: ['barbarian', 'fighter'], tags: ['battlefield'], weight: 7 },
-  { name: 'iron wall veteran', classes: ['fighter', 'paladin', 'cleric'], tags: ['battlefield'], weight: 6 },
+  { name: 'iron wall veteran', classes: ['fighter', 'paladin', 'cleric'], tags: ['battlefield', 'oathkeeper'], weight: 6 },
   { name: 'silent monastery avenger', classes: ['monk', 'rogue'], tags: ['shadow'], weight: 6 },
   { name: 'verdant circle emissary', classes: ['druid', 'ranger'], tags: ['nature', 'fey'], weight: 6 },
   { name: 'pirate relic diver', classes: ['rogue', 'bard', 'artificer'], tags: ['pirate', 'tools'], weight: 5 },
-  { name: 'void-pact oracle', classes: ['warlock', 'sorcerer', 'wizard'], tags: ['void', 'cursed', 'mage'], weight: 5 },
+  { name: 'void-pact oracle', classes: ['warlock', 'sorcerer', 'wizard'], tags: ['void', 'cursed', 'mage', 'arcane'], weight: 5 },
   { name: 'runaway alchemist', classes: ['artificer', 'rogue', 'wizard'], tags: ['tools', 'scholar'], weight: 5 },
 ];
 
@@ -216,21 +225,25 @@ export const silhouettes: Array<WeightedOption<SilhouetteOption>> = [
   { name: 'stocky shield-forward stance', tags: ['shield', 'broad'], weight: 6 },
   { name: 'willowy fey outline', tags: ['fey', 'nimble'], weight: 5 },
   { name: 'towering bestial frame', tags: ['bestial', 'broad'], weight: 4 },
+  { name: 'gadget-laden workshop silhouette', tags: ['engineer', 'compact'], weight: 5 },
 ];
 
 export const armors: Array<WeightedOption<ArmorOption>> = [
   { name: 'no armor, simple travel wraps', tags: ['none', 'cloth'], weight: 8 },
+  { name: 'travel-worn cloth layers', tags: ['cloth'], weight: 8 },
   { name: 'plain monastery cloth', tags: ['cloth'], weight: 8 },
   { name: 'embroidered arcane robes', tags: ['cloth'], weight: 9 },
   { name: 'fur-lined hide armor', tags: ['medium', 'natural'], weight: 7 },
   { name: 'patched leather armor', tags: ['light'], weight: 9 },
   { name: 'studded leather with hidden knives', tags: ['light', 'metal'], weight: 7 },
+  { name: 'travel cloak over leather', tags: ['light', 'cloth'], weight: 7 },
   { name: 'living bark and woven reed armor', tags: ['medium', 'natural'], weight: 6 },
   { name: 'scale mail with heraldic sash', tags: ['medium', 'metal'], weight: 7 },
   { name: 'half plate with campaign dents', tags: ['medium', 'metal'], weight: 6 },
   { name: 'chain mail under a weathered tabard', tags: ['heavy', 'metal'], weight: 5 },
   { name: 'full plate with engraved pauldrons', tags: ['heavy', 'metal'], weight: 4 },
   { name: 'reinforced artificer coat', tags: ['light', 'metal'], weight: 6 },
+  { name: 'mechanical bracers over a work coat', tags: ['medium', 'metal'], weight: 5 },
 ];
 
 export const weapons: Array<WeightedOption<WeaponOption>> = [
@@ -239,30 +252,42 @@ export const weapons: Array<WeightedOption<WeaponOption>> = [
   { name: 'quarterstaff carved with runes', tags: ['staff', 'simple', 'magic-focus', 'melee'], weight: 8 },
   { name: 'oak spell staff', tags: ['staff', 'magic-focus', 'simple'], weight: 7 },
   { name: 'crystal orb focus', tags: ['orb', 'magic-focus'], weight: 6 },
+  { name: 'silver wand focus', tags: ['wand', 'magic-focus'], weight: 5 },
   { name: 'weathered spellbook', tags: ['book', 'magic-focus'], weight: 6 },
+  { name: 'scroll case and compass', tags: ['scroll', 'compass', 'map', 'tool'], weight: 7 },
+  { name: 'annotated map and compass', tags: ['map', 'compass', 'tool'], weight: 5 },
+  { name: 'holy book and ritual staff', tags: ['book', 'staff', 'holy-focus', 'simple'], weight: 6 },
   { name: 'longsword and round shield', tags: ['martial', 'melee', 'shield'], weight: 8 },
   { name: 'mace and holy shield', tags: ['mace', 'simple', 'melee', 'shield', 'holy-focus'], weight: 7 },
+  { name: 'ritual warhammer', tags: ['warhammer', 'martial', 'melee', 'holy-focus'], weight: 5 },
   { name: 'silver holy symbol and staff', tags: ['holy-focus', 'staff', 'simple'], weight: 6 },
   { name: 'rapier with jeweled guard', tags: ['rapier', 'martial', 'melee', 'light'], weight: 7 },
-  { name: 'paired daggers', tags: ['dual-blades', 'light', 'simple', 'melee'], weight: 8 },
+  { name: 'cane sword with fey etching', tags: ['rapier', 'fey-focus', 'martial', 'melee'], weight: 5 },
+  { name: 'paired daggers', tags: ['dual-blades', 'dagger', 'light', 'simple', 'melee'], weight: 8 },
   { name: 'dual ranger blades', tags: ['dual-blades', 'martial', 'melee'], weight: 7 },
   { name: 'hunting longbow', tags: ['ranged', 'bow', 'longbow', 'martial'], weight: 7 },
+  { name: 'shortbow and scout knife', tags: ['ranged', 'bow', 'shortbow', 'dagger', 'light'], weight: 6 },
   { name: 'ranger spear', tags: ['spear', 'simple', 'melee'], weight: 6 },
+  { name: 'handaxe and tracking cord', tags: ['handaxe', 'simple', 'melee'], weight: 5 },
   { name: 'heavy greatsword', tags: ['heavy', 'martial', 'melee', 'greatsword'], weight: 6 },
   { name: 'heavy greataxe', tags: ['heavy', 'martial', 'melee', 'greataxe'], weight: 7 },
   { name: 'oversized maul', tags: ['heavy', 'oversized', 'martial', 'melee'], weight: 4 },
   { name: 'alchemist tools and sparking wrench', tags: ['tool', 'mechanical-focus'], weight: 7 },
-  { name: 'clockwork gauntlet focus', tags: ['mechanical-focus', 'magic-focus', 'tool'], weight: 6 },
+  { name: 'clockwork gauntlet focus', tags: ['mechanical-focus', 'magic-focus', 'tool', 'mechanical-weapon'], weight: 6 },
+  { name: 'pistol-like arcane calibrator', tags: ['mechanical-focus', 'mechanical-weapon', 'tool', 'ranged'], weight: 4 },
   { name: 'lute reinforced as a dueling club', tags: ['instrument', 'tool', 'simple', 'melee'], weight: 5 },
-  { name: 'annotated map and compass', tags: ['map', 'tool'], weight: 5 },
+  { name: 'enchanted flute focus', tags: ['flute', 'instrument', 'fey-focus', 'tool'], weight: 5 },
+  { name: 'fey crystal focus', tags: ['fey-focus', 'magic-focus'], weight: 5 },
 ];
 
 export const poses: Array<WeightedOption<PoseOption>> = [
   { name: 'ready stance on a cracked dungeon tile', tags: ['general'], weight: 6 },
   { name: 'turning mid-stride as cloak whips around', tags: ['general'], weight: 5 },
+  { name: 'weapon raised in a decisive challenge', tags: ['general'], weight: 6 },
   { name: 'aiming down a rain-darkened arrow', tags: ['bow'], weight: 7 },
   { name: 'kneeling shot behind broken cover', tags: ['bow'], weight: 6 },
   { name: 'drawing a bowstring with held breath', tags: ['bow'], weight: 7 },
+  { name: 'tracking footprints with cloak pulled low', tags: ['tracking'], weight: 6 },
   { name: 'shield braced against incoming sparks', tags: ['shield'], weight: 7 },
   { name: 'guarded stance behind a raised shield', tags: ['shield'], weight: 6 },
   { name: 'forward rapier thrust', tags: ['rapier'], weight: 6 },
@@ -272,8 +297,11 @@ export const poses: Array<WeightedOption<PoseOption>> = [
   { name: 'casting with both hands in a spiral gesture', tags: ['casting'], weight: 7 },
   { name: 'tracing a glowing sigil in the air', tags: ['casting'], weight: 7 },
   { name: 'studying a map under candlelight', tags: ['map'], weight: 5 },
-  { name: 'tinkering with sparking tools at a workbench', tags: ['tools'], weight: 6 },
   { name: 'ritual prep around carefully arranged instruments', tags: ['tools', 'casting'], weight: 5 },
+  { name: 'kneeling prayer as holy light gathers', tags: ['prayer'], weight: 6 },
+  { name: 'performing a playful fey flourish', tags: ['performance'], weight: 5 },
+  { name: 'tinkering with sparking tools at a workbench', tags: ['tools'], weight: 6 },
+  { name: 'casting through a humming mechanical device', tags: ['tools', 'casting'], weight: 5 },
   { name: 'balanced on one hand in a martial arts sweep', tags: ['monk'], weight: 5 },
   { name: 'flying kick with prayer beads suspended midair', tags: ['monk'], weight: 5 },
 ];
@@ -288,18 +316,202 @@ export const emotions: Array<WeightedOption<{ name: string }>> = [
   { name: 'reckless joy', weight: 5 },
 ];
 
-export const moodBundles: Array<WeightedOption<MoodOption>> = [
-  { name: 'void-cursed omen', light: 'cold moon rim light', fx: 'purple void energy', tags: ['cursed', 'void'], weight: 8 },
-  { name: 'haunted midnight ritual', light: 'void glow from below', fx: 'black-violet motes', tags: ['cursed', 'void', 'shadow'], weight: 7 },
-  { name: 'radiant temple resolve', light: 'golden divine rays', fx: 'spectral feathers', tags: ['holy'], weight: 8 },
-  { name: 'battlefield benediction', light: 'warm sunrise halo', fx: 'floating gold sparks', tags: ['holy', 'battlefield'], weight: 6 },
-  { name: 'grim dungeon hunt', light: 'warm torchlight from below', fx: 'swirling mist', tags: ['hunter', 'streetwise'], weight: 8 },
-  { name: 'rainy alley ambush', light: 'low lantern light', fx: 'wet cobblestone haze', tags: ['streetwise', 'hunter'], weight: 6 },
-  { name: 'mysterious fey dream', light: 'soft green witchfire glow', fx: 'petals and whimsical particles', tags: ['fey'], weight: 8 },
-  { name: 'moonlit forest charm', light: 'soft moonlit glade glow', fx: 'tiny constellation motes', tags: ['fey', 'nature'], weight: 6 },
-  { name: 'arcane study wonder', light: 'blue arcane glyph light', fx: 'subtle magical runes', tags: ['mage', 'scholar'], weight: 8 },
-  { name: 'clockwork workshop focus', light: 'amber workbench lamp', fx: 'sparks from enchanted gears', tags: ['tools', 'scholar'], weight: 7 },
-  { name: 'wild frontier dusk', light: 'golden sunset through trees', fx: 'falling autumn leaves', tags: ['nature', 'hunter'], weight: 7 },
-  { name: 'battle-scarred epic', light: 'storm lightning silhouette', fx: 'sparks from enchanted steel', tags: ['battlefield', 'draconic'], weight: 7 },
-  { name: 'salt-stained relic dive', light: 'green-blue underwater glow', fx: 'bubbles around ancient coins', tags: ['pirate', 'tools'], weight: 5 },
+export const moods: Array<WeightedOption<MoodOption>> = [
+  { name: 'void-cursed omen', tags: ['cursed', 'void'], weight: 8 },
+  { name: 'haunted midnight ritual', tags: ['cursed', 'void', 'shadow'], weight: 7 },
+  { name: 'radiant temple resolve', tags: ['holy'], weight: 8 },
+  { name: 'battlefield benediction', tags: ['holy', 'battlefield'], weight: 6 },
+  { name: 'grim dungeon hunt', tags: ['hunter', 'streetwise'], weight: 8 },
+  { name: 'rainy alley ambush', tags: ['streetwise', 'hunter'], weight: 6 },
+  { name: 'mysterious fey dream', tags: ['fey'], weight: 8 },
+  { name: 'moonlit forest charm', tags: ['fey', 'nature'], weight: 6 },
+  { name: 'arcane study wonder', tags: ['mage', 'scholar'], weight: 8 },
+  { name: 'clockwork workshop focus', tags: ['tools', 'scholar'], weight: 7 },
+  { name: 'wild frontier dusk', tags: ['nature', 'hunter', 'frontier'], weight: 7 },
+  { name: 'battle-scarred epic', tags: ['battlefield', 'draconic'], weight: 7 },
+  { name: 'salt-stained relic dive', tags: ['pirate', 'tools'], weight: 5 },
+];
+
+export const lights: Array<WeightedOption<LightOption>> = [
+  { name: 'cold moon rim light', tags: ['cursed', 'void', 'shadow'], weight: 7 },
+  { name: 'void glow from below', tags: ['void', 'cursed'], weight: 6 },
+  { name: 'golden divine rays', tags: ['holy'], weight: 8 },
+  { name: 'warm sunrise halo', tags: ['holy', 'battlefield'], weight: 6 },
+  { name: 'warm torchlight from below', tags: ['hunter', 'streetwise'], weight: 8 },
+  { name: 'low lantern light', tags: ['streetwise', 'hunter'], weight: 6 },
+  { name: 'soft green witchfire glow', tags: ['fey'], weight: 8 },
+  { name: 'soft moonlit glade glow', tags: ['fey', 'nature'], weight: 6 },
+  { name: 'blue arcane glyph light', tags: ['mage', 'scholar', 'arcane'], weight: 8 },
+  { name: 'amber workbench lamp', tags: ['tools', 'scholar'], weight: 7 },
+  { name: 'golden sunset through trees', tags: ['nature', 'hunter', 'frontier'], weight: 7 },
+  { name: 'storm lightning silhouette', tags: ['battlefield', 'draconic'], weight: 7 },
+  { name: 'candlelit map glow', tags: ['cartographer', 'scholar'], weight: 7 },
+  { name: 'mechanical blue-white glow', tags: ['tools'], weight: 6 },
+];
+
+export const effects: Array<WeightedOption<FxOption>> = [
+  { name: 'purple void energy', tags: ['cursed', 'void'], weight: 8 },
+  { name: 'black-violet motes', tags: ['cursed', 'void', 'shadow'], weight: 7 },
+  { name: 'spectral feathers', tags: ['holy'], weight: 8 },
+  { name: 'divine rays', tags: ['holy'], weight: 8 },
+  { name: 'dark holy glow', tags: ['holy', 'fallen', 'cursed'], weight: 6 },
+  { name: 'swirling mist', tags: ['hunter', 'streetwise'], weight: 8 },
+  { name: 'wet cobblestone haze', tags: ['streetwise', 'hunter'], weight: 6 },
+  { name: 'petals and whimsical particles', tags: ['fey', 'trickster'], weight: 8 },
+  { name: 'green witchfire', tags: ['fey'], weight: 7 },
+  { name: 'soft fey glow', tags: ['fey'], weight: 6 },
+  { name: 'subtle magical runes', tags: ['mage', 'scholar', 'cartographer'], weight: 8 },
+  { name: 'map glow lines', tags: ['cartographer', 'scholar'], weight: 7 },
+  { name: 'sparks from enchanted gears', tags: ['tools', 'scholar'], weight: 7 },
+  { name: 'falling autumn leaves', tags: ['nature', 'hunter', 'frontier'], weight: 7 },
+  { name: 'sparks from enchanted steel', tags: ['battlefield', 'draconic'], weight: 7 },
+  { name: 'floating embers', tags: ['battlefield', 'tools'], weight: 6 },
+  { name: 'mechanical glow', tags: ['tools'], weight: 6 },
+];
+
+export const buildTemplates: Array<WeightedOption<BuildTemplate>> = [
+  {
+    id: 'arcane_caster',
+    label: 'Arcane Caster',
+    allowedClasses: ['wizard', 'sorcerer', 'warlock'],
+    preferredArchetypes: ['arcane academy dropout', 'void-pact oracle', 'cursed cartographer'],
+    preferredArchetypeTags: ['mage', 'academy', 'arcane', 'void', 'scholar', 'cartographer'],
+    allowedArmor: ['embroidered arcane robes', 'travel-worn cloth layers', 'plain monastery cloth'],
+    allowedWeapons: ['oak spell staff', 'crystal orb focus', 'silver wand focus', 'weathered spellbook', 'scroll case and compass'],
+    allowedPoses: ['casting with both hands in a spiral gesture', 'tracing a glowing sigil in the air', 'studying a map under candlelight', 'ritual prep around carefully arranged instruments'],
+    allowedSilhouettes: ['tall robed column', 'asymmetrical cloak profile', 'lean and sharp-edged'],
+    allowedMoods: ['arcane study wonder', 'void-cursed omen', 'haunted midnight ritual'],
+    allowedLights: ['blue arcane glyph light', 'cold moon rim light', 'void glow from below', 'candlelit map glow'],
+    allowedFx: ['subtle magical runes', 'purple void energy', 'black-violet motes', 'map glow lines'],
+    forbiddenTags: ['light', 'medium', 'heavy', 'metal', 'shield', 'rapier', 'greataxe', 'longbow', 'bow'],
+    weight: 9,
+  },
+  {
+    id: 'holy_warrior',
+    label: 'Holy Warrior',
+    allowedClasses: ['paladin', 'cleric', 'fighter'],
+    preferredArchetypes: ['exiled temple guardian', 'wandering battlefield medic', 'fallen oathkeeper', 'iron wall veteran'],
+    preferredArchetypeTags: ['holy', 'oathkeeper', 'fallen', 'battlefield'],
+    allowedArmor: ['scale mail with heraldic sash', 'half plate with campaign dents', 'chain mail under a weathered tabard', 'full plate with engraved pauldrons'],
+    allowedWeapons: ['mace and holy shield', 'longsword and round shield', 'ritual warhammer', 'silver holy symbol and staff'],
+    allowedPoses: ['shield braced against incoming sparks', 'guarded stance behind a raised shield', 'weapon raised in a decisive challenge', 'kneeling prayer as holy light gathers', 'casting with both hands in a spiral gesture'],
+    allowedSilhouettes: ['stocky shield-forward stance', 'broad heroic triangle', 'tall robed column'],
+    allowedMoods: ['radiant temple resolve', 'battlefield benediction', 'battle-scarred epic'],
+    allowedLights: ['golden divine rays', 'warm sunrise halo', 'storm lightning silhouette'],
+    allowedFx: ['divine rays', 'spectral feathers', 'dark holy glow', 'sparks from enchanted steel'],
+    forbiddenTags: ['dagger', 'dual-blades', 'rapier', 'fey-focus'],
+    weight: 8,
+  },
+  {
+    id: 'savage_berserker',
+    label: 'Savage Berserker',
+    allowedClasses: ['barbarian', 'fighter', 'paladin', 'warlock'],
+    preferredArchetypes: ['rage-scarred clan champion', 'dragon cult defector', 'fallen oathkeeper', 'wild frontier scout'],
+    preferredArchetypeTags: ['battlefield', 'draconic', 'fallen', 'frontier', 'scout'],
+    allowedArmor: ['fur-lined hide armor', 'travel-worn cloth layers', 'patched leather armor', 'half plate with campaign dents'],
+    allowedWeapons: ['heavy greataxe', 'oversized maul', 'heavy greatsword', 'ranger spear', 'handaxe and tracking cord'],
+    allowedPoses: ['overhead strike with a heavy blade', 'ground slam sending dust through the scene', 'ready stance on a cracked dungeon tile', 'weapon raised in a decisive challenge'],
+    allowedSilhouettes: ['broad heroic triangle', 'towering bestial frame', 'lean and sharp-edged'],
+    allowedMoods: ['battle-scarred epic', 'wild frontier dusk', 'void-cursed omen'],
+    allowedLights: ['storm lightning silhouette', 'golden sunset through trees', 'cold moon rim light'],
+    allowedFx: ['sparks from enchanted steel', 'falling autumn leaves', 'floating embers', 'dark holy glow'],
+    forbiddenTags: ['rapier', 'longbow', 'shield', 'map'],
+    weight: 7,
+  },
+  {
+    id: 'shadow_skirmisher',
+    label: 'Shadow Skirmisher',
+    allowedClasses: ['rogue', 'ranger', 'fighter'],
+    preferredArchetypes: ['streetwise monster hunter', 'silent monastery avenger', 'haunted noble heir', 'pirate relic diver'],
+    preferredArchetypeTags: ['streetwise', 'hunter', 'shadow', 'pirate'],
+    allowedArmor: ['patched leather armor', 'studded leather with hidden knives', 'travel cloak over leather'],
+    allowedWeapons: ['paired daggers', 'rapier with jeweled guard', 'shortbow and scout knife', 'hunting longbow', 'dual ranger blades', 'annotated map and compass', 'scroll case and compass'],
+    allowedPoses: ['ready stance on a cracked dungeon tile', 'turning mid-stride as cloak whips around', 'forward rapier thrust', 'duelist turn with one foot sliding back', 'aiming down a rain-darkened arrow', 'drawing a bowstring with held breath', 'studying a map under candlelight', 'ritual prep around carefully arranged instruments'],
+    allowedSilhouettes: ['lean and sharp-edged', 'compact and nimble', 'asymmetrical cloak profile'],
+    allowedMoods: ['grim dungeon hunt', 'rainy alley ambush', 'haunted midnight ritual'],
+    allowedLights: ['warm torchlight from below', 'low lantern light', 'cold moon rim light', 'candlelit map glow'],
+    allowedFx: ['swirling mist', 'wet cobblestone haze', 'black-violet motes', 'subtle magical runes', 'map glow lines'],
+    forbiddenTags: ['heavy', 'shield'],
+    weight: 8,
+  },
+  {
+    id: 'fey_trickster',
+    label: 'Fey Trickster',
+    allowedClasses: ['bard', 'rogue', 'warlock', 'sorcerer', 'druid'],
+    preferredArchetypes: ['fey-touched trickster', 'haunted noble heir', 'pirate relic diver'],
+    preferredArchetypeTags: ['fey', 'trickster', 'pirate'],
+    allowedArmor: ['travel-worn cloth layers', 'patched leather armor', 'travel cloak over leather'],
+    allowedWeapons: ['rapier with jeweled guard', 'cane sword with fey etching', 'paired daggers', 'lute reinforced as a dueling club', 'enchanted flute focus', 'fey crystal focus'],
+    allowedPoses: ['turning mid-stride as cloak whips around', 'weapon raised in a decisive challenge', 'casting with both hands in a spiral gesture', 'performing a playful fey flourish', 'duelist turn with one foot sliding back'],
+    allowedSilhouettes: ['willowy fey outline', 'asymmetrical cloak profile', 'compact and nimble', 'lean and sharp-edged'],
+    allowedMoods: ['mysterious fey dream', 'moonlit forest charm', 'rainy alley ambush'],
+    allowedLights: ['soft green witchfire glow', 'soft moonlit glade glow', 'low lantern light'],
+    allowedFx: ['petals and whimsical particles', 'green witchfire', 'soft fey glow', 'sparks from enchanted gears'],
+    forbiddenTags: ['heavy', 'greataxe', 'bestial'],
+    weight: 7,
+  },
+  {
+    id: 'divine_scholar',
+    label: 'Divine Scholar',
+    allowedClasses: ['artificer', 'barbarian', 'bard', 'cleric', 'druid', 'fighter', 'monk', 'paladin', 'ranger', 'rogue', 'sorcerer', 'warlock', 'wizard'],
+    preferredArchetypes: ['cursed cartographer', 'clockwork scholar', 'arcane academy dropout', 'wandering battlefield medic'],
+    preferredArchetypeTags: ['cartographer', 'scholar', 'holy', 'mage'],
+    allowedArmor: ['embroidered arcane robes', 'travel-worn cloth layers', 'scale mail with heraldic sash', 'half plate with campaign dents'],
+    allowedWeapons: ['annotated map and compass', 'scroll case and compass', 'holy book and ritual staff', 'oak spell staff', 'ritual warhammer'],
+    allowedPoses: ['studying a map under candlelight', 'ritual prep around carefully arranged instruments', 'kneeling prayer as holy light gathers', 'tracing a glowing sigil in the air'],
+    allowedSilhouettes: ['tall robed column', 'asymmetrical cloak profile', 'stocky shield-forward stance', 'gadget-laden workshop silhouette'],
+    allowedMoods: ['arcane study wonder', 'radiant temple resolve', 'clockwork workshop focus'],
+    allowedLights: ['candlelit map glow', 'blue arcane glyph light', 'golden divine rays', 'amber workbench lamp'],
+    allowedFx: ['subtle magical runes', 'map glow lines', 'divine rays', 'spectral feathers'],
+    forbiddenTags: ['rapier', 'greataxe', 'longbow', 'oversized'],
+    weight: 6,
+  },
+  {
+    id: 'battle_engineer',
+    label: 'Battle Engineer',
+    allowedClasses: ['artificer', 'cleric', 'warlock'],
+    preferredArchetypes: ['clockwork scholar', 'runaway alchemist', 'pirate relic diver', 'arcane academy dropout'],
+    preferredArchetypeTags: ['tools', 'scholar', 'arcane', 'pirate'],
+    allowedArmor: ['reinforced artificer coat', 'mechanical bracers over a work coat', 'patched leather armor', 'half plate with campaign dents'],
+    allowedWeapons: ['alchemist tools and sparking wrench', 'clockwork gauntlet focus', 'pistol-like arcane calibrator', 'ritual warhammer', 'oak spell staff'],
+    allowedPoses: ['tinkering with sparking tools at a workbench', 'casting through a humming mechanical device', 'ritual prep around carefully arranged instruments', 'weapon raised in a decisive challenge'],
+    allowedSilhouettes: ['gadget-laden workshop silhouette', 'compact and nimble', 'broad heroic triangle'],
+    allowedMoods: ['clockwork workshop focus', 'arcane study wonder', 'salt-stained relic dive'],
+    allowedLights: ['amber workbench lamp', 'mechanical blue-white glow', 'blue arcane glyph light'],
+    allowedFx: ['sparks from enchanted gears', 'subtle magical runes', 'floating embers', 'mechanical glow'],
+    forbiddenTags: ['natural', 'bestial', 'greataxe', 'longbow'],
+    weight: 6,
+  },
+  {
+    id: 'frontier_hunter',
+    label: 'Frontier Hunter',
+    allowedClasses: ['ranger', 'fighter', 'rogue', 'barbarian'],
+    preferredArchetypes: ['wild frontier scout', 'streetwise monster hunter', 'rage-scarred clan champion'],
+    preferredArchetypeTags: ['frontier', 'scout', 'hunter', 'nature'],
+    allowedArmor: ['patched leather armor', 'studded leather with hidden knives', 'fur-lined hide armor', 'half plate with campaign dents'],
+    allowedWeapons: ['hunting longbow', 'shortbow and scout knife', 'ranger spear', 'handaxe and tracking cord', 'dual ranger blades', 'annotated map and compass', 'scroll case and compass'],
+    allowedPoses: ['aiming down a rain-darkened arrow', 'drawing a bowstring with held breath', 'tracking footprints with cloak pulled low', 'ready stance on a cracked dungeon tile', 'turning mid-stride as cloak whips around', 'studying a map under candlelight', 'ritual prep around carefully arranged instruments'],
+    allowedSilhouettes: ['lean and sharp-edged', 'compact and nimble', 'asymmetrical cloak profile', 'broad heroic triangle'],
+    allowedMoods: ['wild frontier dusk', 'grim dungeon hunt', 'rainy alley ambush'],
+    allowedLights: ['golden sunset through trees', 'warm torchlight from below', 'low lantern light', 'candlelit map glow'],
+    allowedFx: ['falling autumn leaves', 'swirling mist', 'wet cobblestone haze', 'subtle magical runes', 'map glow lines'],
+    forbiddenTags: ['robed', 'cloth', 'magic-focus'],
+    weight: 8,
+  },
+  {
+    id: 'wandering_martial_artist',
+    label: 'Wandering Martial Artist',
+    allowedClasses: ['monk'],
+    preferredArchetypes: ['silent monastery avenger', 'exiled temple guardian'],
+    preferredArchetypeTags: ['shadow', 'holy'],
+    allowedArmor: ['no armor, simple travel wraps', 'plain monastery cloth', 'travel-worn cloth layers'],
+    allowedWeapons: ['unarmed strikes and prayer beads', 'quarterstaff carved with runes', 'simple monk shortspear'],
+    allowedPoses: ['balanced on one hand in a martial arts sweep', 'flying kick with prayer beads suspended midair', 'ready stance on a cracked dungeon tile'],
+    allowedSilhouettes: ['compact and nimble', 'lean and sharp-edged', 'asymmetrical cloak profile'],
+    allowedMoods: ['radiant temple resolve', 'haunted midnight ritual', 'grim dungeon hunt'],
+    allowedLights: ['golden divine rays', 'cold moon rim light', 'warm torchlight from below'],
+    allowedFx: ['spectral feathers', 'black-violet motes', 'swirling mist'],
+    forbiddenTags: ['light', 'medium', 'heavy', 'metal', 'shield', 'rapier', 'longbow', 'greataxe'],
+    weight: 5,
+  },
 ];

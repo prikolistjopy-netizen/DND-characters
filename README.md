@@ -34,4 +34,4 @@ npm run build
 npm run debug-check
 ```
 
-The debug check compiles the generator into a temporary CommonJS folder, generates 500 seeds, and fails if any v2 coherence rule is violated.
+The debug check compiles the generator into a temporary CommonJS folder, generates 1000 seeds, and fails if any build-template v2 coherence rule is violated.
