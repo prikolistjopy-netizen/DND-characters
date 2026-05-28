@@ -71,9 +71,9 @@ const hardArmorTags = ['light', 'medium', 'heavy', 'metal'];
 const fallbackTemplateByClass: Record<CharacterClass, string> = {
   artificer: 'battle_engineer',
   barbarian: 'savage_berserker',
-  bard: 'fey_trickster',
+  bard: 'skald_performer',
   cleric: 'holy_warrior',
-  druid: 'fey_trickster',
+  druid: 'frontier_hunter',
   fighter: 'frontier_hunter',
   monk: 'wandering_martial_artist',
   paladin: 'holy_warrior',
@@ -139,34 +139,92 @@ function isScholarLike(archetype: ArchetypeOption): boolean {
   return archetype.tags.includes('scholar') || archetype.tags.includes('academy') || archetype.tags.includes('arcane');
 }
 
+function canUseDivineScholar(primaryClass: CharacterClass, archetype: ArchetypeOption): boolean {
+  return ['cleric', 'paladin', 'wizard', 'sorcerer', 'artificer'].includes(primaryClass) || isCartographerLike(archetype) || isScholarLike(archetype);
+}
+
+function preferredTemplateIds(primaryClass: CharacterClass, archetype: ArchetypeOption, mode: Mode): string[] {
+  if (mode !== 'chaos' && primaryClass === 'monk') {
+    return ['wandering_martial_artist'];
+  }
+
+  if (primaryClass === 'bard') {
+    if (canUseDivineScholar(primaryClass, archetype)) {
+      return ['divine_scholar', 'skald_performer'];
+    }
+    return hasAny(archetype.tags, ['fey', 'trickster']) ? ['fey_trickster', 'skald_performer'] : ['skald_performer', 'fey_trickster'];
+  }
+
+  if (primaryClass === 'artificer') {
+    return canUseDivineScholar(primaryClass, archetype) ? ['battle_engineer', 'divine_scholar'] : ['battle_engineer'];
+  }
+
+  if (primaryClass === 'warlock') {
+    if (hasAny(archetype.tags, ['fey', 'trickster'])) {
+      return ['fey_trickster', 'arcane_caster'];
+    }
+    return ['arcane_caster', 'fey_trickster'];
+  }
+
+  if (primaryClass === 'rogue') {
+    return hasAny(archetype.tags, ['fey', 'trickster']) ? ['fey_trickster', 'shadow_skirmisher'] : ['shadow_skirmisher', 'fey_trickster'];
+  }
+
+  if (casterClasses.includes(primaryClass)) {
+    return canUseDivineScholar(primaryClass, archetype) ? ['arcane_caster', 'divine_scholar'] : ['arcane_caster'];
+  }
+
+  if (['cleric', 'paladin'].includes(primaryClass)) {
+    return canUseDivineScholar(primaryClass, archetype) ? ['holy_warrior', 'divine_scholar'] : ['holy_warrior'];
+  }
+
+  if (primaryClass === 'barbarian') {
+    return hasAny(archetype.tags, ['frontier', 'scout', 'hunter']) ? ['frontier_hunter', 'savage_berserker'] : ['savage_berserker', 'frontier_hunter'];
+  }
+
+  if (primaryClass === 'druid') {
+    if (canUseDivineScholar(primaryClass, archetype)) {
+      return ['divine_scholar', 'frontier_hunter'];
+    }
+    return hasAny(archetype.tags, ['fey', 'trickster']) ? ['fey_trickster', 'frontier_hunter'] : ['frontier_hunter', 'fey_trickster'];
+  }
+
+  if (primaryClass === 'ranger') {
+    return ['frontier_hunter', 'shadow_skirmisher'];
+  }
+
+  if (primaryClass === 'fighter') {
+    return hasAny(archetype.tags, ['holy', 'oathkeeper', 'fallen']) ? ['holy_warrior', 'frontier_hunter', 'savage_berserker'] : ['frontier_hunter', 'savage_berserker', 'shadow_skirmisher'];
+  }
+
+  return [fallbackTemplateByClass[primaryClass]];
+}
+
 function getCompatibleArchetypes(classes: CharacterClass[]) {
   return archetypes.filter((archetype) => archetype.classes.some((className) => classes.includes(className)));
 }
 
-function pickArchetype(classes: CharacterClass[]): ArchetypeOption {
+function pickArchetype(classes: CharacterClass[], primaryClass: CharacterClass): ArchetypeOption {
+  const primaryCompatible = archetypes.filter((archetype) => archetype.classes.includes(primaryClass));
   const compatible = getCompatibleArchetypes(classes);
-  return weightedPick(compatible.length > 0 ? compatible : archetypes);
+  return weightedPick(primaryCompatible.length > 0 ? primaryCompatible : compatible.length > 0 ? compatible : archetypes);
 }
 
 function getTemplate(id: string): BuildTemplate {
   return buildTemplates.find((template) => template.id === id) ?? buildTemplates[0];
 }
 
-function templateScore(template: BuildTemplate, primaryClass: CharacterClass, archetype: ArchetypeOption, race: RaceOption): number {
+function templateScore(template: BuildTemplate, primaryClass: CharacterClass, archetype: ArchetypeOption, race: RaceOption, mode: Mode): number {
   if (!template.allowedClasses.includes(primaryClass)) {
     return -1;
   }
 
-  if (
-    template.id === 'divine_scholar' &&
-    !['cleric', 'wizard', 'artificer'].includes(primaryClass) &&
-    !isCartographerLike(archetype) &&
-    !isScholarLike(archetype)
-  ) {
+  const preferredIds = preferredTemplateIds(primaryClass, archetype, mode);
+  if (!preferredIds.includes(template.id)) {
     return -1;
   }
 
-  let score = 1;
+  let score = 10 - preferredIds.indexOf(template.id) * 2;
 
   if (template.preferredArchetypes.includes(archetype.name)) {
     score += 8;
@@ -189,9 +247,9 @@ function templateScore(template: BuildTemplate, primaryClass: CharacterClass, ar
   return score;
 }
 
-function selectBuildTemplate(primaryClass: CharacterClass, archetype: ArchetypeOption, race: RaceOption): TemplateSelection {
+function selectBuildTemplate(primaryClass: CharacterClass, archetype: ArchetypeOption, race: RaceOption, mode: Mode): TemplateSelection {
   const scored = buildTemplates
-    .map((template) => ({ template, score: templateScore(template, primaryClass, archetype, race) }))
+    .map((template) => ({ template, score: templateScore(template, primaryClass, archetype, race, mode) }))
     .filter((entry) => entry.score > 1);
 
   if (scored.length > 0) {
@@ -200,7 +258,7 @@ function selectBuildTemplate(primaryClass: CharacterClass, archetype: ArchetypeO
     const template = weightedPick(best);
     return {
       template,
-      reason: `matched primary class ${primaryClass} and archetype tags ${archetype.tags.join(', ')}`,
+      reason: `primary class ${primaryClass} preferred ${preferredTemplateIds(primaryClass, archetype, mode).join(' / ')}; matched archetype tags ${archetype.tags.join(', ')}`,
     };
   }
 
@@ -264,13 +322,25 @@ function constrainedPoseOptions(template: BuildTemplate, archetype: ArchetypeOpt
   ]);
 }
 
-function constrainedSilhouetteOptions(template: BuildTemplate, seed: Pick<CharacterSeed, 'mode' | 'race' | 'archetype'>) {
+function constrainedSilhouetteOptions(template: BuildTemplate, seed: Pick<CharacterSeed, 'mode' | 'primaryClass' | 'race' | 'archetype'>) {
   const options = templateOptions(silhouettes, template.allowedSilhouettes).filter((silhouette) => {
     if (smallRaceNames.includes(seed.race.name) && ['tall robed column', 'towering bestial frame'].includes(silhouette.name)) {
       return false;
     }
 
     if (seed.race.tags.includes('fey') && ['tall robed column', 'towering bestial frame'].includes(silhouette.name)) {
+      return false;
+    }
+
+    if (silhouette.name === 'gadget-laden workshop silhouette' && template.id !== 'battle_engineer' && seed.primaryClass !== 'artificer' && !hasAny(seed.archetype.tags, ['academy', 'tools'])) {
+      return false;
+    }
+
+    if (silhouette.name === 'willowy fey outline' && ['dwarf', 'half-orc'].includes(seed.race.name)) {
+      return false;
+    }
+
+    if (silhouette.name === 'towering bestial frame' && seed.mode !== 'chaos' && seed.primaryClass !== 'barbarian' && seed.race.name !== 'half-orc') {
       return false;
     }
 
@@ -295,6 +365,11 @@ function constrainedLightOptions(template: BuildTemplate, archetype: ArchetypeOp
 
 function constrainedFxOptions(template: BuildTemplate, archetype: ArchetypeOption) {
   const options = templateOptions(effects, template.allowedFx);
+
+  if (template.id === 'fey_trickster') {
+    return options.filter((fx) => hasAny(fx.tags, ['fey', 'trickster']));
+  }
+
   return prefer(options, [
     (fx) => isCartographerLike(archetype) && hasAny(fx.tags, ['cartographer', 'scholar']),
     (fx) => (archetype.tags.includes('oathkeeper') || archetype.tags.includes('fallen')) && hasAny(fx.tags, ['holy', 'fallen']),
@@ -309,11 +384,11 @@ function createSeed(): CharacterSeed {
   const classes = pickClasses(mode);
   const primaryClass = classes[0];
   const race = weightedPick(races);
-  const archetype = pickArchetype(classes);
-  const { template: buildTemplate, reason: templateReason } = selectBuildTemplate(primaryClass, archetype, race);
+  const archetype = pickArchetype(classes, primaryClass);
+  const { template: buildTemplate, reason: templateReason } = selectBuildTemplate(primaryClass, archetype, race, mode);
   const armor = weightedPick(constrainedArmorOptions(buildTemplate, archetype, primaryClass));
   const weapon = weightedPick(constrainedWeaponOptions(buildTemplate, archetype));
-  const silhouette = weightedPick(constrainedSilhouetteOptions(buildTemplate, { mode, race, archetype }));
+  const silhouette = weightedPick(constrainedSilhouetteOptions(buildTemplate, { mode, primaryClass, race, archetype }));
   const pose = weightedPick(constrainedPoseOptions(buildTemplate, archetype, weapon));
 
   return {
@@ -359,6 +434,23 @@ function usesForbiddenTemplateTag(seed: CharacterSeed): boolean {
     ...seed.fx.tags,
   ];
   return seed.buildTemplate.forbiddenTags.some((tag) => tags.includes(tag));
+}
+
+
+function hasWarlockCursedOrVoid(seed: CharacterSeed): boolean {
+  return seed.classes.includes('warlock') || hasAny(seed.archetype.tags, ['cursed', 'void']);
+}
+
+function hasHolyContext(seed: CharacterSeed): boolean {
+  return hasAny(seed.archetype.tags, ['holy', 'oathkeeper', 'fallen']) || ['cleric', 'paladin'].some((className) => seed.classes.includes(className as CharacterClass));
+}
+
+function hasFeyContext(seed: CharacterSeed): boolean {
+  return hasAny(seed.archetype.tags, ['fey', 'trickster']) || ['satyr', 'fairy'].includes(seed.race.name) || seed.race.tags.includes('fey');
+}
+
+function hasMapContext(seed: CharacterSeed): boolean {
+  return isCartographerLike(seed.archetype) || isScholarLike(seed.archetype) || hasAny(seed.weapon.tags, ['map', 'book', 'scroll', 'compass']) || seed.pose.name === 'ritual prep around carefully arranged instruments';
 }
 
 export function validateGeneratedSeed(seed: CharacterSeed): ValidationIssue[] {
@@ -426,12 +518,48 @@ export function validateGeneratedSeed(seed: CharacterSeed): ValidationIssue[] {
     issues.push({ message: 'cartographer archetype requires map/compass/scroll/book/staff and map/ritual pose', layers: ['weapon', 'pose', 'fx', 'light'] });
   }
 
+  if (seed.fx.name === 'black-violet motes' && hasAny(seed.archetype.tags, ['holy']) && !hasWarlockCursedOrVoid(seed)) {
+    issues.push({ message: 'black-violet motes require warlock/cursed/void when temple or holy context is present', layers: ['fx'] });
+  }
+
+  if (['spectral feathers', 'divine rays', 'holy glow'].includes(seed.fx.name) && ['rogue', 'barbarian'].includes(seed.primaryClass) && !hasHolyContext(seed)) {
+    issues.push({ message: 'divine FX require holy, temple, or oathkeeper context for pure rogue/barbarian', layers: ['fx'] });
+  }
+
+  if (seed.fx.name === 'map glow lines' && !hasMapContext(seed)) {
+    issues.push({ message: 'map glow lines require cartographer/scholar/academy/map/book/ritual context', layers: ['fx', 'weapon', 'pose'] });
+  }
+
+  if (['green witchfire', 'petals and whimsical particles', 'soft fey glow'].includes(seed.fx.name) && !hasFeyContext(seed)) {
+    issues.push({ message: 'fey FX require fey/trickster/forest/satyr/fairy context', layers: ['fx'] });
+  }
+
+  if (seed.buildTemplate.id === 'fey_trickster' && !['green witchfire', 'petals and whimsical particles', 'soft fey glow'].includes(seed.fx.name)) {
+    issues.push({ message: 'fey_trickster requires fey-compatible FX', layers: ['fx'] });
+  }
+
+  if (seed.primaryClass === 'bard' && seed.buildTemplate.id === 'divine_scholar' && !canUseDivineScholar(seed.primaryClass, seed.archetype)) {
+    issues.push({ message: 'bard can use divine_scholar only with scholar/cartographer/academy/lore archetype', layers: ['template'] });
+  }
+
+  if (seed.silhouette.name === 'gadget-laden workshop silhouette' && seed.buildTemplate.id !== 'battle_engineer' && seed.primaryClass !== 'artificer' && !hasAny(seed.archetype.tags, ['academy', 'tools'])) {
+    issues.push({ message: 'gadget-laden workshop silhouette requires artificer, battle_engineer, or academy engineer context', layers: ['silhouette'] });
+  }
+
+  if (seed.silhouette.name === 'willowy fey outline' && ['dwarf', 'half-orc'].includes(seed.race.name)) {
+    issues.push({ message: 'willowy fey outline is not compatible with dwarf or half-orc', layers: ['silhouette'] });
+  }
+
+  if (seed.silhouette.name === 'towering bestial frame' && seed.mode !== 'chaos' && seed.primaryClass !== 'barbarian' && seed.race.name !== 'half-orc') {
+    issues.push({ message: 'towering bestial frame requires barbarian, half-orc, beast, or chaos context', layers: ['silhouette'] });
+  }
+
   return issues;
 }
 
 function rerollLayer(seed: CharacterSeed, layer: RegenerableLayer): CharacterSeed {
   if (layer === 'template') {
-    const selection = selectBuildTemplate(seed.primaryClass, seed.archetype, seed.race);
+    const selection = selectBuildTemplate(seed.primaryClass, seed.archetype, seed.race, seed.mode);
     return { ...seed, buildTemplate: selection.template, templateReason: selection.reason };
   }
 

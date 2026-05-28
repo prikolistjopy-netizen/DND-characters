@@ -41,7 +41,8 @@ function hasAny(tags, values) {
 }
 
 for (let index = 0; index < sampleSize; index += 1) {
-  const { seed } = generateCharacterSeed();
+  const result = generateCharacterSeed();
+  const { seed } = result;
   const armorTags = seed.armor.tags;
   const weaponTags = seed.weapon.tags;
   const poseTags = seed.pose.tags;
@@ -49,6 +50,42 @@ for (let index = 0; index < sampleSize; index += 1) {
 
   for (const issue of validateGeneratedSeed(seed)) {
     failures.push(`Generated validation issue: ${issue.message} :: ${summary}`);
+  }
+
+  const fxLineCount = result.seedOutput.split('\n').filter((line) => line.startsWith('FX: ')).length;
+  if (fxLineCount !== 1) {
+    failures.push(`seed should have exactly one FX line, found ${fxLineCount} :: ${summary}`);
+  }
+
+  if (
+    seed.primaryClass === 'monk' &&
+    seed.archetype.name === 'exiled temple guardian' &&
+    seed.fx.name === 'black-violet motes' &&
+    !(seed.classes.includes('warlock') || seed.archetype.tags.includes('cursed') || seed.archetype.tags.includes('void'))
+  ) {
+    failures.push(`monk temple guardian received black-violet motes without cursed/warlock/void :: ${summary}`);
+  }
+
+  if (
+    seed.primaryClass === 'bard' &&
+    seed.buildTemplate.id === 'divine_scholar' &&
+    !(seed.archetype.tags.includes('scholar') || seed.archetype.tags.includes('cartographer') || seed.archetype.tags.includes('academy'))
+  ) {
+    failures.push(`bard divine_scholar without scholar/cartographer/academy/lore :: ${summary}`);
+  }
+
+  if (
+    seed.silhouette.name === 'gadget-laden workshop silhouette' &&
+    !(seed.primaryClass === 'artificer' || seed.buildTemplate.id === 'battle_engineer' || seed.archetype.tags.includes('academy') || seed.archetype.tags.includes('tools'))
+  ) {
+    failures.push(`gadget silhouette without artificer/battle_engineer/academy engineer :: ${summary}`);
+  }
+
+  if (
+    seed.buildTemplate.id === 'fey_trickster' &&
+    !['petals and whimsical particles', 'green witchfire', 'soft fey glow'].includes(seed.fx.name)
+  ) {
+    failures.push(`fey_trickster without fey-compatible FX :: ${summary}`);
   }
 
   if (seed.classes.includes('barbarian') && weaponTags.includes('rapier')) {
