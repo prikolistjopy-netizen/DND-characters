@@ -4,7 +4,7 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const outDir = path.join(root, '.debug-check-build');
-const sampleSize = 2000;
+const sampleSize = 3000;
 
 rmSync(outDir, { recursive: true, force: true });
 run(
@@ -46,7 +46,7 @@ for (let index = 0; index < sampleSize; index += 1) {
   const armorTags = seed.armor.tags;
   const weaponTags = seed.weapon.tags;
   const poseTags = seed.pose.tags;
-  const summary = `${seed.race.name} ${seed.size} ${seed.classes.join('/')} ${seed.archetype.name} | ${seed.buildTemplate.id}/${seed.visualTheme.id} | ${seed.silhouette.name} | ${seed.armor.name} | ${seed.weapon.name} | ${seed.pose.name} | ${seed.fx.name}`;
+  const summary = `${seed.race.name} ${seed.size} ${seed.classes.join('/')} ${seed.archetype.name} | ${seed.buildTemplate.id}/${seed.visualTheme.id}/${seed.narrativeMotif?.id ?? 'no-motif'} | ${seed.silhouette.name} | ${seed.armor.name} | ${seed.weapon.name} | ${seed.pose.name} | ${seed.fx.name}`;
 
   for (const issue of validateGeneratedSeed(seed)) {
     failures.push(`Generated validation issue: ${issue.message} :: ${summary}`);
@@ -60,6 +60,20 @@ for (let index = 0; index < sampleSize; index += 1) {
   const themeLineCount = result.seedOutput.split('\n').filter((line) => line.startsWith('Visual Theme: ')).length;
   if (themeLineCount !== 1 || !seed.visualTheme || !seed.visualTheme.id) {
     failures.push(`seed should have exactly one visual theme, found ${themeLineCount} :: ${summary}`);
+  }
+
+  const motifLineCount = result.seedOutput.split('\n').filter((line) => line.startsWith('Narrative Motif: ')).length;
+  if (motifLineCount !== 1 || !seed.narrativeMotif || !seed.narrativeMotif.id) {
+    failures.push(`seed should have exactly one narrative motif, found ${motifLineCount} :: ${summary}`);
+  }
+
+  const storyDetailsLine = result.seedOutput.split('\n').find((line) => line.startsWith('Story Details: '));
+  if (!storyDetailsLine || storyDetailsLine === 'Story Details: ' || storyDetailsLine.trim().endsWith(',')) {
+    failures.push(`story details line must be non-empty and not end with comma :: ${summary}`);
+  }
+
+  if (!seed.storyDetails || seed.storyDetails.length < 2 || seed.storyDetails.some((detail) => detail.trim().length === 0 || detail.trim().endsWith(','))) {
+    failures.push(`story details must contain at least two complete entries :: ${summary}`);
   }
 
   const expectedSizeByRace = {
@@ -100,9 +114,41 @@ for (let index = 0; index < sampleSize; index += 1) {
   if (
     seed.primaryClass === 'bard' &&
     seed.buildTemplate.id === 'divine_scholar' &&
-    !(seed.archetype.tags.includes('scholar') || seed.archetype.tags.includes('cartographer') || seed.archetype.tags.includes('academy'))
+    !(seed.archetype.tags.includes('holy') || seed.archetype.tags.includes('oathkeeper'))
   ) {
-    failures.push(`bard divine_scholar without scholar/cartographer/academy/lore :: ${summary}`);
+    failures.push(`bard divine_scholar without divine/holy/temple context :: ${summary}`);
+  }
+
+  if (
+    seed.primaryClass === 'bard' &&
+    (seed.archetype.tags.includes('academy') || seed.archetype.tags.includes('scholar') || seed.archetype.tags.includes('cartographer')) &&
+    seed.buildTemplate.id === 'divine_scholar' &&
+    !(seed.archetype.tags.includes('holy') || seed.archetype.tags.includes('oathkeeper'))
+  ) {
+    failures.push(`bard academy/scholar received divine_scholar without divine/holy/temple context :: ${summary}`);
+  }
+
+  if (
+    seed.primaryClass === 'fighter' &&
+    seed.buildTemplate.id === 'holy_warrior' &&
+    !(seed.archetype.tags.includes('holy') || seed.archetype.tags.includes('oathkeeper'))
+  ) {
+    failures.push(`fighter without holy archetype received holy_warrior :: ${summary}`);
+  }
+
+  if (seed.weapon.name === 'paired daggers' && ['forward rapier thrust', 'duelist turn with one foot sliding back'].includes(seed.pose.name)) {
+    failures.push(`paired daggers received rapier thrust pose :: ${summary}`);
+  }
+
+  if (['tiny', 'small'].includes(seed.size) && seed.armor.name === 'full plate with engraved pauldrons') {
+    failures.push(`small/tiny race received full plate :: ${summary}`);
+  }
+
+  if (
+    seed.race.name === 'fairy' &&
+    (seed.silhouette.name === 'stocky shield-forward stance' || seed.armor.name === 'full plate with engraved pauldrons' || seed.weapon.tags.includes('oversized'))
+  ) {
+    failures.push(`fairy received stocky/full plate/oversized loadout :: ${summary}`);
   }
 
   if (
@@ -175,4 +221,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`Debug check passed: ${sampleSize} generated seeds satisfy visual-theme v3 coherence rules.`);
+console.log(`Debug check passed: ${sampleSize} generated seeds satisfy narrative-motif v4 coherence rules.`);

@@ -122,6 +122,7 @@ export type PoseTag =
   | 'prayer'
   | 'tracking'
   | 'performance'
+  | 'dual-blades'
   | 'general';
 
 export type PoseOption = {
@@ -158,6 +159,23 @@ export type VisualTheme = {
   preferredPoses: string[];
   preferredSilhouettes: string[];
   visualDetails: string[];
+};
+
+export type NarrativeMotif = {
+  id: string;
+  label: string;
+  weight: number;
+  compatibleBuildTemplates: string[];
+  compatibleVisualThemes: string[];
+  archetypeTags: ArchetypeTag[];
+  classBias: string[];
+  raceBias: string[];
+  forbiddenClasses: string[];
+  forbiddenTags: string[];
+  storyDetails: string[];
+  promptFragments: string[];
+  moodBias: string[];
+  fxBias: string[];
 };
 
 export type BuildTemplate = {
@@ -262,6 +280,10 @@ export const armors: Array<WeightedOption<ArmorOption>> = [
   { name: 'full plate with engraved pauldrons', tags: ['heavy', 'metal'], weight: 4 },
   { name: 'reinforced artificer coat', tags: ['light', 'metal'], weight: 6 },
   { name: 'mechanical bracers over a work coat', tags: ['medium', 'metal'], weight: 5 },
+  { name: 'small fitted chain shirt', tags: ['medium', 'metal'], weight: 5 },
+  { name: 'compact leather harness', tags: ['light'], weight: 6 },
+  { name: 'small travel cloak', tags: ['light', 'cloth'], weight: 6 },
+  { name: 'light ceremonial half-plate', tags: ['medium', 'metal'], weight: 4 },
 ];
 
 export const weapons: Array<WeightedOption<WeaponOption>> = [
@@ -296,6 +318,10 @@ export const weapons: Array<WeightedOption<WeaponOption>> = [
   { name: 'lute reinforced as a dueling club', tags: ['instrument', 'tool', 'simple', 'melee'], weight: 5 },
   { name: 'enchanted flute focus', tags: ['flute', 'instrument', 'fey-focus', 'tool'], weight: 5 },
   { name: 'fey crystal focus', tags: ['fey-focus', 'magic-focus'], weight: 5 },
+  { name: 'spear and torn banner', tags: ['spear', 'martial', 'melee'], weight: 5 },
+  { name: 'song-scroll case', tags: ['scroll', 'book', 'instrument', 'tool'], weight: 6 },
+  { name: 'annotated performance notes', tags: ['book', 'scroll', 'instrument', 'tool'], weight: 5 },
+  { name: 'small spellbook', tags: ['book', 'magic-focus'], weight: 5 },
 ];
 
 export const poses: Array<WeightedOption<PoseOption>> = [
@@ -310,6 +336,9 @@ export const poses: Array<WeightedOption<PoseOption>> = [
   { name: 'guarded stance behind a raised shield', tags: ['shield'], weight: 6 },
   { name: 'forward rapier thrust', tags: ['rapier'], weight: 6 },
   { name: 'duelist turn with one foot sliding back', tags: ['rapier'], weight: 6 },
+  { name: 'dual slash from a low stance', tags: ['dual-blades'], weight: 6 },
+  { name: 'crouched ambush with paired blades', tags: ['dual-blades'], weight: 6 },
+  { name: 'close-quarters ready stance', tags: ['dual-blades', 'general'], weight: 6 },
   { name: 'overhead strike with a heavy blade', tags: ['heavy-melee'], weight: 7 },
   { name: 'ground slam sending dust through the scene', tags: ['heavy-melee'], weight: 6 },
   { name: 'casting with both hands in a spiral gesture', tags: ['casting'], weight: 7 },
@@ -502,7 +531,32 @@ export const visualThemes: Array<WeightedOption<VisualTheme>> = [
   { id: 'pirate_raider', label: 'Pirate Raider Engineer', buildTemplateId: 'battle_engineer', archetypeTags: ['pirate', 'tools'], archetypeNames: ['pirate relic diver'], preferredMoods: ['salt-stained relic dive'], preferredLights: ['amber workbench lamp'], preferredFx: ['sparks from enchanted gears', 'mechanical glow'], preferredWeapons: ['alchemist tools and sparking wrench', 'pistol-like arcane calibrator'], preferredArmor: ['reinforced artificer coat'], preferredPoses: ['tinkering with sparking tools at a workbench'], preferredSilhouettes: ['gadget-laden workshop silhouette'], visualDetails: ['rope belt', 'sea charts', 'barnacle relics'], weight: 8 },
     { id: 'trail_warden', label: 'Trail Warden', buildTemplateId: 'frontier_hunter', archetypeTags: ['frontier', 'scout', 'hunter'], archetypeNames: ['wild frontier scout', 'streetwise monster hunter'], preferredMoods: ['wild frontier dusk', 'grim dungeon hunt'], preferredLights: ['golden sunset through trees', 'warm torchlight from below'], preferredFx: ['falling autumn leaves', 'swirling mist'], preferredWeapons: ['hunting longbow', 'ranger spear'], preferredArmor: ['patched leather armor', 'fur-lined hide armor'], preferredPoses: ['tracking footprints with cloak pulled low', 'aiming down a rain-darkened arrow'], preferredSilhouettes: ['lean and sharp-edged', 'compact and nimble'], visualDetails: ['trail markers', 'muddy map case'], weight: 8 },
   { id: 'lore_skald', label: 'Lore Skald', buildTemplateId: 'skald_performer', archetypeTags: ['noble', 'battlefield', 'pirate'], archetypeNames: ['haunted noble heir', 'pirate relic diver'], preferredMoods: ['rainy alley ambush', 'battle-scarred epic'], preferredLights: ['low lantern light'], preferredFx: ['floating embers', 'swirling mist'], preferredWeapons: ['lute reinforced as a dueling club', 'rapier with jeweled guard'], preferredArmor: ['travel cloak over leather'], preferredPoses: ['performing a playful fey flourish'], preferredSilhouettes: ['asymmetrical cloak profile'], visualDetails: ['song-scroll case', 'trophy tassels'], weight: 7 },
+
+  { id: 'mercenary_captain', label: 'Mercenary Captain', buildTemplateId: 'martial_veteran', archetypeTags: ['battlefield', 'streetwise'], archetypeNames: ['iron wall veteran'], preferredMoods: ['battle-scarred epic'], preferredLights: ['storm lightning silhouette'], preferredFx: ['torn banners in battlefield smoke', 'sparks from enchanted steel'], preferredWeapons: ['longsword and round shield', 'spear and torn banner'], preferredArmor: ['half plate with campaign dents', 'scale mail with heraldic sash'], preferredPoses: ['weapon raised in a decisive challenge'], preferredSilhouettes: ['broad heroic triangle'], visualDetails: ['paymaster tally tags', 'scarred command sash'], weight: 8 },
+  { id: 'royal_guard', label: 'Royal Guard', buildTemplateId: 'martial_veteran', archetypeTags: ['noble', 'oathkeeper'], archetypeNames: ['iron wall veteran'], preferredMoods: ['battlefield benediction'], preferredLights: ['warm sunrise halo'], preferredFx: ['sparks from enchanted steel'], preferredWeapons: ['longsword and round shield', 'ritual warhammer'], preferredArmor: ['chain mail under a weathered tabard', 'full plate with engraved pauldrons'], preferredPoses: ['guarded stance behind a raised shield'], preferredSilhouettes: ['stocky shield-forward stance'], visualDetails: ['polished guard badge', 'creased parade cloak'], weight: 6 },
+  { id: 'arena_champion', label: 'Arena Champion', buildTemplateId: 'martial_veteran', archetypeTags: ['battlefield'], archetypeNames: ['rage-scarred clan champion'], preferredMoods: ['battle-scarred epic'], preferredLights: ['storm lightning silhouette'], preferredFx: ['dust burst'], preferredWeapons: ['heavy greatsword', 'dual ranger blades'], preferredArmor: ['reinforced artificer coat', 'half plate with campaign dents'], preferredPoses: ['overhead strike with a heavy blade', 'dual slash from a low stance'], preferredSilhouettes: ['broad heroic triangle'], visualDetails: ['arena tally scars', 'prize-fighter belt'], weight: 7 },
+  { id: 'veteran_officer', label: 'Veteran Officer', buildTemplateId: 'martial_veteran', archetypeTags: ['battlefield'], archetypeNames: ['wandering battlefield medic'], preferredMoods: ['battle-scarred epic'], preferredLights: ['low lantern light'], preferredFx: ['torn banners in battlefield smoke'], preferredWeapons: ['spear and torn banner', 'ritual warhammer'], preferredArmor: ['scale mail with heraldic sash'], preferredPoses: ['weapon raised in a decisive challenge'], preferredSilhouettes: ['broad heroic triangle'], visualDetails: ['old campaign medals', 'folded field orders'], weight: 7 },
+  { id: 'monster_slayer_veteran', label: 'Monster Slayer Veteran', buildTemplateId: 'martial_veteran', archetypeTags: ['hunter', 'frontier'], archetypeNames: ['streetwise monster hunter'], preferredMoods: ['grim dungeon hunt'], preferredLights: ['warm torchlight from below'], preferredFx: ['swirling mist', 'sparks from enchanted steel'], preferredWeapons: ['heavy greatsword', 'spear and torn banner'], preferredArmor: ['half plate with campaign dents', 'compact leather harness'], preferredPoses: ['weapon raised in a decisive challenge'], preferredSilhouettes: ['lean and sharp-edged'], visualDetails: ['monster tally marks', 'claw-scarred vambrace'], weight: 8 },
+  { id: 'archive_performer', label: 'Archive Performer', buildTemplateId: 'lorekeeper_bard', archetypeTags: ['scholar', 'academy'], archetypeNames: ['clockwork scholar', 'arcane academy dropout'], preferredMoods: ['arcane study wonder'], preferredLights: ['candlelit map glow'], preferredFx: ['subtle magical runes'], preferredWeapons: ['song-scroll case', 'annotated performance notes', 'small spellbook'], preferredArmor: ['travel-worn cloth layers'], preferredPoses: ['ritual prep around carefully arranged instruments'], preferredSilhouettes: ['asymmetrical cloak profile'], visualDetails: ['indexed performance notes', 'library stamp ribbons'], weight: 8 },
+  { id: 'wandering_storyteller', label: 'Wandering Storyteller', buildTemplateId: 'lorekeeper_bard', archetypeTags: ['noble', 'pirate'], archetypeNames: ['haunted noble heir', 'pirate relic diver'], preferredMoods: ['rainy alley ambush'], preferredLights: ['low lantern light'], preferredFx: ['floating embers'], preferredWeapons: ['lute reinforced as a dueling club', 'song-scroll case'], preferredArmor: ['small travel cloak', 'travel cloak over leather'], preferredPoses: ['performing a playful fey flourish'], preferredSilhouettes: ['asymmetrical cloak profile'], visualDetails: ['well-worn songbook', 'roadside tale charms'], weight: 7 },
+  { id: 'cursed_lore_singer', label: 'Cursed Lore Singer', buildTemplateId: 'lorekeeper_bard', archetypeTags: ['cursed', 'scholar'], archetypeNames: ['cursed cartographer'], preferredMoods: ['haunted midnight ritual'], preferredLights: ['cold moon rim light'], preferredFx: ['black-violet motes', 'subtle magical runes'], preferredWeapons: ['song-scroll case', 'small spellbook'], preferredArmor: ['travel-worn cloth layers'], preferredPoses: ['tracing a glowing sigil in the air'], preferredSilhouettes: ['lean and sharp-edged'], visualDetails: ['curse-annotated verses', 'black-thread bookmark'], weight: 7 },
+  { id: 'court_loremaster', label: 'Court Loremaster', buildTemplateId: 'lorekeeper_bard', archetypeTags: ['noble', 'scholar'], archetypeNames: ['haunted noble heir'], preferredMoods: ['arcane study wonder'], preferredLights: ['blue arcane glyph light'], preferredFx: ['subtle magical runes'], preferredWeapons: ['annotated performance notes', 'rapier with jeweled guard'], preferredArmor: ['travel cloak over leather'], preferredPoses: ['duelist turn with one foot sliding back'], preferredSilhouettes: ['asymmetrical cloak profile'], visualDetails: ['court genealogy scroll', 'velvet archive sash'], weight: 6 },
   { id: 'divine_archivist', label: 'Divine Archivist', buildTemplateId: 'divine_scholar', archetypeTags: ['cartographer', 'scholar', 'holy'], archetypeNames: ['cursed cartographer', 'clockwork scholar'], preferredMoods: ['arcane study wonder', 'radiant temple resolve'], preferredLights: ['candlelit map glow'], preferredFx: ['map glow lines', 'subtle magical runes'], preferredWeapons: ['annotated map and compass', 'scroll case and compass', 'holy book and ritual staff'], preferredArmor: ['travel-worn cloth layers', 'embroidered arcane robes'], preferredPoses: ['studying a map under candlelight', 'ritual prep around carefully arranged instruments'], preferredSilhouettes: ['asymmetrical cloak profile', 'gadget-laden workshop silhouette'], visualDetails: ['indexed holy maps', 'ribboned archive keys'], weight: 8 },
+];
+
+
+export const narrativeMotifs: Array<NarrativeMotif> = [
+  { id: 'lost_heir', label: 'Lost Heir', weight: 7, compatibleBuildTemplates: ['holy_warrior', 'shadow_skirmisher', 'fey_trickster', 'arcane_caster', 'lorekeeper_bard'], compatibleVisualThemes: [], archetypeTags: ['noble'], classBias: ['bard', 'rogue', 'paladin', 'warlock'], raceBias: [], forbiddenClasses: [], forbiddenTags: [], storyDetails: ['broken signet ring', 'faded noble crest hidden under the cloak', 'half-burned inheritance letter'], promptFragments: ['carries subtle signs of a forgotten noble bloodline', 'wears a damaged family token'], moodBias: ['haunted midnight ritual', 'rainy alley ambush'], fxBias: [] },
+  { id: 'oathbreaker', label: 'Oathbreaker', weight: 7, compatibleBuildTemplates: ['holy_warrior', 'savage_berserker', 'shadow_skirmisher', 'martial_veteran'], compatibleVisualThemes: ['fallen_saint', 'blood_oath_survivor'], archetypeTags: ['fallen', 'oathkeeper', 'cursed'], classBias: ['paladin', 'fighter', 'barbarian'], raceBias: [], forbiddenClasses: [], forbiddenTags: [], storyDetails: ['cracked oath symbol', 'burned prayer ribbon', 'scar across the old heraldry'], promptFragments: ['marked by a broken vow', 'old sacred symbols are damaged but not fully abandoned'], moodBias: ['haunted midnight ritual'], fxBias: ['dark holy glow', 'floating embers'] },
+  { id: 'relic_seeker', label: 'Relic Seeker', weight: 8, compatibleBuildTemplates: ['shadow_skirmisher', 'divine_scholar', 'frontier_hunter', 'arcane_caster', 'battle_engineer'], compatibleVisualThemes: ['relic_thief', 'divine_archivist', 'ritualist'], archetypeTags: ['cartographer', 'pirate', 'tools', 'scholar'], classBias: ['rogue', 'ranger', 'wizard', 'artificer'], raceBias: [], forbiddenClasses: [], forbiddenTags: [], storyDetails: ['sealed relic case', 'ancient key on a cord', 'worn treasure map'], promptFragments: ['looks like someone who has crossed half the world chasing a forbidden relic'], moodBias: ['arcane study wonder', 'salt-stained relic dive'], fxBias: ['map glow lines', 'subtle magical runes'] },
+  { id: 'last_apprentice', label: 'Last Apprentice', weight: 7, compatibleBuildTemplates: ['arcane_caster', 'wandering_martial_artist', 'divine_scholar', 'skald_performer', 'lorekeeper_bard'], compatibleVisualThemes: ['academy_mage', 'temple_guardian', 'archive_performer'], archetypeTags: ['academy', 'scholar', 'holy'], classBias: ['wizard', 'sorcerer', 'monk', 'bard'], raceBias: [], forbiddenClasses: [], forbiddenTags: [], storyDetails: ['old mentor token', 'unfinished training sash', 'inherited spellbook'], promptFragments: ['carries the last keepsake of a vanished mentor'], moodBias: ['arcane study wonder', 'radiant temple resolve'], fxBias: ['subtle magical runes'] },
+  { id: 'monster_slayer', label: 'Monster Slayer', weight: 8, compatibleBuildTemplates: ['frontier_hunter', 'savage_berserker', 'martial_veteran', 'shadow_skirmisher'], compatibleVisualThemes: ['monster_slayer_veteran', 'beast_slayer', 'bounty_hunter'], archetypeTags: ['hunter', 'frontier', 'draconic'], classBias: ['fighter', 'ranger', 'barbarian', 'rogue'], raceBias: [], forbiddenClasses: ['wizard', 'sorcerer'], forbiddenTags: [], storyDetails: ['monster tooth trophies', 'claw-scarred armor', 'hunter tally marks'], promptFragments: ['every mark on the outfit hints at survived monster hunts'], moodBias: ['grim dungeon hunt', 'battle-scarred epic'], fxBias: ['swirling mist', 'sparks from enchanted steel'] },
+  { id: 'exile', label: 'Exile', weight: 6, compatibleBuildTemplates: ['arcane_caster', 'holy_warrior', 'shadow_skirmisher', 'fey_trickster', 'savage_berserker', 'wandering_martial_artist', 'battle_engineer', 'frontier_hunter', 'martial_veteran', 'lorekeeper_bard', 'divine_scholar', 'skald_performer'], compatibleVisualThemes: [], archetypeTags: ['shadow', 'cursed', 'frontier'], classBias: [], raceBias: [], forbiddenClasses: [], forbiddenTags: [], storyDetails: ['travel-worn cloak clasp', 'foreign coin necklace', 'patched road clothes'], promptFragments: ['feels like someone who no longer belongs anywhere'], moodBias: ['rainy alley ambush', 'haunted midnight ritual'], fxBias: [] },
+  { id: 'chosen_vessel', label: 'Chosen Vessel', weight: 7, compatibleBuildTemplates: ['arcane_caster', 'holy_warrior', 'fey_trickster'], compatibleVisualThemes: ['void_oracle', 'fey_noble', 'sun_knight', 'academy_mage'], archetypeTags: ['void', 'holy', 'fey', 'arcane'], classBias: ['warlock', 'sorcerer', 'cleric', 'paladin'], raceBias: ['aasimar', 'tiefling', 'fairy'], forbiddenClasses: [], forbiddenTags: [], storyDetails: ['glowing birthmark', 'involuntary magical aura', 'ritual scars'], promptFragments: ['carries a power they did not fully choose'], moodBias: ['void-cursed omen', 'radiant temple resolve'], fxBias: ['void glow', 'divine rays', 'green witchfire'] },
+  { id: 'battlefield_survivor', label: 'Battlefield Survivor', weight: 7, compatibleBuildTemplates: ['holy_warrior', 'savage_berserker', 'martial_veteran', 'battle_engineer', 'wandering_martial_artist'], compatibleVisualThemes: ['battle_chaplain', 'veteran_officer', 'storm_warrior'], archetypeTags: ['battlefield', 'holy'], classBias: ['fighter', 'cleric', 'barbarian', 'artificer', 'monk'], raceBias: [], forbiddenClasses: [], forbiddenTags: [], storyDetails: ['patched wounds', 'broken banner strip', 'dented armor plate kept as a charm'], promptFragments: ['the design suggests someone who survived a battle they should not have survived'], moodBias: ['battle-scarred epic', 'battlefield benediction'], fxBias: ['torn banners in battlefield smoke', 'dust burst'] },
+  { id: 'cursed_bloodline', label: 'Cursed Bloodline', weight: 7, compatibleBuildTemplates: ['arcane_caster', 'fey_trickster', 'shadow_skirmisher'], compatibleVisualThemes: ['void_oracle', 'moonlit_duelist', 'urban_assassin', 'cursed_lore_singer'], archetypeTags: ['void', 'cursed', 'shadow', 'fey'], classBias: ['warlock', 'sorcerer', 'rogue'], raceBias: ['tiefling'], forbiddenClasses: ['cleric', 'paladin'], forbiddenTags: ['holy'], storyDetails: ['dark veins near the eyes', 'inherited curse mark', 'family charm wrapped in black thread'], promptFragments: ['hints at a curse passed through generations'], moodBias: ['void-cursed omen', 'haunted midnight ritual'], fxBias: ['black-violet motes', 'void glow'] },
+  { id: 'redeemed_villain', label: 'Redeemed Villain', weight: 6, compatibleBuildTemplates: ['holy_warrior', 'shadow_skirmisher', 'savage_berserker', 'martial_veteran'], compatibleVisualThemes: ['fallen_saint', 'battle_chaplain', 'urban_assassin', 'blood_oath_survivor'], archetypeTags: ['fallen', 'shadow', 'cursed'], classBias: ['fighter', 'rogue', 'paladin', 'barbarian'], raceBias: [], forbiddenClasses: [], forbiddenTags: [], storyDetails: ['old enemy insignia scratched away', 'replaced black cloak lining', 'symbolic new oath token'], promptFragments: ['looks like someone trying to become better without erasing the past'], moodBias: ['haunted midnight ritual', 'battlefield benediction'], fxBias: ['dark holy glow', 'swirling mist'] },
+  { id: 'seasoned_adventurer', label: 'Seasoned Adventurer', weight: 1, compatibleBuildTemplates: [], compatibleVisualThemes: [], archetypeTags: [], classBias: [], raceBias: [], forbiddenClasses: [], forbiddenTags: [], storyDetails: ['worn belt pouches', 'travel scratches', 'practical keepsakes'], promptFragments: ['carries practical keepsakes from many roads'], moodBias: [], fxBias: [] },
 ];
 
 export const buildTemplates: Array<WeightedOption<BuildTemplate>> = [
@@ -601,6 +655,38 @@ export const buildTemplates: Array<WeightedOption<BuildTemplate>> = [
     allowedFx: ['floating embers', 'sparks from enchanted steel', 'swirling mist', 'wet cobblestone haze'],
     forbiddenTags: ['heavy', 'greataxe', 'shield', 'bestial'],
     weight: 6,
+  },
+  {
+    id: 'martial_veteran',
+    label: 'Martial Veteran',
+    allowedClasses: ['fighter', 'rogue', 'ranger', 'barbarian'],
+    preferredArchetypes: ['iron wall veteran', 'streetwise monster hunter', 'rage-scarred clan champion', 'wild frontier scout', 'dragon cult defector'],
+    preferredArchetypeTags: ['battlefield', 'hunter', 'frontier', 'draconic'],
+    allowedArmor: ['half plate with campaign dents', 'scale mail with heraldic sash', 'chain mail under a weathered tabard', 'reinforced artificer coat', 'full plate with engraved pauldrons', 'small fitted chain shirt', 'compact leather harness', 'light ceremonial half-plate'],
+    allowedWeapons: ['longsword and round shield', 'heavy greatsword', 'spear and torn banner', 'dual ranger blades', 'ritual warhammer'],
+    allowedPoses: ['weapon raised in a decisive challenge', 'overhead strike with a heavy blade', 'ground slam sending dust through the scene', 'guarded stance behind a raised shield', 'dual slash from a low stance', 'close-quarters ready stance'],
+    allowedSilhouettes: ['broad heroic triangle', 'stocky shield-forward stance', 'lean and sharp-edged', 'compact and nimble'],
+    allowedMoods: ['battle-scarred epic', 'grim dungeon hunt', 'battlefield benediction'],
+    allowedLights: ['storm lightning silhouette', 'warm torchlight from below', 'low lantern light'],
+    allowedFx: ['dust burst', 'sparks from enchanted steel', 'torn banners in battlefield smoke', 'floating embers'],
+    forbiddenTags: ['fey-focus', 'magic-focus'],
+    weight: 9,
+  },
+  {
+    id: 'lorekeeper_bard',
+    label: 'Lorekeeper Bard',
+    allowedClasses: ['bard', 'wizard', 'cleric', 'artificer'],
+    preferredArchetypes: ['clockwork scholar', 'arcane academy dropout', 'cursed cartographer', 'haunted noble heir'],
+    preferredArchetypeTags: ['scholar', 'academy', 'arcane', 'cartographer', 'noble'],
+    allowedArmor: ['travel-worn cloth layers', 'embroidered arcane robes', 'travel cloak over leather', 'small travel cloak'],
+    allowedWeapons: ['lute reinforced as a dueling club', 'enchanted flute focus', 'rapier with jeweled guard', 'song-scroll case', 'annotated performance notes', 'small spellbook'],
+    allowedPoses: ['performing a playful fey flourish', 'tracing a glowing sigil in the air', 'ritual prep around carefully arranged instruments', 'duelist turn with one foot sliding back', 'turning mid-stride as cloak whips around'],
+    allowedSilhouettes: ['asymmetrical cloak profile', 'compact and nimble', 'lean and sharp-edged', 'tall robed column'],
+    allowedMoods: ['arcane study wonder', 'rainy alley ambush', 'haunted midnight ritual'],
+    allowedLights: ['candlelit map glow', 'blue arcane glyph light', 'low lantern light'],
+    allowedFx: ['subtle magical runes', 'map glow lines', 'floating embers', 'black-violet motes'],
+    forbiddenTags: ['heavy', 'greataxe', 'oversized', 'shield'],
+    weight: 8,
   },
   {
     id: 'divine_scholar',

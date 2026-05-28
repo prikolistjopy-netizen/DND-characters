@@ -4,8 +4,9 @@ MVP Vite + React + TypeScript app for generating D&D character seeds and concept
 
 ## Features
 
-- Weighted random generation for class mode, classes, race, archetype, silhouette, armor, weapon/prop, pose, emotion, mood, light, and FX.
+- Cascading generation for class mode, classes, race, archetype, build template, visual theme, narrative motif, silhouette, armor, weapon/prop, pose, emotion, mood, light, and FX.
 - Three generation modes: ordinary class, multiclass, and chaos.
+- Narrative Motif Layer adds story details and prompt fragments so generated characters have a compact backstory hook.
 - Conflict checks with a visible debug trace:
   - tools only appear for artificer or bard characters;
   - monk-only poses only appear for monk characters;
@@ -34,4 +35,4 @@ npm run build
 npm run debug-check
 ```
 
-The debug check compiles the generator into a temporary CommonJS folder, generates 2000 seeds, and fails if any visual-theme v3 coherence rule is violated.
+The debug check compiles the generator into a temporary CommonJS folder, generates 3000 seeds, and fails if any narrative-motif v4 coherence rule is violated.

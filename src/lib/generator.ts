@@ -8,6 +8,7 @@ import {
   lights,
   modeWeights,
   moods,
+  narrativeMotifs,
   poses,
   races,
   silhouettes,
@@ -21,6 +22,7 @@ import {
   type FxOption,
   type LightOption,
   type MoodOption,
+  type NarrativeMotif,
   type PoseOption,
   type RaceOption,
   type SizeCategory,
@@ -31,7 +33,7 @@ import {
 } from '../data/seedData';
 
 type Mode = (typeof modeWeights)[number]['name'];
-type RegenerableLayer = 'template' | 'theme' | 'armor' | 'weapon' | 'silhouette' | 'pose' | 'mood' | 'light' | 'fx';
+type RegenerableLayer = 'template' | 'theme' | 'motif' | 'armor' | 'weapon' | 'silhouette' | 'pose' | 'mood' | 'light' | 'fx';
 
 type TemplateSelection = {
   template: BuildTemplate;
@@ -49,6 +51,10 @@ export type CharacterSeed = {
   templateReason: string;
   visualTheme: VisualTheme;
   visualDetails: string[];
+  narrativeMotif: NarrativeMotif;
+  motifReason: string;
+  storyDetails: string[];
+  promptFragments: string[];
   silhouette: SilhouetteOption;
   armor: ArmorOption;
   weapon: WeaponOption;
@@ -80,7 +86,7 @@ const fallbackTemplateByClass: Record<CharacterClass, string> = {
   bard: 'skald_performer',
   cleric: 'holy_warrior',
   druid: 'frontier_hunter',
-  fighter: 'frontier_hunter',
+  fighter: 'martial_veteran',
   monk: 'wandering_martial_artist',
   paladin: 'holy_warrior',
   ranger: 'frontier_hunter',
@@ -99,7 +105,13 @@ function getRaceSize(race: RaceOption): SizeCategory {
 
 function pickVisualDetails(theme: VisualTheme): string[] {
   const shuffled = [...theme.visualDetails].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, Math.min(3, shuffled.length));
+  return shuffled.slice(0, Math.max(2, Math.min(3, shuffled.length)));
+}
+
+function pickStoryDetails(motif: NarrativeMotif): string[] {
+  const details = [...motif.storyDetails].filter((detail) => detail.trim().length > 0 && !detail.trim().endsWith(','));
+  const shuffled = details.sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, Math.max(2, Math.min(3, shuffled.length)));
 }
 
 function weightedPick<T extends { weight: number }>(options: readonly T[]): T {
@@ -158,6 +170,9 @@ function isScholarLike(archetype: ArchetypeOption): boolean {
 }
 
 function canUseDivineScholar(primaryClass: CharacterClass, archetype: ArchetypeOption): boolean {
+  if (primaryClass === 'bard') {
+    return archetype.tags.includes('holy');
+  }
   return ['cleric', 'paladin', 'wizard', 'sorcerer', 'artificer'].includes(primaryClass) || isCartographerLike(archetype) || isScholarLike(archetype);
 }
 
@@ -166,15 +181,18 @@ function preferredTemplateIds(primaryClass: CharacterClass, archetype: Archetype
     return ['wandering_martial_artist'];
   }
 
-  if (isCartographerLike(archetype)) {
-    return ['divine_scholar'];
-  }
-
   if (primaryClass === 'bard') {
     if (canUseDivineScholar(primaryClass, archetype)) {
-      return ['divine_scholar', 'skald_performer'];
+      return ['lorekeeper_bard', 'divine_scholar', 'skald_performer'];
     }
-    return hasAny(archetype.tags, ['fey', 'trickster']) ? ['fey_trickster', 'skald_performer'] : ['skald_performer', 'fey_trickster'];
+    if (hasAny(archetype.tags, ['academy', 'scholar', 'cartographer'])) {
+      return ['lorekeeper_bard', 'skald_performer'];
+    }
+    return hasAny(archetype.tags, ['fey', 'trickster']) ? ['fey_trickster', 'skald_performer', 'lorekeeper_bard'] : ['skald_performer', 'lorekeeper_bard', 'fey_trickster'];
+  }
+
+  if (isCartographerLike(archetype)) {
+    return ['divine_scholar'];
   }
 
   if (primaryClass === 'artificer') {
@@ -216,7 +234,7 @@ function preferredTemplateIds(primaryClass: CharacterClass, archetype: Archetype
   }
 
   if (primaryClass === 'fighter') {
-    return hasAny(archetype.tags, ['holy', 'oathkeeper', 'fallen']) ? ['holy_warrior', 'frontier_hunter', 'savage_berserker'] : ['frontier_hunter', 'savage_berserker', 'shadow_skirmisher'];
+    return hasAny(archetype.tags, ['holy', 'oathkeeper']) ? ['holy_warrior', 'martial_veteran', 'frontier_hunter'] : ['martial_veteran', 'frontier_hunter', 'savage_berserker', 'shadow_skirmisher'];
   }
 
   return [fallbackTemplateByClass[primaryClass]];
@@ -238,6 +256,10 @@ function getTemplate(id: string): BuildTemplate {
 
 function templateScore(template: BuildTemplate, primaryClass: CharacterClass, archetype: ArchetypeOption, race: RaceOption, mode: Mode): number {
   if (!template.allowedClasses.includes(primaryClass)) {
+    return -1;
+  }
+
+  if (primaryClass === 'fighter' && template.id === 'holy_warrior' && !hasAny(archetype.tags, ['holy', 'oathkeeper'])) {
     return -1;
   }
 
@@ -323,6 +345,47 @@ function themeNames(names: string[], fallback: string[]): string[] {
   return names.length > 0 ? names : fallback;
 }
 
+
+type MotifSelection = {
+  motif: NarrativeMotif;
+  reason: string;
+};
+
+function selectNarrativeMotif(seed: Pick<CharacterSeed, 'primaryClass' | 'race' | 'archetype' | 'buildTemplate' | 'visualTheme'>): MotifSelection {
+  const allTags = [...seed.archetype.tags, seed.buildTemplate.id, seed.visualTheme.id];
+  const candidates = narrativeMotifs.filter((motif) => {
+    if (motif.id === 'seasoned_adventurer') return false;
+    const buildMatch = motif.compatibleBuildTemplates.length === 0 || motif.compatibleBuildTemplates.includes(seed.buildTemplate.id);
+    const themeMatch = motif.compatibleVisualThemes.length === 0 || motif.compatibleVisualThemes.includes(seed.visualTheme.id);
+    const classAllowed = !motif.forbiddenClasses.includes(seed.primaryClass);
+    const tagsAllowed = !motif.forbiddenTags.some((tag) => allTags.includes(tag));
+    return buildMatch && themeMatch && classAllowed && tagsAllowed;
+  });
+
+  const scored = candidates.map((motif) => {
+    let score = motif.weight;
+    score += motif.archetypeTags.filter((tag) => seed.archetype.tags.includes(tag)).length * 4;
+    if (motif.classBias.includes(seed.primaryClass)) score += 3;
+    if (motif.raceBias.includes(seed.race.name)) score += 3;
+    if (motif.compatibleVisualThemes.includes(seed.visualTheme.id)) score += 5;
+    return { ...motif, weight: Math.max(1, score) };
+  });
+
+  if (scored.length > 0) {
+    const bestScore = Math.max(...scored.map((motif) => motif.weight));
+    const motif = weightedPick(scored.filter((item) => item.weight === bestScore));
+    return {
+      motif,
+      reason: `matched ${seed.buildTemplate.id}/${seed.visualTheme.id}, class ${seed.primaryClass}, race ${seed.race.name}, archetype tags ${seed.archetype.tags.join(', ')}`,
+    };
+  }
+
+  return {
+    motif: narrativeMotifs.find((motif) => motif.id === 'seasoned_adventurer') ?? narrativeMotifs[narrativeMotifs.length - 1],
+    reason: 'fallback motif after no compatible narrative motif matched filters',
+  };
+}
+
 function templateOptions<T extends { name: string }>(options: Array<WeightedOption<T>>, names: string[]): Array<WeightedOption<T>> {
   const filtered = pickByName(options, names);
   return filtered.length > 0 ? filtered : options;
@@ -375,6 +438,7 @@ function constrainedPoseOptions(template: BuildTemplate, archetype: ArchetypeOpt
     (pose) => isCartographerLike(archetype) && hasAny(pose.tags, ['map', 'tools']),
     (pose) => hasAny(weapon.tags, ['bow', 'longbow', 'shortbow']) && pose.tags.includes('bow'),
     (pose) => weapon.tags.includes('shield') && pose.tags.includes('shield'),
+    (pose) => weapon.tags.includes('dual-blades') && pose.tags.includes('dual-blades'),
     (pose) => weapon.tags.includes('rapier') && pose.tags.includes('rapier'),
     (pose) => hasAny(weapon.tags, ['heavy', 'greataxe', 'greatsword']) && pose.tags.includes('heavy-melee'),
     (pose) => hasAny(weapon.tags, ['tool', 'mechanical-focus']) && hasAny(pose.tags, ['tools', 'casting']),
@@ -423,10 +487,13 @@ function constrainedSilhouetteOptions(template: BuildTemplate, seed: Pick<Charac
   ]);
 }
 
-function constrainedMoodOptions(template: BuildTemplate, archetype: ArchetypeOption, theme?: VisualTheme) {
+function constrainedMoodOptions(template: BuildTemplate, archetype: ArchetypeOption, theme?: VisualTheme, motif?: NarrativeMotif) {
   const names = themeNames((theme?.preferredMoods ?? []).filter((name) => template.allowedMoods.includes(name)), template.allowedMoods);
   const options = templateOptions(moods, names);
-  return prefer(options, [(mood) => mood.tags.some((tag) => archetype.tags.includes(tag))]);
+  return prefer(options, [
+    (mood) => motif ? motif.moodBias.includes(mood.name) : false,
+    (mood) => mood.tags.some((tag) => archetype.tags.includes(tag)),
+  ]);
 }
 
 function constrainedLightOptions(template: BuildTemplate, archetype: ArchetypeOption, theme?: VisualTheme) {
@@ -435,15 +502,17 @@ function constrainedLightOptions(template: BuildTemplate, archetype: ArchetypeOp
   return prefer(options, [(light) => light.tags.some((tag) => archetype.tags.includes(tag))]);
 }
 
-function constrainedFxOptions(template: BuildTemplate, archetype: ArchetypeOption, theme?: VisualTheme) {
+function constrainedFxOptions(template: BuildTemplate, archetype: ArchetypeOption, theme?: VisualTheme, motif?: NarrativeMotif) {
   const names = themeNames((theme?.preferredFx ?? []).filter((name) => template.allowedFx.includes(name)), template.allowedFx);
   const options = templateOptions(effects, names);
 
   if (template.id === 'fey_trickster') {
-    return options.filter((fx) => hasAny(fx.tags, ['fey', 'trickster']));
+    const feyOptions = options.filter((fx) => hasAny(fx.tags, ['fey', 'trickster']));
+    return prefer(feyOptions.length > 0 ? feyOptions : options, [(fx) => motif ? motif.fxBias.includes(fx.name) : false]);
   }
 
   return prefer(options, [
+    (fx) => motif ? motif.fxBias.includes(fx.name) : false,
     (fx) => isCartographerLike(archetype) && hasAny(fx.tags, ['cartographer', 'scholar']),
     (fx) => (archetype.tags.includes('oathkeeper') || archetype.tags.includes('fallen')) && hasAny(fx.tags, ['holy', 'fallen']),
     (fx) => hasAny(archetype.tags, ['frontier', 'scout', 'hunter']) && hasAny(fx.tags, ['frontier', 'hunter', 'nature']),
@@ -461,6 +530,8 @@ function createSeed(): CharacterSeed {
   const archetype = pickArchetype(classes, primaryClass);
   const { template: buildTemplate, reason: templateReason } = selectBuildTemplate(primaryClass, archetype, race, mode);
   const visualTheme = selectVisualTheme(buildTemplate, archetype, race);
+  const motifSelection = selectNarrativeMotif({ primaryClass, race, archetype, buildTemplate, visualTheme });
+  const narrativeMotif = motifSelection.motif;
   const armor = weightedPick(constrainedArmorOptions(buildTemplate, archetype, primaryClass, size, visualTheme));
   const weapon = weightedPick(constrainedWeaponOptions(buildTemplate, archetype, size, race, visualTheme));
   const silhouette = weightedPick(constrainedSilhouetteOptions(buildTemplate, { mode, primaryClass, race, size, archetype }, visualTheme));
@@ -477,14 +548,18 @@ function createSeed(): CharacterSeed {
     templateReason,
     visualTheme,
     visualDetails: pickVisualDetails(visualTheme),
+    narrativeMotif,
+    motifReason: motifSelection.reason,
+    storyDetails: pickStoryDetails(narrativeMotif),
+    promptFragments: narrativeMotif.promptFragments,
     silhouette,
     armor,
     weapon,
     pose,
     emotion: weightedPick(emotions).name,
-    mood: weightedPick(constrainedMoodOptions(buildTemplate, archetype, visualTheme)),
+    mood: weightedPick(constrainedMoodOptions(buildTemplate, archetype, visualTheme, narrativeMotif)),
     light: weightedPick(constrainedLightOptions(buildTemplate, archetype, visualTheme)),
-    fx: weightedPick(constrainedFxOptions(buildTemplate, archetype, visualTheme)),
+    fx: weightedPick(constrainedFxOptions(buildTemplate, archetype, visualTheme, narrativeMotif)),
   };
 }
 
@@ -645,7 +720,7 @@ export function validateGeneratedSeed(seed: CharacterSeed): ValidationIssue[] {
   }
 
   if (seed.primaryClass === 'bard' && seed.buildTemplate.id === 'divine_scholar' && !canUseDivineScholar(seed.primaryClass, seed.archetype)) {
-    issues.push({ message: 'bard can use divine_scholar only with scholar/cartographer/academy/lore archetype', layers: ['template'] });
+    issues.push({ message: 'bard can use divine_scholar only with divine/holy/temple context', layers: ['template'] });
   }
 
   if (seed.silhouette.name === 'gadget-laden workshop silhouette' && seed.buildTemplate.id !== 'battle_engineer' && seed.primaryClass !== 'artificer' && !hasAny(seed.archetype.tags, ['academy', 'tools'])) {
@@ -660,6 +735,38 @@ export function validateGeneratedSeed(seed: CharacterSeed): ValidationIssue[] {
     issues.push({ message: 'towering bestial frame requires barbarian, half-orc, beast, or chaos context', layers: ['silhouette'] });
   }
 
+  if (!seed.narrativeMotif || seed.narrativeMotif.id.length === 0) {
+    issues.push({ message: 'seed must have a narrative motif', layers: ['motif'] });
+  }
+
+  if (seed.storyDetails.length === 0 || seed.storyDetails.some((detail) => detail.trim().endsWith(','))) {
+    issues.push({ message: 'story details must be non-empty and must not end with comma', layers: ['motif'] });
+  }
+
+  if (seed.storyDetails.length < 2) {
+    issues.push({ message: 'story details must contain at least two complete details', layers: ['motif'] });
+  }
+
+  if (seed.primaryClass === 'fighter' && seed.buildTemplate.id === 'holy_warrior' && !hasAny(seed.archetype.tags, ['holy', 'oathkeeper'])) {
+    issues.push({ message: 'fighter without holy archetype cannot use holy_warrior', layers: ['template'] });
+  }
+
+  if (seed.primaryClass === 'bard' && isScholarLike(seed.archetype) && seed.buildTemplate.id === 'divine_scholar' && !seed.archetype.tags.includes('holy')) {
+    issues.push({ message: 'bard academy/scholar should use lorekeeper_bard unless archetype is divine/holy/temple', layers: ['template'] });
+  }
+
+  if (seed.weapon.name === 'paired daggers' && ['forward rapier thrust', 'duelist turn with one foot sliding back'].includes(seed.pose.name)) {
+    issues.push({ message: 'paired daggers cannot use rapier thrust poses', layers: ['pose'] });
+  }
+
+  if (['tiny', 'small'].includes(seed.size) && seed.armor.name === 'full plate with engraved pauldrons') {
+    issues.push({ message: 'small/tiny races cannot wear full plate', layers: ['armor'] });
+  }
+
+  if (seed.race.name === 'fairy' && (seed.silhouette.name === 'stocky shield-forward stance' || seed.armor.name === 'full plate with engraved pauldrons' || seed.weapon.tags.includes('oversized'))) {
+    issues.push({ message: 'fairy cannot use stocky shield-forward, full plate, or oversized weapons', layers: ['silhouette', 'armor', 'weapon'] });
+  }
+
   return issues;
 }
 
@@ -667,12 +774,19 @@ function rerollLayer(seed: CharacterSeed, layer: RegenerableLayer): CharacterSee
   if (layer === 'template') {
     const selection = selectBuildTemplate(seed.primaryClass, seed.archetype, seed.race, seed.mode);
     const visualTheme = selectVisualTheme(selection.template, seed.archetype, seed.race);
-    return { ...seed, buildTemplate: selection.template, templateReason: selection.reason, visualTheme, visualDetails: pickVisualDetails(visualTheme) };
+    const motifSelection = selectNarrativeMotif({ ...seed, buildTemplate: selection.template, visualTheme });
+    return { ...seed, buildTemplate: selection.template, templateReason: selection.reason, visualTheme, visualDetails: pickVisualDetails(visualTheme), narrativeMotif: motifSelection.motif, motifReason: motifSelection.reason, storyDetails: pickStoryDetails(motifSelection.motif), promptFragments: motifSelection.motif.promptFragments };
   }
 
   if (layer === 'theme') {
     const visualTheme = selectVisualTheme(seed.buildTemplate, seed.archetype, seed.race);
-    return { ...seed, visualTheme, visualDetails: pickVisualDetails(visualTheme) };
+    const motifSelection = selectNarrativeMotif({ ...seed, visualTheme });
+    return { ...seed, visualTheme, visualDetails: pickVisualDetails(visualTheme), narrativeMotif: motifSelection.motif, motifReason: motifSelection.reason, storyDetails: pickStoryDetails(motifSelection.motif), promptFragments: motifSelection.motif.promptFragments };
+  }
+
+  if (layer === 'motif') {
+    const motifSelection = selectNarrativeMotif(seed);
+    return { ...seed, narrativeMotif: motifSelection.motif, motifReason: motifSelection.reason, storyDetails: pickStoryDetails(motifSelection.motif), promptFragments: motifSelection.motif.promptFragments };
   }
 
   if (layer === 'armor') {
@@ -693,14 +807,14 @@ function rerollLayer(seed: CharacterSeed, layer: RegenerableLayer): CharacterSee
   }
 
   if (layer === 'mood') {
-    return { ...seed, mood: weightedPick(constrainedMoodOptions(seed.buildTemplate, seed.archetype, seed.visualTheme)) };
+    return { ...seed, mood: weightedPick(constrainedMoodOptions(seed.buildTemplate, seed.archetype, seed.visualTheme, seed.narrativeMotif)) };
   }
 
   if (layer === 'light') {
     return { ...seed, light: weightedPick(constrainedLightOptions(seed.buildTemplate, seed.archetype, seed.visualTheme)) };
   }
 
-  return { ...seed, fx: weightedPick(constrainedFxOptions(seed.buildTemplate, seed.archetype, seed.visualTheme)) };
+  return { ...seed, fx: weightedPick(constrainedFxOptions(seed.buildTemplate, seed.archetype, seed.visualTheme, seed.narrativeMotif)) };
 }
 
 function replaceWithFallbackTemplate(seed: CharacterSeed, trace: string[]): CharacterSeed {
@@ -708,12 +822,17 @@ function replaceWithFallbackTemplate(seed: CharacterSeed, trace: string[]): Char
   trace.push(`Switching to safe fallback buildTemplate ${fallback.id} for ${seed.primaryClass}.`);
 
   const visualTheme = selectVisualTheme(fallback, seed.archetype, seed.race);
+  const motifSelection = selectNarrativeMotif({ ...seed, buildTemplate: fallback, visualTheme });
   const nextSeed: CharacterSeed = {
     ...seed,
     buildTemplate: fallback,
     templateReason: `safe fallback after unresolved validation for ${seed.primaryClass}`,
     visualTheme,
     visualDetails: pickVisualDetails(visualTheme),
+    narrativeMotif: motifSelection.motif,
+    motifReason: motifSelection.reason,
+    storyDetails: pickStoryDetails(motifSelection.motif),
+    promptFragments: motifSelection.motif.promptFragments,
   };
 
   const armor = weightedPick(constrainedArmorOptions(fallback, nextSeed.archetype, nextSeed.primaryClass, nextSeed.size, nextSeed.visualTheme));
@@ -771,11 +890,16 @@ function resolveSeedConflicts(seed: CharacterSeed, trace: string[]): CharacterSe
   const armor = armors.find((option) => option.name === (seed.primaryClass === 'monk' ? 'no armor, simple travel wraps' : safeTemplate.allowedArmor[0])) ?? armors[0];
   const weapon = weapons.find((option) => option.name === safeTemplate.allowedWeapons[0]) ?? weapons[0];
   const visualTheme = selectVisualTheme(safeTemplate, nextSeed.archetype, nextSeed.race);
+  const motifSelection = selectNarrativeMotif({ ...nextSeed, buildTemplate: safeTemplate, visualTheme });
   return {
     ...nextSeed,
     buildTemplate: safeTemplate,
     visualTheme,
     visualDetails: pickVisualDetails(visualTheme),
+    narrativeMotif: motifSelection.motif,
+    motifReason: motifSelection.reason,
+    storyDetails: pickStoryDetails(motifSelection.motif),
+    promptFragments: motifSelection.motif.promptFragments,
     armor,
     weapon,
     silhouette: silhouettes.find((option) => option.name === 'compact and nimble') ?? silhouettes[0],
@@ -804,6 +928,7 @@ function formatSeed(seed: CharacterSeed): string {
     `Archetype: ${seed.archetype.name}`,
     `Build Template: ${seed.buildTemplate.id}`,
     `Visual Theme: ${seed.visualTheme.id}`,
+    `Narrative Motif: ${seed.narrativeMotif.label}`,
     `Silhouette: ${seed.silhouette.name}`,
     `Armor: ${seed.armor.name}`,
     `Weapon / Tool: ${seed.weapon.name}`,
@@ -813,6 +938,7 @@ function formatSeed(seed: CharacterSeed): string {
     `Light: ${seed.light.name}`,
     `FX: ${seed.fx.name}`,
     `Visual Details: ${seed.visualDetails.join(', ')}`,
+    `Story Details: ${seed.storyDetails.join(', ')}`,
   ].join('\n');
 }
 
@@ -824,12 +950,13 @@ function formatPrompt(seed: CharacterSeed): string {
     `Pose: ${seed.pose.name}; expression: ${seed.emotion}.`,
     `Mood: ${seed.mood.name}; lighting: ${seed.light.name}; primary visual effect: ${seed.fx.name}.`,
     `Visual details: ${seed.visualDetails.join(', ')}.`,
+    `Narrative details: ${seed.storyDetails.join(', ')}; ${seed.promptFragments.join('; ')}.`,
     'Detailed fantasy illustration, strong readable design, build-template coherent gear, no text in image.',
   ].join(' ');
 }
 
 export function generateCharacterSeed(): GenerationResult {
-  const trace: string[] = ['Starting v2 build-template cascade generation.'];
+  const trace: string[] = ['Starting v4 narrative-motif cascade generation.'];
   const seed = createSeed();
 
   trace.push(`Selected mode: ${seed.mode}.`);
@@ -838,8 +965,14 @@ export function generateCharacterSeed(): GenerationResult {
   trace.push(`Selected buildTemplate: ${seed.buildTemplate.id}.`);
   trace.push(`Template selection reason: ${seed.templateReason}.`);
   trace.push(`Selected visualTheme: ${seed.visualTheme.id}.`);
+  trace.push(`Selected narrativeMotif: ${seed.narrativeMotif.id}.`);
+  trace.push(`Motif selection reason: ${seed.motifReason}.`);
+  trace.push(`Motif compatibility filters: template ${seed.buildTemplate.id}, theme ${seed.visualTheme.id}, class ${seed.primaryClass}, race ${seed.race.name}, tags ${seed.archetype.tags.join(', ')}.`);
 
   const resolvedSeed = resolveSeedConflicts(seed, trace);
+  trace.push(`Final selected visualTheme: ${resolvedSeed.visualTheme.id}.`);
+  trace.push(`Final selected narrativeMotif: ${resolvedSeed.narrativeMotif.id}.`);
+  trace.push(`Final motif compatibility filters: template ${resolvedSeed.buildTemplate.id}, theme ${resolvedSeed.visualTheme.id}, class ${resolvedSeed.primaryClass}, race ${resolvedSeed.race.name}, tags ${resolvedSeed.archetype.tags.join(', ')}.`);
 
   return {
     seed: resolvedSeed,
