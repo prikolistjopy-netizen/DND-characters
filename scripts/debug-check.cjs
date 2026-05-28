@@ -4,7 +4,7 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const outDir = path.join(root, '.debug-check-build');
-const sampleSize = 1000;
+const sampleSize = 2000;
 
 rmSync(outDir, { recursive: true, force: true });
 run(
@@ -46,7 +46,7 @@ for (let index = 0; index < sampleSize; index += 1) {
   const armorTags = seed.armor.tags;
   const weaponTags = seed.weapon.tags;
   const poseTags = seed.pose.tags;
-  const summary = `${seed.race.name} ${seed.classes.join('/')} ${seed.archetype.name} | ${seed.buildTemplate.id} | ${seed.silhouette.name} | ${seed.armor.name} | ${seed.weapon.name} | ${seed.pose.name}`;
+  const summary = `${seed.race.name} ${seed.size} ${seed.classes.join('/')} ${seed.archetype.name} | ${seed.buildTemplate.id}/${seed.visualTheme.id} | ${seed.silhouette.name} | ${seed.armor.name} | ${seed.weapon.name} | ${seed.pose.name} | ${seed.fx.name}`;
 
   for (const issue of validateGeneratedSeed(seed)) {
     failures.push(`Generated validation issue: ${issue.message} :: ${summary}`);
@@ -55,6 +55,37 @@ for (let index = 0; index < sampleSize; index += 1) {
   const fxLineCount = result.seedOutput.split('\n').filter((line) => line.startsWith('FX: ')).length;
   if (fxLineCount !== 1) {
     failures.push(`seed should have exactly one FX line, found ${fxLineCount} :: ${summary}`);
+  }
+
+  const themeLineCount = result.seedOutput.split('\n').filter((line) => line.startsWith('Visual Theme: ')).length;
+  if (themeLineCount !== 1 || !seed.visualTheme || !seed.visualTheme.id) {
+    failures.push(`seed should have exactly one visual theme, found ${themeLineCount} :: ${summary}`);
+  }
+
+  const expectedSizeByRace = {
+    fairy: 'tiny',
+    halfling: 'small',
+    gnome: 'small',
+  };
+  const expectedSize = expectedSizeByRace[seed.race.name] ?? 'medium';
+  if (seed.size !== expectedSize) {
+    failures.push(`incorrect size category ${seed.size}, expected ${expectedSize} :: ${summary}`);
+  }
+
+  if (['small', 'tiny'].includes(seed.size) && hasAny(weaponTags, ['oversized', 'greataxe'])) {
+    failures.push(`small/tiny race has giant weapon :: ${summary}`);
+  }
+
+  if (seed.race.name === 'fairy' && seed.armor.name === 'full plate with engraved pauldrons') {
+    failures.push(`fairy received full plate :: ${summary}`);
+  }
+
+  if (seed.visualTheme.id === 'void_oracle' && !['black-violet motes', 'void glow', 'purple void energy'].includes(seed.fx.name)) {
+    failures.push(`void_oracle without void FX :: ${summary}`);
+  }
+
+  if (seed.archetype.tags.includes('pirate') && !(seed.visualDetails.some((detail) => ['rope belt', 'sea charts', 'barnacle relics', 'stolen relic case', 'song-scroll case', 'travel lute charms'].includes(detail)))) {
+    failures.push(`pirate archetype without pirate-compatible gear :: ${summary}`);
   }
 
   if (
@@ -144,4 +175,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`Debug check passed: ${sampleSize} generated seeds satisfy build-template v2 coherence rules.`);
+console.log(`Debug check passed: ${sampleSize} generated seeds satisfy visual-theme v3 coherence rules.`);

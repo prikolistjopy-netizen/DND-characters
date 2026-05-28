@@ -15,6 +15,8 @@ export type CharacterClass =
   | 'warlock'
   | 'wizard';
 
+export type SizeCategory = 'tiny' | 'small' | 'medium' | 'large';
+
 export type RaceOption = {
   name: string;
   tags: Array<'small' | 'fey' | 'large-presence' | 'draconic' | 'celestial' | 'shadow'>;
@@ -140,6 +142,22 @@ export type LightOption = {
 export type FxOption = {
   name: string;
   tags: ArchetypeTag[];
+};
+
+export type VisualTheme = {
+  id: string;
+  label: string;
+  buildTemplateId: string;
+  archetypeTags: ArchetypeTag[];
+  archetypeNames: string[];
+  preferredMoods: string[];
+  preferredLights: string[];
+  preferredFx: string[];
+  preferredWeapons: string[];
+  preferredArmor: string[];
+  preferredPoses: string[];
+  preferredSilhouettes: string[];
+  visualDetails: string[];
 };
 
 export type BuildTemplate = {
@@ -330,6 +348,8 @@ export const moods: Array<WeightedOption<MoodOption>> = [
   { name: 'wild frontier dusk', tags: ['nature', 'hunter', 'frontier'], weight: 7 },
   { name: 'battle-scarred epic', tags: ['battlefield', 'draconic'], weight: 7 },
   { name: 'salt-stained relic dive', tags: ['pirate', 'tools'], weight: 5 },
+  { name: 'solemn grave watch', tags: ['holy', 'fallen'], weight: 5 },
+  { name: 'silver star prophecy', tags: ['mage', 'arcane'], weight: 5 },
 ];
 
 export const lights: Array<WeightedOption<LightOption>> = [
@@ -347,6 +367,8 @@ export const lights: Array<WeightedOption<LightOption>> = [
   { name: 'storm lightning silhouette', tags: ['battlefield', 'draconic'], weight: 7 },
   { name: 'candlelit map glow', tags: ['cartographer', 'scholar'], weight: 7 },
   { name: 'mechanical blue-white glow', tags: ['tools'], weight: 6 },
+  { name: 'silver starlight', tags: ['mage', 'arcane'], weight: 5 },
+  { name: 'pale cemetery lantern light', tags: ['holy', 'fallen'], weight: 5 },
 ];
 
 export const effects: Array<WeightedOption<FxOption>> = [
@@ -370,6 +392,117 @@ export const effects: Array<WeightedOption<FxOption>> = [
   { name: 'floating embers', tags: ['battlefield', 'tools'], weight: 6 },
   { name: 'dust burst', tags: ['battlefield', 'frontier'], weight: 6 },
   { name: 'mechanical glow', tags: ['tools'], weight: 6 },
+  { name: 'constellation dust', tags: ['mage', 'arcane'], weight: 5 },
+  { name: 'candle smoke', tags: ['scholar', 'cartographer'], weight: 5 },
+];
+
+
+export const visualThemes: Array<WeightedOption<VisualTheme>> = [
+  {
+    id: 'academy_mage', label: 'Academy Mage', buildTemplateId: 'arcane_caster', archetypeTags: ['academy', 'scholar', 'mage'], archetypeNames: ['arcane academy dropout', 'clockwork scholar'],
+    preferredMoods: ['arcane study wonder'], preferredLights: ['blue arcane glyph light'], preferredFx: ['subtle magical runes'],
+    preferredWeapons: ['weathered spellbook', 'scroll case and compass', 'oak spell staff'], preferredArmor: ['embroidered arcane robes'], preferredPoses: ['tracing a glowing sigil in the air'], preferredSilhouettes: ['tall robed column', 'asymmetrical cloak profile'],
+    visualDetails: ['stacked academy books', 'annotated scrolls', 'ink-stained robe cuffs'], weight: 8,
+  },
+  {
+    id: 'battle_mage', label: 'Battle Mage', buildTemplateId: 'arcane_caster', archetypeTags: ['battlefield', 'draconic'], archetypeNames: ['dragon cult defector'],
+    preferredMoods: ['battle-scarred epic', 'arcane study wonder'], preferredLights: ['storm lightning silhouette', 'blue arcane glyph light'], preferredFx: ['sparks from enchanted steel', 'subtle magical runes'],
+    preferredWeapons: ['oak spell staff', 'silver wand focus'], preferredArmor: ['travel-worn cloth layers'], preferredPoses: ['casting with both hands in a spiral gesture'], preferredSilhouettes: ['lean and sharp-edged'],
+    visualDetails: ['combat casting stance', 'scorched robe hems', 'enchanted armor trims'], weight: 5,
+  },
+  {
+    id: 'void_oracle', label: 'Void Oracle', buildTemplateId: 'arcane_caster', archetypeTags: ['void', 'cursed'], archetypeNames: ['void-pact oracle'],
+    preferredMoods: ['void-cursed omen', 'haunted midnight ritual'], preferredLights: ['void glow from below', 'cold moon rim light'], preferredFx: ['black-violet motes', 'void glow', 'purple void energy'],
+    preferredWeapons: ['crystal orb focus', 'weathered spellbook'], preferredArmor: ['plain monastery cloth', 'embroidered arcane robes'], preferredPoses: ['tracing a glowing sigil in the air'], preferredSilhouettes: ['asymmetrical cloak profile', 'lean and sharp-edged'],
+    visualDetails: ['floating occult talismans', 'torn prophecy scrolls', 'black-violet smoke'], weight: 8,
+  },
+  {
+    id: 'star_seer', label: 'Star Seer', buildTemplateId: 'arcane_caster', archetypeTags: ['mage', 'arcane'], archetypeNames: [],
+    preferredMoods: ['silver star prophecy', 'arcane study wonder'], preferredLights: ['silver starlight', 'blue arcane glyph light'], preferredFx: ['constellation dust', 'subtle magical runes'],
+    preferredWeapons: ['crystal orb focus', 'silver wand focus'], preferredArmor: ['embroidered arcane robes'], preferredPoses: ['tracing a glowing sigil in the air'], preferredSilhouettes: ['tall robed column'],
+    visualDetails: ['constellation charts', 'silver astrolabe', 'cosmic dust'], weight: 5,
+  },
+  {
+    id: 'ritualist', label: 'Ritualist', buildTemplateId: 'arcane_caster', archetypeTags: ['cartographer', 'scholar', 'cursed'], archetypeNames: ['cursed cartographer'],
+    preferredMoods: ['arcane study wonder', 'haunted midnight ritual'], preferredLights: ['candlelit map glow', 'blue arcane glyph light'], preferredFx: ['map glow lines', 'candle smoke', 'subtle magical runes'],
+    preferredWeapons: ['scroll case and compass', 'weathered spellbook', 'oak spell staff'], preferredArmor: ['travel-worn cloth layers'], preferredPoses: ['ritual prep around carefully arranged instruments', 'studying a map under candlelight'], preferredSilhouettes: ['asymmetrical cloak profile'],
+    visualDetails: ['chalk ritual circle', 'half-melted candles', 'sigil-covered parchment'], weight: 7,
+  },
+  {
+    id: 'sun_knight', label: 'Sun Knight', buildTemplateId: 'holy_warrior', archetypeTags: ['holy', 'oathkeeper'], archetypeNames: ['iron wall veteran'],
+    preferredMoods: ['radiant temple resolve'], preferredLights: ['golden divine rays'], preferredFx: ['divine rays', 'holy glow'],
+    preferredWeapons: ['longsword and round shield', 'mace and holy shield'], preferredArmor: ['full plate with engraved pauldrons', 'scale mail with heraldic sash'], preferredPoses: ['weapon raised in a decisive challenge', 'shield braced against incoming sparks'], preferredSilhouettes: ['broad heroic triangle', 'stocky shield-forward stance'],
+    visualDetails: ['radiant armor trim', 'sunburst tabard'], weight: 7,
+  },
+  {
+    id: 'battle_chaplain', label: 'Battle Chaplain', buildTemplateId: 'holy_warrior', archetypeTags: ['battlefield', 'holy'], archetypeNames: ['wandering battlefield medic', 'exiled temple guardian'],
+    preferredMoods: ['battlefield benediction'], preferredLights: ['warm sunrise halo'], preferredFx: ['spectral feathers', 'holy glow'],
+    preferredWeapons: ['mace and holy shield', 'ritual warhammer'], preferredArmor: ['chain mail under a weathered tabard', 'scale mail with heraldic sash'], preferredPoses: ['kneeling prayer as holy light gathers', 'guarded stance behind a raised shield'], preferredSilhouettes: ['stocky shield-forward stance'],
+    visualDetails: ['battlefield prayer strips', 'worn armor dents'], weight: 8,
+  },
+  {
+    id: 'wandering_healer', label: 'Wandering Healer', buildTemplateId: 'holy_warrior', archetypeTags: ['holy'], archetypeNames: ['wandering battlefield medic'],
+    preferredMoods: ['radiant temple resolve'], preferredLights: ['warm sunrise halo'], preferredFx: ['holy glow', 'spectral feathers'],
+    preferredWeapons: ['silver holy symbol and staff', 'mace and holy shield'], preferredArmor: ['scale mail with heraldic sash'], preferredPoses: ['kneeling prayer as holy light gathers'], preferredSilhouettes: ['tall robed column', 'broad heroic triangle'],
+    visualDetails: ['herb satchel', 'bandages', 'medicine kit'], weight: 6,
+  },
+  {
+    id: 'grave_warden', label: 'Grave Warden', buildTemplateId: 'holy_warrior', archetypeTags: ['holy', 'fallen'], archetypeNames: ['exiled temple guardian'],
+    preferredMoods: ['solemn grave watch', 'haunted midnight ritual'], preferredLights: ['pale cemetery lantern light'], preferredFx: ['spectral feathers', 'candle smoke'],
+    preferredWeapons: ['ritual warhammer', 'silver holy symbol and staff'], preferredArmor: ['chain mail under a weathered tabard'], preferredPoses: ['kneeling prayer as holy light gathers'], preferredSilhouettes: ['stocky shield-forward stance'],
+    visualDetails: ['cemetery keys', 'grave soil on boots', 'solemn veil'], weight: 5,
+  },
+  {
+    id: 'fallen_saint', label: 'Fallen Saint', buildTemplateId: 'holy_warrior', archetypeTags: ['fallen', 'cursed'], archetypeNames: ['fallen oathkeeper'],
+    preferredMoods: ['haunted midnight ritual', 'radiant temple resolve'], preferredLights: ['cold moon rim light'], preferredFx: ['dark holy glow', 'spectral feathers'],
+    preferredWeapons: ['longsword and round shield', 'ritual warhammer'], preferredArmor: ['full plate with engraved pauldrons'], preferredPoses: ['weapon raised in a decisive challenge'], preferredSilhouettes: ['broad heroic triangle'],
+    visualDetails: ['cracked halo motif', 'corrupted prayer ribbons'], weight: 7,
+  },
+  {
+    id: 'bounty_hunter', label: 'Bounty Hunter', buildTemplateId: 'shadow_skirmisher', archetypeTags: ['hunter', 'streetwise'], archetypeNames: ['streetwise monster hunter'],
+    preferredMoods: ['grim dungeon hunt'], preferredLights: ['warm torchlight from below'], preferredFx: ['swirling mist'], preferredWeapons: ['shortbow and scout knife', 'dual ranger blades'], preferredArmor: ['travel cloak over leather'], preferredPoses: ['tracking footprints with cloak pulled low', 'ready stance on a cracked dungeon tile'], preferredSilhouettes: ['lean and sharp-edged'],
+    visualDetails: ['wanted posters', 'monster trophies'], weight: 7,
+  },
+  {
+    id: 'urban_assassin', label: 'Urban Assassin', buildTemplateId: 'shadow_skirmisher', archetypeTags: ['shadow', 'streetwise'], archetypeNames: ['silent monastery avenger'],
+    preferredMoods: ['rainy alley ambush'], preferredLights: ['low lantern light'], preferredFx: ['wet cobblestone haze'], preferredWeapons: ['paired daggers', 'rapier with jeweled guard'], preferredArmor: ['studded leather with hidden knives'], preferredPoses: ['forward rapier thrust', 'turning mid-stride as cloak whips around'], preferredSilhouettes: ['compact and nimble'],
+    visualDetails: ['alley shadows', 'hidden dagger straps'], weight: 6,
+  },
+  {
+    id: 'relic_thief', label: 'Relic Thief', buildTemplateId: 'shadow_skirmisher', archetypeTags: ['cartographer', 'pirate', 'tools'], archetypeNames: ['cursed cartographer', 'pirate relic diver'],
+    preferredMoods: ['salt-stained relic dive', 'rainy alley ambush'], preferredLights: ['candlelit map glow', 'low lantern light'], preferredFx: ['map glow lines', 'subtle magical runes'], preferredWeapons: ['annotated map and compass', 'scroll case and compass'], preferredArmor: ['travel cloak over leather'], preferredPoses: ['studying a map under candlelight', 'ritual prep around carefully arranged instruments'], preferredSilhouettes: ['asymmetrical cloak profile'],
+    visualDetails: ['folded trap maps', 'stolen relic case', 'fine lockpicks'], weight: 8,
+  },
+  {
+    id: 'swamp_tracker', label: 'Swamp Tracker', buildTemplateId: 'shadow_skirmisher', archetypeTags: ['hunter', 'nature'], archetypeNames: ['wild frontier scout'],
+    preferredMoods: ['grim dungeon hunt'], preferredLights: ['low lantern light'], preferredFx: ['swirling mist'], preferredWeapons: ['shortbow and scout knife'], preferredArmor: ['patched leather armor'], preferredPoses: ['tracking footprints with cloak pulled low'], preferredSilhouettes: ['compact and nimble'],
+    visualDetails: ['mud-stained boots', 'reeds tied to the cloak'], weight: 5,
+  },
+  {
+    id: 'pirate_raider', label: 'Pirate Raider', buildTemplateId: 'shadow_skirmisher', archetypeTags: ['pirate'], archetypeNames: ['pirate relic diver'],
+    preferredMoods: ['salt-stained relic dive'], preferredLights: ['low lantern light'], preferredFx: ['wet cobblestone haze'], preferredWeapons: ['paired daggers', 'annotated map and compass'], preferredArmor: ['travel cloak over leather'], preferredPoses: ['turning mid-stride as cloak whips around'], preferredSilhouettes: ['asymmetrical cloak profile'],
+    visualDetails: ['rope belt', 'sea charts', 'barnacle relics'], weight: 8,
+  },
+  { id: 'court_jester', label: 'Court Jester', buildTemplateId: 'fey_trickster', archetypeTags: ['trickster'], archetypeNames: [], preferredMoods: ['mysterious fey dream'], preferredLights: ['soft green witchfire glow'], preferredFx: ['petals and whimsical particles'], preferredWeapons: ['enchanted flute focus', 'cane sword with fey etching'], preferredArmor: ['travel-worn cloth layers'], preferredPoses: ['performing a playful fey flourish'], preferredSilhouettes: ['willowy fey outline'], visualDetails: ['ribboned bells', 'painted grin mask'], weight: 6 },
+  { id: 'wandering_bard', label: 'Wandering Bard', buildTemplateId: 'fey_trickster', archetypeTags: ['fey', 'pirate'], archetypeNames: ['pirate relic diver'], preferredMoods: ['moonlit forest charm'], preferredLights: ['soft moonlit glade glow'], preferredFx: ['soft fey glow'], preferredWeapons: ['lute reinforced as a dueling club', 'enchanted flute focus'], preferredArmor: ['travel cloak over leather'], preferredPoses: ['performing a playful fey flourish'], preferredSilhouettes: ['asymmetrical cloak profile'], visualDetails: ['travel lute charms', 'story ribbons'], weight: 6 },
+  { id: 'forest_sprite', label: 'Forest Sprite', buildTemplateId: 'fey_trickster', archetypeTags: ['fey', 'nature'], archetypeNames: ['verdant circle emissary'], preferredMoods: ['mysterious fey dream'], preferredLights: ['soft green witchfire glow'], preferredFx: ['green witchfire'], preferredWeapons: ['fey crystal focus'], preferredArmor: ['travel-worn cloth layers'], preferredPoses: ['casting with both hands in a spiral gesture'], preferredSilhouettes: ['willowy fey outline'], visualDetails: ['leaf crown', 'glowing pollen'], weight: 7 },
+  { id: 'moonlit_duelist', label: 'Moonlit Duelist', buildTemplateId: 'fey_trickster', archetypeTags: ['fey', 'trickster'], archetypeNames: ['fey-touched trickster'], preferredMoods: ['moonlit forest charm'], preferredLights: ['soft moonlit glade glow'], preferredFx: ['soft fey glow'], preferredWeapons: ['rapier with jeweled guard', 'cane sword with fey etching'], preferredArmor: ['patched leather armor'], preferredPoses: ['duelist turn with one foot sliding back'], preferredSilhouettes: ['lean and sharp-edged'], visualDetails: ['moonlit cloak clasp', 'silver thorn boutonniere'], weight: 7 },
+  { id: 'fey_noble', label: 'Fey Noble', buildTemplateId: 'fey_trickster', archetypeTags: ['fey', 'noble'], archetypeNames: ['haunted noble heir'], preferredMoods: ['mysterious fey dream'], preferredLights: ['soft green witchfire glow'], preferredFx: ['petals and whimsical particles'], preferredWeapons: ['fey crystal focus'], preferredArmor: ['travel-worn cloth layers'], preferredPoses: ['weapon raised in a decisive challenge'], preferredSilhouettes: ['willowy fey outline'], visualDetails: ['thorn circlet', 'embroidered fey court sash'], weight: 5 },
+  { id: 'tribal_champion', label: 'Tribal Champion', buildTemplateId: 'savage_berserker', archetypeTags: ['battlefield'], archetypeNames: ['rage-scarred clan champion'], preferredMoods: ['battle-scarred epic'], preferredLights: ['storm lightning silhouette'], preferredFx: ['dust burst'], preferredWeapons: ['heavy greataxe'], preferredArmor: ['fur-lined hide armor'], preferredPoses: ['overhead strike with a heavy blade'], preferredSilhouettes: ['broad heroic triangle'], visualDetails: ['clan trophies', 'painted war marks'], weight: 7 },
+  { id: 'beast_slayer', label: 'Beast Slayer', buildTemplateId: 'savage_berserker', archetypeTags: ['draconic'], archetypeNames: ['dragon cult defector'], preferredMoods: ['battle-scarred epic'], preferredLights: ['storm lightning silhouette'], preferredFx: ['sparks from enchanted steel'], preferredWeapons: ['heavy greatsword', 'ranger spear'], preferredArmor: ['fur-lined hide armor'], preferredPoses: ['weapon raised in a decisive challenge'], preferredSilhouettes: ['towering bestial frame'], visualDetails: ['monster tooth trophies', 'scarred hide mantle'], weight: 6 },
+  { id: 'raider_king', label: 'Raider King', buildTemplateId: 'savage_berserker', archetypeTags: ['battlefield'], archetypeNames: [], preferredMoods: ['battle-scarred epic'], preferredLights: ['golden sunset through trees'], preferredFx: ['floating embers'], preferredWeapons: ['oversized maul'], preferredArmor: ['half plate with campaign dents'], preferredPoses: ['ground slam sending dust through the scene'], preferredSilhouettes: ['broad heroic triangle'], visualDetails: ['broken crown', 'raider cloak'], weight: 4 },
+  { id: 'storm_warrior', label: 'Storm Warrior', buildTemplateId: 'savage_berserker', archetypeTags: ['battlefield'], archetypeNames: [], preferredMoods: ['battle-scarred epic'], preferredLights: ['storm lightning silhouette'], preferredFx: ['sparks from enchanted steel'], preferredWeapons: ['heavy greataxe'], preferredArmor: ['travel-worn cloth layers'], preferredPoses: ['overhead strike with a heavy blade'], preferredSilhouettes: ['lean and sharp-edged'], visualDetails: ['storm-charred braids', 'lightning scars'], weight: 5 },
+  { id: 'blood_oath_survivor', label: 'Blood Oath Survivor', buildTemplateId: 'savage_berserker', archetypeTags: ['fallen', 'cursed'], archetypeNames: ['fallen oathkeeper'], preferredMoods: ['void-cursed omen'], preferredLights: ['cold moon rim light'], preferredFx: ['floating embers'], preferredWeapons: ['heavy greatsword'], preferredArmor: ['patched leather armor'], preferredPoses: ['ready stance on a cracked dungeon tile'], preferredSilhouettes: ['broad heroic triangle'], visualDetails: ['blood oath brands', 'torn vow cloth'], weight: 5 },
+  { id: 'temple_guardian', label: 'Temple Guardian', buildTemplateId: 'wandering_martial_artist', archetypeTags: ['holy'], archetypeNames: ['exiled temple guardian'], preferredMoods: ['radiant temple resolve'], preferredLights: ['golden divine rays'], preferredFx: ['spectral feathers'], preferredWeapons: ['quarterstaff carved with runes'], preferredArmor: ['plain monastery cloth'], preferredPoses: ['ready stance on a cracked dungeon tile'], preferredSilhouettes: ['compact and nimble'], visualDetails: ['temple key beads', 'saffron sash'], weight: 8 },
+  { id: 'silent_avenger', label: 'Silent Avenger', buildTemplateId: 'wandering_martial_artist', archetypeTags: ['shadow'], archetypeNames: ['silent monastery avenger'], preferredMoods: ['haunted midnight ritual'], preferredLights: ['cold moon rim light'], preferredFx: ['swirling mist'], preferredWeapons: ['unarmed strikes and prayer beads'], preferredArmor: ['no armor, simple travel wraps'], preferredPoses: ['flying kick with prayer beads suspended midair'], preferredSilhouettes: ['lean and sharp-edged'], visualDetails: ['shadow prayer beads', 'wrapped knuckles'], weight: 7 },
+  { id: 'mountain_hermit', label: 'Mountain Hermit', buildTemplateId: 'wandering_martial_artist', archetypeTags: ['holy'], archetypeNames: [], preferredMoods: ['grim dungeon hunt'], preferredLights: ['warm torchlight from below'], preferredFx: ['swirling mist'], preferredWeapons: ['simple monk shortspear'], preferredArmor: ['travel-worn cloth layers'], preferredPoses: ['balanced on one hand in a martial arts sweep'], preferredSilhouettes: ['compact and nimble'], visualDetails: ['weathered prayer flags', 'stone talisman'], weight: 5 },
+  { id: 'wandering_master', label: 'Wandering Master', buildTemplateId: 'wandering_martial_artist', archetypeTags: ['holy'], archetypeNames: [], preferredMoods: ['radiant temple resolve'], preferredLights: ['warm torchlight from below'], preferredFx: ['divine rays'], preferredWeapons: ['quarterstaff carved with runes'], preferredArmor: ['plain monastery cloth'], preferredPoses: ['ready stance on a cracked dungeon tile'], preferredSilhouettes: ['compact and nimble'], visualDetails: ['patched master cloak', 'old training scars'], weight: 5 },
+  { id: 'dragon_style_adept', label: 'Dragon Style Adept', buildTemplateId: 'wandering_martial_artist', archetypeTags: ['draconic'], archetypeNames: [], preferredMoods: ['battle-scarred epic'], preferredLights: ['storm lightning silhouette'], preferredFx: ['divine rays'], preferredWeapons: ['unarmed strikes and prayer beads'], preferredArmor: ['no armor, simple travel wraps'], preferredPoses: ['flying kick with prayer beads suspended midair'], preferredSilhouettes: ['lean and sharp-edged'], visualDetails: ['dragon-scale wrist wraps', 'coiled stance'], weight: 4 },
+  { id: 'clockwork_sapper', label: 'Clockwork Sapper', buildTemplateId: 'battle_engineer', archetypeTags: ['tools', 'scholar'], archetypeNames: ['clockwork scholar', 'runaway alchemist'], preferredMoods: ['clockwork workshop focus'], preferredLights: ['mechanical blue-white glow', 'amber workbench lamp'], preferredFx: ['sparks from enchanted gears', 'mechanical glow'], preferredWeapons: ['alchemist tools and sparking wrench', 'clockwork gauntlet focus'], preferredArmor: ['reinforced artificer coat'], preferredPoses: ['tinkering with sparking tools at a workbench'], preferredSilhouettes: ['gadget-laden workshop silhouette'], visualDetails: ['gear-stuffed bandolier', 'folding brass calipers'], weight: 8 },
+  { id: 'pirate_raider', label: 'Pirate Raider Engineer', buildTemplateId: 'battle_engineer', archetypeTags: ['pirate', 'tools'], archetypeNames: ['pirate relic diver'], preferredMoods: ['salt-stained relic dive'], preferredLights: ['amber workbench lamp'], preferredFx: ['sparks from enchanted gears', 'mechanical glow'], preferredWeapons: ['alchemist tools and sparking wrench', 'pistol-like arcane calibrator'], preferredArmor: ['reinforced artificer coat'], preferredPoses: ['tinkering with sparking tools at a workbench'], preferredSilhouettes: ['gadget-laden workshop silhouette'], visualDetails: ['rope belt', 'sea charts', 'barnacle relics'], weight: 8 },
+    { id: 'trail_warden', label: 'Trail Warden', buildTemplateId: 'frontier_hunter', archetypeTags: ['frontier', 'scout', 'hunter'], archetypeNames: ['wild frontier scout', 'streetwise monster hunter'], preferredMoods: ['wild frontier dusk', 'grim dungeon hunt'], preferredLights: ['golden sunset through trees', 'warm torchlight from below'], preferredFx: ['falling autumn leaves', 'swirling mist'], preferredWeapons: ['hunting longbow', 'ranger spear'], preferredArmor: ['patched leather armor', 'fur-lined hide armor'], preferredPoses: ['tracking footprints with cloak pulled low', 'aiming down a rain-darkened arrow'], preferredSilhouettes: ['lean and sharp-edged', 'compact and nimble'], visualDetails: ['trail markers', 'muddy map case'], weight: 8 },
+  { id: 'lore_skald', label: 'Lore Skald', buildTemplateId: 'skald_performer', archetypeTags: ['noble', 'battlefield', 'pirate'], archetypeNames: ['haunted noble heir', 'pirate relic diver'], preferredMoods: ['rainy alley ambush', 'battle-scarred epic'], preferredLights: ['low lantern light'], preferredFx: ['floating embers', 'swirling mist'], preferredWeapons: ['lute reinforced as a dueling club', 'rapier with jeweled guard'], preferredArmor: ['travel cloak over leather'], preferredPoses: ['performing a playful fey flourish'], preferredSilhouettes: ['asymmetrical cloak profile'], visualDetails: ['song-scroll case', 'trophy tassels'], weight: 7 },
+  { id: 'divine_archivist', label: 'Divine Archivist', buildTemplateId: 'divine_scholar', archetypeTags: ['cartographer', 'scholar', 'holy'], archetypeNames: ['cursed cartographer', 'clockwork scholar'], preferredMoods: ['arcane study wonder', 'radiant temple resolve'], preferredLights: ['candlelit map glow'], preferredFx: ['map glow lines', 'subtle magical runes'], preferredWeapons: ['annotated map and compass', 'scroll case and compass', 'holy book and ritual staff'], preferredArmor: ['travel-worn cloth layers', 'embroidered arcane robes'], preferredPoses: ['studying a map under candlelight', 'ritual prep around carefully arranged instruments'], preferredSilhouettes: ['asymmetrical cloak profile', 'gadget-laden workshop silhouette'], visualDetails: ['indexed holy maps', 'ribboned archive keys'], weight: 8 },
 ];
 
 export const buildTemplates: Array<WeightedOption<BuildTemplate>> = [
@@ -381,8 +514,8 @@ export const buildTemplates: Array<WeightedOption<BuildTemplate>> = [
     preferredArchetypeTags: ['mage', 'academy', 'arcane', 'void', 'scholar', 'cartographer'],
     allowedArmor: ['embroidered arcane robes', 'travel-worn cloth layers', 'plain monastery cloth'],
     allowedWeapons: ['oak spell staff', 'crystal orb focus', 'silver wand focus', 'weathered spellbook', 'scroll case and compass'],
-    allowedPoses: ['casting with both hands in a spiral gesture', 'tracing a glowing sigil in the air', 'studying a map under candlelight', 'ritual prep around carefully arranged instruments'],
-    allowedSilhouettes: ['tall robed column', 'asymmetrical cloak profile', 'lean and sharp-edged'],
+    allowedPoses: ['casting with both hands in a spiral gesture', 'tracing a glowing sigil in the air', 'studying a map under candlelight', 'ritual prep around carefully arranged instruments', 'ready stance on a cracked dungeon tile'],
+    allowedSilhouettes: ['tall robed column', 'asymmetrical cloak profile', 'lean and sharp-edged', 'compact and nimble'],
     allowedMoods: ['arcane study wonder', 'void-cursed omen', 'haunted midnight ritual'],
     allowedLights: ['blue arcane glyph light', 'cold moon rim light', 'void glow from below', 'candlelit map glow'],
     allowedFx: ['subtle magical runes', 'purple void energy', 'black-violet motes', 'map glow lines'],
@@ -397,8 +530,8 @@ export const buildTemplates: Array<WeightedOption<BuildTemplate>> = [
     preferredArchetypeTags: ['holy', 'oathkeeper', 'fallen', 'battlefield'],
     allowedArmor: ['scale mail with heraldic sash', 'half plate with campaign dents', 'chain mail under a weathered tabard', 'full plate with engraved pauldrons'],
     allowedWeapons: ['mace and holy shield', 'longsword and round shield', 'ritual warhammer', 'silver holy symbol and staff'],
-    allowedPoses: ['shield braced against incoming sparks', 'guarded stance behind a raised shield', 'weapon raised in a decisive challenge', 'kneeling prayer as holy light gathers', 'casting with both hands in a spiral gesture'],
-    allowedSilhouettes: ['stocky shield-forward stance', 'broad heroic triangle', 'tall robed column'],
+    allowedPoses: ['shield braced against incoming sparks', 'guarded stance behind a raised shield', 'weapon raised in a decisive challenge', 'kneeling prayer as holy light gathers', 'casting with both hands in a spiral gesture', 'ready stance on a cracked dungeon tile'],
+    allowedSilhouettes: ['stocky shield-forward stance', 'broad heroic triangle', 'tall robed column', 'compact and nimble'],
     allowedMoods: ['radiant temple resolve', 'battlefield benediction', 'battle-scarred epic'],
     allowedLights: ['golden divine rays', 'warm sunrise halo', 'storm lightning silhouette'],
     allowedFx: ['divine rays', 'spectral feathers', 'holy glow', 'dark holy glow', 'sparks from enchanted steel'],
@@ -414,7 +547,7 @@ export const buildTemplates: Array<WeightedOption<BuildTemplate>> = [
     allowedArmor: ['fur-lined hide armor', 'travel-worn cloth layers', 'patched leather armor', 'half plate with campaign dents'],
     allowedWeapons: ['heavy greataxe', 'oversized maul', 'heavy greatsword', 'ranger spear', 'handaxe and tracking cord'],
     allowedPoses: ['overhead strike with a heavy blade', 'ground slam sending dust through the scene', 'ready stance on a cracked dungeon tile', 'weapon raised in a decisive challenge'],
-    allowedSilhouettes: ['broad heroic triangle', 'towering bestial frame', 'lean and sharp-edged'],
+    allowedSilhouettes: ['broad heroic triangle', 'towering bestial frame', 'lean and sharp-edged', 'compact and nimble'],
     allowedMoods: ['battle-scarred epic', 'wild frontier dusk', 'void-cursed omen'],
     allowedLights: ['storm lightning silhouette', 'golden sunset through trees', 'cold moon rim light'],
     allowedFx: ['sparks from enchanted steel', 'falling autumn leaves', 'floating embers', 'dust burst'],
