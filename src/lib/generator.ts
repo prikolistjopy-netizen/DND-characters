@@ -9,9 +9,11 @@ import {
   modeWeights,
   moods,
   narrativeMotifs,
+  narrativeVariants,
   poses,
   races,
   silhouettes,
+  visualThemeVariants,
   visualThemes,
   weapons,
   type ArchetypeOption,
@@ -23,17 +25,19 @@ import {
   type LightOption,
   type MoodOption,
   type NarrativeMotif,
+  type NarrativeVariant,
   type PoseOption,
   type RaceOption,
   type SizeCategory,
   type SilhouetteOption,
   type VisualTheme,
+  type VisualThemeVariant,
   type WeaponOption,
   type WeightedOption,
 } from '../data/seedData';
 
 type Mode = (typeof modeWeights)[number]['name'];
-type RegenerableLayer = 'template' | 'theme' | 'motif' | 'armor' | 'weapon' | 'silhouette' | 'pose' | 'mood' | 'light' | 'fx';
+type RegenerableLayer = 'template' | 'theme' | 'themeVariant' | 'motif' | 'narrativeVariant' | 'armor' | 'weapon' | 'silhouette' | 'pose' | 'mood' | 'light' | 'fx';
 
 type TemplateSelection = {
   template: BuildTemplate;
@@ -50,8 +54,10 @@ export type CharacterSeed = {
   buildTemplate: BuildTemplate;
   templateReason: string;
   visualTheme: VisualTheme;
+  visualThemeVariant: VisualThemeVariant;
   visualDetails: string[];
   narrativeMotif: NarrativeMotif;
+  narrativeVariant: NarrativeVariant;
   motifReason: string;
   storyDetails: string[];
   promptFragments: string[];
@@ -103,15 +109,20 @@ function getRaceSize(race: RaceOption): SizeCategory {
   return 'medium';
 }
 
-function pickVisualDetails(theme: VisualTheme): string[] {
-  const shuffled = [...theme.visualDetails].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, Math.max(2, Math.min(3, shuffled.length)));
+function uniqueCleanDetails(details: string[]): string[] {
+  return [...new Set(details.map((detail) => detail.trim()).filter((detail) => detail.length > 0 && !detail.endsWith(',')))];
 }
 
-function pickStoryDetails(motif: NarrativeMotif): string[] {
-  const details = [...motif.storyDetails].filter((detail) => detail.trim().length > 0 && !detail.trim().endsWith(','));
-  const shuffled = details.sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, Math.max(2, Math.min(3, shuffled.length)));
+function pickVisualDetails(theme: VisualTheme, variant: VisualThemeVariant): string[] {
+  const stable = uniqueCleanDetails(theme.visualDetails).sort(() => Math.random() - 0.5);
+  const fresh = uniqueCleanDetails(variant.visualDetails).sort(() => Math.random() - 0.5);
+  return uniqueCleanDetails([...stable.slice(0, 2), ...fresh.slice(0, 1), ...stable, ...fresh]).slice(0, 3);
+}
+
+function pickStoryDetails(motif: NarrativeMotif, variant: NarrativeVariant): string[] {
+  const stable = uniqueCleanDetails(motif.storyDetails).sort(() => Math.random() - 0.5);
+  const fresh = uniqueCleanDetails(variant.storyDetails).sort(() => Math.random() - 0.5);
+  return uniqueCleanDetails([...stable.slice(0, 1), ...fresh.slice(0, 2), ...stable, ...fresh]).slice(0, 3);
 }
 
 function weightedPick<T extends { weight: number }>(options: readonly T[]): T {
@@ -345,6 +356,25 @@ function themeNames(names: string[], fallback: string[]): string[] {
   return names.length > 0 ? names : fallback;
 }
 
+function selectVisualThemeVariant(theme: VisualTheme, fxOptions: string[] = theme.preferredFx): VisualThemeVariant {
+  const variants = visualThemeVariants.filter((variant) => variant.visualThemeId === theme.id);
+  if (variants.length === 0) {
+    return {
+      id: `${theme.id}_default_variant`,
+      label: `${theme.label} Default Variant`,
+      visualThemeId: theme.id,
+      visualDetails: theme.visualDetails.slice(0, 3),
+      promptFragments: [`keeps the core ${theme.label.toLowerCase()} visual identity`],
+      preferredFx: fxOptions,
+    };
+  }
+
+  return weightedPick(variants.map((variant) => ({
+    ...variant,
+    weight: Math.max(1, variant.weight + variant.preferredFx.filter((fx) => fxOptions.includes(fx)).length),
+  })));
+}
+
 
 type MotifSelection = {
   motif: NarrativeMotif;
@@ -384,6 +414,26 @@ function selectNarrativeMotif(seed: Pick<CharacterSeed, 'primaryClass' | 'race' 
     motif: narrativeMotifs.find((motif) => motif.id === 'seasoned_adventurer') ?? narrativeMotifs[narrativeMotifs.length - 1],
     reason: 'fallback motif after no compatible narrative motif matched filters',
   };
+}
+
+function selectNarrativeVariant(motif: NarrativeMotif, fxOptions: string[] = motif.fxBias): NarrativeVariant {
+  const variants = narrativeVariants.filter((variant) => variant.narrativeMotifId === motif.id);
+  if (variants.length === 0) {
+    return {
+      id: `${motif.id}_default_variant`,
+      label: `${motif.label} Default Variant`,
+      narrativeMotifId: motif.id,
+      storyDetails: motif.storyDetails.slice(0, 3),
+      promptFragments: motif.promptFragments,
+      moodBias: motif.moodBias,
+      fxBias: motif.fxBias,
+    };
+  }
+
+  return weightedPick(variants.map((variant) => ({
+    ...variant,
+    weight: Math.max(1, variant.weight + variant.fxBias.filter((fx) => fxOptions.includes(fx)).length),
+  })));
 }
 
 function templateOptions<T extends { name: string }>(options: Array<WeightedOption<T>>, names: string[]): Array<WeightedOption<T>> {
@@ -487,10 +537,11 @@ function constrainedSilhouetteOptions(template: BuildTemplate, seed: Pick<Charac
   ]);
 }
 
-function constrainedMoodOptions(template: BuildTemplate, archetype: ArchetypeOption, theme?: VisualTheme, motif?: NarrativeMotif) {
+function constrainedMoodOptions(template: BuildTemplate, archetype: ArchetypeOption, theme?: VisualTheme, motif?: NarrativeMotif, narrativeVariant?: NarrativeVariant) {
   const names = themeNames((theme?.preferredMoods ?? []).filter((name) => template.allowedMoods.includes(name)), template.allowedMoods);
   const options = templateOptions(moods, names);
   return prefer(options, [
+    (mood) => narrativeVariant ? narrativeVariant.moodBias.includes(mood.name) : false,
     (mood) => motif ? motif.moodBias.includes(mood.name) : false,
     (mood) => mood.tags.some((tag) => archetype.tags.includes(tag)),
   ]);
@@ -502,16 +553,21 @@ function constrainedLightOptions(template: BuildTemplate, archetype: ArchetypeOp
   return prefer(options, [(light) => light.tags.some((tag) => archetype.tags.includes(tag))]);
 }
 
-function constrainedFxOptions(template: BuildTemplate, archetype: ArchetypeOption, theme?: VisualTheme, motif?: NarrativeMotif) {
-  const names = themeNames((theme?.preferredFx ?? []).filter((name) => template.allowedFx.includes(name)), template.allowedFx);
+function constrainedFxOptions(template: BuildTemplate, archetype: ArchetypeOption, theme?: VisualTheme, motif?: NarrativeMotif, themeVariant?: VisualThemeVariant, narrativeVariant?: NarrativeVariant) {
+  const themeFx = [...(theme?.preferredFx ?? []), ...(themeVariant?.preferredFx ?? [])];
+  const names = themeNames(themeFx.filter((name) => template.allowedFx.includes(name)), template.allowedFx);
   const options = templateOptions(effects, names);
 
   if (template.id === 'fey_trickster') {
     const feyOptions = options.filter((fx) => hasAny(fx.tags, ['fey', 'trickster']));
-    return prefer(feyOptions.length > 0 ? feyOptions : options, [(fx) => motif ? motif.fxBias.includes(fx.name) : false]);
+    return prefer(feyOptions.length > 0 ? feyOptions : options, [
+      (fx) => narrativeVariant ? narrativeVariant.fxBias.includes(fx.name) : false,
+      (fx) => motif ? motif.fxBias.includes(fx.name) : false,
+    ]);
   }
 
   return prefer(options, [
+    (fx) => narrativeVariant ? narrativeVariant.fxBias.includes(fx.name) : false,
     (fx) => motif ? motif.fxBias.includes(fx.name) : false,
     (fx) => isCartographerLike(archetype) && hasAny(fx.tags, ['cartographer', 'scholar']),
     (fx) => (archetype.tags.includes('oathkeeper') || archetype.tags.includes('fallen')) && hasAny(fx.tags, ['holy', 'fallen']),
@@ -530,8 +586,10 @@ function createSeed(): CharacterSeed {
   const archetype = pickArchetype(classes, primaryClass);
   const { template: buildTemplate, reason: templateReason } = selectBuildTemplate(primaryClass, archetype, race, mode);
   const visualTheme = selectVisualTheme(buildTemplate, archetype, race);
+  const visualThemeVariant = selectVisualThemeVariant(visualTheme, buildTemplate.allowedFx);
   const motifSelection = selectNarrativeMotif({ primaryClass, race, archetype, buildTemplate, visualTheme });
   const narrativeMotif = motifSelection.motif;
+  const narrativeVariant = selectNarrativeVariant(narrativeMotif, buildTemplate.allowedFx);
   const armor = weightedPick(constrainedArmorOptions(buildTemplate, archetype, primaryClass, size, visualTheme));
   const weapon = weightedPick(constrainedWeaponOptions(buildTemplate, archetype, size, race, visualTheme));
   const silhouette = weightedPick(constrainedSilhouetteOptions(buildTemplate, { mode, primaryClass, race, size, archetype }, visualTheme));
@@ -547,19 +605,21 @@ function createSeed(): CharacterSeed {
     buildTemplate,
     templateReason,
     visualTheme,
-    visualDetails: pickVisualDetails(visualTheme),
+    visualThemeVariant,
+    visualDetails: pickVisualDetails(visualTheme, visualThemeVariant),
     narrativeMotif,
+    narrativeVariant,
     motifReason: motifSelection.reason,
-    storyDetails: pickStoryDetails(narrativeMotif),
-    promptFragments: narrativeMotif.promptFragments,
+    storyDetails: pickStoryDetails(narrativeMotif, narrativeVariant),
+    promptFragments: [...narrativeMotif.promptFragments, ...narrativeVariant.promptFragments, ...visualThemeVariant.promptFragments],
     silhouette,
     armor,
     weapon,
     pose,
     emotion: weightedPick(emotions).name,
-    mood: weightedPick(constrainedMoodOptions(buildTemplate, archetype, visualTheme, narrativeMotif)),
+    mood: weightedPick(constrainedMoodOptions(buildTemplate, archetype, visualTheme, narrativeMotif, narrativeVariant)),
     light: weightedPick(constrainedLightOptions(buildTemplate, archetype, visualTheme)),
-    fx: weightedPick(constrainedFxOptions(buildTemplate, archetype, visualTheme, narrativeMotif)),
+    fx: weightedPick(constrainedFxOptions(buildTemplate, archetype, visualTheme, narrativeMotif, visualThemeVariant, narrativeVariant)),
   };
 }
 
@@ -615,6 +675,10 @@ export function validateGeneratedSeed(seed: CharacterSeed): ValidationIssue[] {
 
   if (seed.visualTheme.buildTemplateId !== seed.buildTemplate.id) {
     issues.push({ message: `${seed.visualTheme.id} does not belong to build template ${seed.buildTemplate.id}`, layers: ['theme'] });
+  }
+
+  if (!seed.visualThemeVariant || seed.visualThemeVariant.visualThemeId !== seed.visualTheme.id) {
+    issues.push({ message: 'seed must have exactly one visual theme variant attached to selected theme', layers: ['themeVariant'] });
   }
 
   if (!seed.buildTemplate.allowedClasses.includes(seed.primaryClass)) {
@@ -687,7 +751,7 @@ export function validateGeneratedSeed(seed: CharacterSeed): ValidationIssue[] {
     issues.push({ message: 'void archetypes require void_oracle visual theme', layers: ['theme', 'fx'] });
   }
 
-  if (seed.archetype.tags.includes('void') && !['black-violet motes', 'void glow', 'purple void energy'].includes(seed.fx.name)) {
+  if (seed.archetype.tags.includes('void') && !['black-violet motes', 'void glow', 'purple void energy', 'drifting void ash', 'black-violet sparks', 'gravity distortions', 'fragmented stars'].includes(seed.fx.name)) {
     issues.push({ message: 'void oracle must have void FX', layers: ['fx'] });
   }
 
@@ -703,7 +767,7 @@ export function validateGeneratedSeed(seed: CharacterSeed): ValidationIssue[] {
     issues.push({ message: 'black-violet motes require warlock/cursed/void when temple or holy context is present', layers: ['fx'] });
   }
 
-  if (['spectral feathers', 'divine rays', 'holy glow'].includes(seed.fx.name) && ['rogue', 'barbarian'].includes(seed.primaryClass) && !hasHolyContext(seed)) {
+  if (['spectral feathers', 'divine rays', 'holy glow', 'sun motes', 'prayer ribbons', 'glowing dust', 'sacred sparks'].includes(seed.fx.name) && ['rogue', 'barbarian'].includes(seed.primaryClass) && !hasHolyContext(seed)) {
     issues.push({ message: 'divine FX require holy, temple, or oathkeeper context for pure rogue/barbarian', layers: ['fx'] });
   }
 
@@ -711,11 +775,11 @@ export function validateGeneratedSeed(seed: CharacterSeed): ValidationIssue[] {
     issues.push({ message: 'map glow lines require cartographer/scholar/academy/map/book/ritual context', layers: ['fx', 'weapon', 'pose'] });
   }
 
-  if (['green witchfire', 'petals and whimsical particles', 'soft fey glow'].includes(seed.fx.name) && !hasFeyContext(seed)) {
+  if (['green witchfire', 'petals and whimsical particles', 'soft fey glow', 'drifting petals', 'glowing pollen', 'moonlit butterflies', 'floating blossoms'].includes(seed.fx.name) && !hasFeyContext(seed)) {
     issues.push({ message: 'fey FX require fey/trickster/forest/satyr/fairy context', layers: ['fx'] });
   }
 
-  if (seed.buildTemplate.id === 'fey_trickster' && !['green witchfire', 'petals and whimsical particles', 'soft fey glow'].includes(seed.fx.name)) {
+  if (seed.buildTemplate.id === 'fey_trickster' && !['green witchfire', 'petals and whimsical particles', 'soft fey glow', 'drifting petals', 'glowing pollen', 'moonlit butterflies', 'floating blossoms'].includes(seed.fx.name)) {
     issues.push({ message: 'fey_trickster requires fey-compatible FX', layers: ['fx'] });
   }
 
@@ -737,6 +801,10 @@ export function validateGeneratedSeed(seed: CharacterSeed): ValidationIssue[] {
 
   if (!seed.narrativeMotif || seed.narrativeMotif.id.length === 0) {
     issues.push({ message: 'seed must have a narrative motif', layers: ['motif'] });
+  }
+
+  if (!seed.narrativeVariant || seed.narrativeVariant.narrativeMotifId !== seed.narrativeMotif.id) {
+    issues.push({ message: 'seed must have exactly one narrative variant attached to selected motif', layers: ['narrativeVariant'] });
   }
 
   if (seed.storyDetails.length === 0 || seed.storyDetails.some((detail) => detail.trim().endsWith(','))) {
@@ -774,19 +842,34 @@ function rerollLayer(seed: CharacterSeed, layer: RegenerableLayer): CharacterSee
   if (layer === 'template') {
     const selection = selectBuildTemplate(seed.primaryClass, seed.archetype, seed.race, seed.mode);
     const visualTheme = selectVisualTheme(selection.template, seed.archetype, seed.race);
+    const visualThemeVariant = selectVisualThemeVariant(visualTheme, selection.template.allowedFx);
     const motifSelection = selectNarrativeMotif({ ...seed, buildTemplate: selection.template, visualTheme });
-    return { ...seed, buildTemplate: selection.template, templateReason: selection.reason, visualTheme, visualDetails: pickVisualDetails(visualTheme), narrativeMotif: motifSelection.motif, motifReason: motifSelection.reason, storyDetails: pickStoryDetails(motifSelection.motif), promptFragments: motifSelection.motif.promptFragments };
+    const narrativeVariant = selectNarrativeVariant(motifSelection.motif, selection.template.allowedFx);
+    return { ...seed, buildTemplate: selection.template, templateReason: selection.reason, visualTheme, visualThemeVariant, visualDetails: pickVisualDetails(visualTheme, visualThemeVariant), narrativeMotif: motifSelection.motif, narrativeVariant, motifReason: motifSelection.reason, storyDetails: pickStoryDetails(motifSelection.motif, narrativeVariant), promptFragments: [...motifSelection.motif.promptFragments, ...narrativeVariant.promptFragments, ...visualThemeVariant.promptFragments] };
   }
 
   if (layer === 'theme') {
     const visualTheme = selectVisualTheme(seed.buildTemplate, seed.archetype, seed.race);
+    const visualThemeVariant = selectVisualThemeVariant(visualTheme, seed.buildTemplate.allowedFx);
     const motifSelection = selectNarrativeMotif({ ...seed, visualTheme });
-    return { ...seed, visualTheme, visualDetails: pickVisualDetails(visualTheme), narrativeMotif: motifSelection.motif, motifReason: motifSelection.reason, storyDetails: pickStoryDetails(motifSelection.motif), promptFragments: motifSelection.motif.promptFragments };
+    const narrativeVariant = selectNarrativeVariant(motifSelection.motif, seed.buildTemplate.allowedFx);
+    return { ...seed, visualTheme, visualThemeVariant, visualDetails: pickVisualDetails(visualTheme, visualThemeVariant), narrativeMotif: motifSelection.motif, narrativeVariant, motifReason: motifSelection.reason, storyDetails: pickStoryDetails(motifSelection.motif, narrativeVariant), promptFragments: [...motifSelection.motif.promptFragments, ...narrativeVariant.promptFragments, ...visualThemeVariant.promptFragments] };
   }
 
   if (layer === 'motif') {
     const motifSelection = selectNarrativeMotif(seed);
-    return { ...seed, narrativeMotif: motifSelection.motif, motifReason: motifSelection.reason, storyDetails: pickStoryDetails(motifSelection.motif), promptFragments: motifSelection.motif.promptFragments };
+    const narrativeVariant = selectNarrativeVariant(motifSelection.motif, seed.buildTemplate.allowedFx);
+    return { ...seed, narrativeMotif: motifSelection.motif, narrativeVariant, motifReason: motifSelection.reason, storyDetails: pickStoryDetails(motifSelection.motif, narrativeVariant), promptFragments: [...motifSelection.motif.promptFragments, ...narrativeVariant.promptFragments, ...seed.visualThemeVariant.promptFragments] };
+  }
+
+  if (layer === 'themeVariant') {
+    const visualThemeVariant = selectVisualThemeVariant(seed.visualTheme, seed.buildTemplate.allowedFx);
+    return { ...seed, visualThemeVariant, visualDetails: pickVisualDetails(seed.visualTheme, visualThemeVariant), promptFragments: [...seed.narrativeMotif.promptFragments, ...seed.narrativeVariant.promptFragments, ...visualThemeVariant.promptFragments] };
+  }
+
+  if (layer === 'narrativeVariant') {
+    const narrativeVariant = selectNarrativeVariant(seed.narrativeMotif, seed.buildTemplate.allowedFx);
+    return { ...seed, narrativeVariant, storyDetails: pickStoryDetails(seed.narrativeMotif, narrativeVariant), promptFragments: [...seed.narrativeMotif.promptFragments, ...narrativeVariant.promptFragments, ...seed.visualThemeVariant.promptFragments] };
   }
 
   if (layer === 'armor') {
@@ -807,14 +890,14 @@ function rerollLayer(seed: CharacterSeed, layer: RegenerableLayer): CharacterSee
   }
 
   if (layer === 'mood') {
-    return { ...seed, mood: weightedPick(constrainedMoodOptions(seed.buildTemplate, seed.archetype, seed.visualTheme, seed.narrativeMotif)) };
+    return { ...seed, mood: weightedPick(constrainedMoodOptions(seed.buildTemplate, seed.archetype, seed.visualTheme, seed.narrativeMotif, seed.narrativeVariant)) };
   }
 
   if (layer === 'light') {
     return { ...seed, light: weightedPick(constrainedLightOptions(seed.buildTemplate, seed.archetype, seed.visualTheme)) };
   }
 
-  return { ...seed, fx: weightedPick(constrainedFxOptions(seed.buildTemplate, seed.archetype, seed.visualTheme, seed.narrativeMotif)) };
+  return { ...seed, fx: weightedPick(constrainedFxOptions(seed.buildTemplate, seed.archetype, seed.visualTheme, seed.narrativeMotif, seed.visualThemeVariant, seed.narrativeVariant)) };
 }
 
 function replaceWithFallbackTemplate(seed: CharacterSeed, trace: string[]): CharacterSeed {
@@ -822,17 +905,21 @@ function replaceWithFallbackTemplate(seed: CharacterSeed, trace: string[]): Char
   trace.push(`Switching to safe fallback buildTemplate ${fallback.id} for ${seed.primaryClass}.`);
 
   const visualTheme = selectVisualTheme(fallback, seed.archetype, seed.race);
+  const visualThemeVariant = selectVisualThemeVariant(visualTheme, fallback.allowedFx);
   const motifSelection = selectNarrativeMotif({ ...seed, buildTemplate: fallback, visualTheme });
+  const narrativeVariant = selectNarrativeVariant(motifSelection.motif, fallback.allowedFx);
   const nextSeed: CharacterSeed = {
     ...seed,
     buildTemplate: fallback,
     templateReason: `safe fallback after unresolved validation for ${seed.primaryClass}`,
     visualTheme,
-    visualDetails: pickVisualDetails(visualTheme),
+    visualThemeVariant,
+    visualDetails: pickVisualDetails(visualTheme, visualThemeVariant),
     narrativeMotif: motifSelection.motif,
+    narrativeVariant,
     motifReason: motifSelection.reason,
-    storyDetails: pickStoryDetails(motifSelection.motif),
-    promptFragments: motifSelection.motif.promptFragments,
+    storyDetails: pickStoryDetails(motifSelection.motif, narrativeVariant),
+    promptFragments: [...motifSelection.motif.promptFragments, ...narrativeVariant.promptFragments, ...visualThemeVariant.promptFragments],
   };
 
   const armor = weightedPick(constrainedArmorOptions(fallback, nextSeed.archetype, nextSeed.primaryClass, nextSeed.size, nextSeed.visualTheme));
@@ -844,9 +931,9 @@ function replaceWithFallbackTemplate(seed: CharacterSeed, trace: string[]): Char
     weapon,
     silhouette: weightedPick(constrainedSilhouetteOptions(fallback, nextSeed, nextSeed.visualTheme)),
     pose: weightedPick(constrainedPoseOptions(fallback, nextSeed.archetype, weapon, nextSeed.visualTheme)),
-    mood: weightedPick(constrainedMoodOptions(fallback, nextSeed.archetype, nextSeed.visualTheme)),
+    mood: weightedPick(constrainedMoodOptions(fallback, nextSeed.archetype, nextSeed.visualTheme, nextSeed.narrativeMotif, nextSeed.narrativeVariant)),
     light: weightedPick(constrainedLightOptions(fallback, nextSeed.archetype, nextSeed.visualTheme)),
-    fx: weightedPick(constrainedFxOptions(fallback, nextSeed.archetype, nextSeed.visualTheme)),
+    fx: weightedPick(constrainedFxOptions(fallback, nextSeed.archetype, nextSeed.visualTheme, nextSeed.narrativeMotif, nextSeed.visualThemeVariant, nextSeed.narrativeVariant)),
   };
 }
 
@@ -890,16 +977,20 @@ function resolveSeedConflicts(seed: CharacterSeed, trace: string[]): CharacterSe
   const armor = armors.find((option) => option.name === (seed.primaryClass === 'monk' ? 'no armor, simple travel wraps' : safeTemplate.allowedArmor[0])) ?? armors[0];
   const weapon = weapons.find((option) => option.name === safeTemplate.allowedWeapons[0]) ?? weapons[0];
   const visualTheme = selectVisualTheme(safeTemplate, nextSeed.archetype, nextSeed.race);
+  const visualThemeVariant = selectVisualThemeVariant(visualTheme, safeTemplate.allowedFx);
   const motifSelection = selectNarrativeMotif({ ...nextSeed, buildTemplate: safeTemplate, visualTheme });
+  const narrativeVariant = selectNarrativeVariant(motifSelection.motif, safeTemplate.allowedFx);
   return {
     ...nextSeed,
     buildTemplate: safeTemplate,
     visualTheme,
-    visualDetails: pickVisualDetails(visualTheme),
+    visualThemeVariant,
+    visualDetails: pickVisualDetails(visualTheme, visualThemeVariant),
     narrativeMotif: motifSelection.motif,
+    narrativeVariant,
     motifReason: motifSelection.reason,
-    storyDetails: pickStoryDetails(motifSelection.motif),
-    promptFragments: motifSelection.motif.promptFragments,
+    storyDetails: pickStoryDetails(motifSelection.motif, narrativeVariant),
+    promptFragments: [...motifSelection.motif.promptFragments, ...narrativeVariant.promptFragments, ...visualThemeVariant.promptFragments],
     armor,
     weapon,
     silhouette: silhouettes.find((option) => option.name === 'compact and nimble') ?? silhouettes[0],
@@ -928,7 +1019,9 @@ function formatSeed(seed: CharacterSeed): string {
     `Archetype: ${seed.archetype.name}`,
     `Build Template: ${seed.buildTemplate.id}`,
     `Visual Theme: ${seed.visualTheme.id}`,
+    `Theme Variant: ${seed.visualThemeVariant.id}`,
     `Narrative Motif: ${seed.narrativeMotif.label}`,
+    `Narrative Variant: ${seed.narrativeVariant.id}`,
     `Silhouette: ${seed.silhouette.name}`,
     `Armor: ${seed.armor.name}`,
     `Weapon / Tool: ${seed.weapon.name}`,
@@ -945,7 +1038,7 @@ function formatSeed(seed: CharacterSeed): string {
 function formatPrompt(seed: CharacterSeed): string {
   return [
     `Create a D&D character concept art portrait of a ${seed.race.name} ${formatClassLine(seed)}.`,
-    `Build template: ${seed.buildTemplate.label}. Core fantasy: ${seed.archetype.name}.`,
+    `Build template: ${seed.buildTemplate.label}. Core fantasy: ${seed.archetype.name}. Visual theme variant: ${seed.visualThemeVariant.label}. Narrative variant: ${seed.narrativeVariant.label}.`,
     `Silhouette: ${seed.silhouette.name}; armor: ${seed.armor.name}; weapon or prop: ${seed.weapon.name}.`,
     `Pose: ${seed.pose.name}; expression: ${seed.emotion}.`,
     `Mood: ${seed.mood.name}; lighting: ${seed.light.name}; primary visual effect: ${seed.fx.name}.`,
@@ -965,13 +1058,17 @@ export function generateCharacterSeed(): GenerationResult {
   trace.push(`Selected buildTemplate: ${seed.buildTemplate.id}.`);
   trace.push(`Template selection reason: ${seed.templateReason}.`);
   trace.push(`Selected visualTheme: ${seed.visualTheme.id}.`);
+  trace.push(`Selected visualThemeVariant: ${seed.visualThemeVariant.id}.`);
   trace.push(`Selected narrativeMotif: ${seed.narrativeMotif.id}.`);
+  trace.push(`Selected narrativeVariant: ${seed.narrativeVariant.id}.`);
   trace.push(`Motif selection reason: ${seed.motifReason}.`);
   trace.push(`Motif compatibility filters: template ${seed.buildTemplate.id}, theme ${seed.visualTheme.id}, class ${seed.primaryClass}, race ${seed.race.name}, tags ${seed.archetype.tags.join(', ')}.`);
 
   const resolvedSeed = resolveSeedConflicts(seed, trace);
   trace.push(`Final selected visualTheme: ${resolvedSeed.visualTheme.id}.`);
+  trace.push(`Final selected visualThemeVariant: ${resolvedSeed.visualThemeVariant.id}.`);
   trace.push(`Final selected narrativeMotif: ${resolvedSeed.narrativeMotif.id}.`);
+  trace.push(`Final selected narrativeVariant: ${resolvedSeed.narrativeVariant.id}.`);
   trace.push(`Final motif compatibility filters: template ${resolvedSeed.buildTemplate.id}, theme ${resolvedSeed.visualTheme.id}, class ${resolvedSeed.primaryClass}, race ${resolvedSeed.race.name}, tags ${resolvedSeed.archetype.tags.join(', ')}.`);
 
   return {

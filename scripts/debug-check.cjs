@@ -4,7 +4,7 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const outDir = path.join(root, '.debug-check-build');
-const sampleSize = 3000;
+const sampleSize = 5000;
 
 rmSync(outDir, { recursive: true, force: true });
 run(
@@ -33,6 +33,7 @@ run(
 writeFileSync(path.join(outDir, 'package.json'), JSON.stringify({ type: 'commonjs' }));
 
 const { generateCharacterSeed, validateGeneratedSeed } = require(path.join(outDir, 'lib/generator.js'));
+const { visualThemes, visualThemeVariants, narrativeMotifs, narrativeVariants } = require(path.join(outDir, 'data/seedData.js'));
 
 const failures = [];
 
@@ -40,13 +41,54 @@ function hasAny(tags, values) {
   return values.some((value) => tags.includes(value));
 }
 
+function increment(map, key) {
+  map.set(key, (map.get(key) ?? 0) + 1);
+}
+
+function topEntries(map, limit = 20) {
+  return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit);
+}
+
+const motifCounts = new Map();
+const narrativeVariantCounts = new Map();
+const themeCounts = new Map();
+const themeVariantCounts = new Map();
+const storyDetailCounts = new Map();
+const combinationCounts = new Map();
+
+for (const theme of visualThemes) {
+  const count = visualThemeVariants.filter((variant) => variant.visualThemeId === theme.id).length;
+  if (count < 3) {
+    failures.push(`visual theme ${theme.id} has only ${count} variant(s)`);
+  }
+}
+
+for (const motif of narrativeMotifs) {
+  const count = narrativeVariants.filter((variant) => variant.narrativeMotifId === motif.id).length;
+  if (count < 3) {
+    failures.push(`narrative motif ${motif.id} has only ${count} variant(s)`);
+  }
+}
+
+const voidFx = ['black-violet motes', 'void glow', 'purple void energy', 'drifting void ash', 'black-violet sparks', 'gravity distortions', 'fragmented stars'];
+const feyFx = ['petals and whimsical particles', 'green witchfire', 'soft fey glow', 'drifting petals', 'glowing pollen', 'moonlit butterflies', 'floating blossoms'];
+
 for (let index = 0; index < sampleSize; index += 1) {
   const result = generateCharacterSeed();
   const { seed } = result;
   const armorTags = seed.armor.tags;
   const weaponTags = seed.weapon.tags;
   const poseTags = seed.pose.tags;
-  const summary = `${seed.race.name} ${seed.size} ${seed.classes.join('/')} ${seed.archetype.name} | ${seed.buildTemplate.id}/${seed.visualTheme.id}/${seed.narrativeMotif?.id ?? 'no-motif'} | ${seed.silhouette.name} | ${seed.armor.name} | ${seed.weapon.name} | ${seed.pose.name} | ${seed.fx.name}`;
+  const summary = `${seed.race.name} ${seed.size} ${seed.classes.join('/')} ${seed.archetype.name} | ${seed.buildTemplate.id}/${seed.visualTheme.id}/${seed.visualThemeVariant?.id ?? 'no-theme-variant'}/${seed.narrativeMotif?.id ?? 'no-motif'}/${seed.narrativeVariant?.id ?? 'no-narrative-variant'} | ${seed.silhouette.name} | ${seed.armor.name} | ${seed.weapon.name} | ${seed.pose.name} | ${seed.fx.name}`;
+
+  increment(motifCounts, seed.narrativeMotif?.id ?? 'no-motif');
+  increment(narrativeVariantCounts, seed.narrativeVariant?.id ?? 'no-narrative-variant');
+  increment(themeCounts, seed.visualTheme?.id ?? 'no-theme');
+  increment(themeVariantCounts, seed.visualThemeVariant?.id ?? 'no-theme-variant');
+  for (const detail of seed.storyDetails ?? []) {
+    increment(storyDetailCounts, detail);
+  }
+  increment(combinationCounts, `${seed.primaryClass}+${seed.visualTheme?.id ?? 'no-theme'}+${seed.narrativeMotif?.id ?? 'no-motif'}`);
 
   for (const issue of validateGeneratedSeed(seed)) {
     failures.push(`Generated validation issue: ${issue.message} :: ${summary}`);
@@ -94,7 +136,7 @@ for (let index = 0; index < sampleSize; index += 1) {
     failures.push(`fairy received full plate :: ${summary}`);
   }
 
-  if (seed.visualTheme.id === 'void_oracle' && !['black-violet motes', 'void glow', 'purple void energy'].includes(seed.fx.name)) {
+  if (seed.visualTheme.id === 'void_oracle' && !voidFx.includes(seed.fx.name)) {
     failures.push(`void_oracle without void FX :: ${summary}`);
   }
 
@@ -160,7 +202,7 @@ for (let index = 0; index < sampleSize; index += 1) {
 
   if (
     seed.buildTemplate.id === 'fey_trickster' &&
-    !['petals and whimsical particles', 'green witchfire', 'soft fey glow'].includes(seed.fx.name)
+    !feyFx.includes(seed.fx.name)
   ) {
     failures.push(`fey_trickster without fey-compatible FX :: ${summary}`);
   }
@@ -213,6 +255,40 @@ for (let index = 0; index < sampleSize; index += 1) {
   }
 }
 
+const maxNarrativeVariant = topEntries(narrativeVariantCounts, 1)[0];
+if (maxNarrativeVariant && maxNarrativeVariant[1] > sampleSize * 0.16) {
+  failures.push(`narrative variant dominated diversity: ${maxNarrativeVariant[0]} = ${maxNarrativeVariant[1]}`);
+}
+
+const maxThemeVariant = topEntries(themeVariantCounts, 1)[0];
+if (maxThemeVariant && maxThemeVariant[1] > sampleSize * 0.16) {
+  failures.push(`visual theme variant dominated diversity: ${maxThemeVariant[0]} = ${maxThemeVariant[1]}`);
+}
+
+const maxStoryDetail = topEntries(storyDetailCounts, 1)[0];
+if (maxStoryDetail && maxStoryDetail[1] > sampleSize * 0.22) {
+  failures.push(`story detail repeated too often: ${maxStoryDetail[0]} = ${maxStoryDetail[1]}`);
+}
+
+const maxCombination = topEntries(combinationCounts, 1)[0];
+if (maxCombination && maxCombination[1] > sampleSize * 0.08) {
+  failures.push(`class/theme/motif combination repeated too often: ${maxCombination[0]} = ${maxCombination[1]}`);
+}
+
+function printStats(title, map) {
+  console.log(`\n${title}`);
+  for (const [key, count] of topEntries(map)) {
+    console.log(`${String(count).padStart(4, ' ')}  ${key}`);
+  }
+}
+
+printStats('Top 20 motifs', motifCounts);
+printStats('Top 20 narrative variants', narrativeVariantCounts);
+printStats('Top 20 themes', themeCounts);
+printStats('Top 20 visual theme variants', themeVariantCounts);
+printStats('Top 20 story details', storyDetailCounts);
+printStats('Most common Class + Theme + Motif combinations', combinationCounts);
+
 rmSync(outDir, { recursive: true, force: true });
 
 if (failures.length > 0) {
@@ -221,4 +297,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`Debug check passed: ${sampleSize} generated seeds satisfy narrative-motif v4 coherence rules.`);
+console.log(`Debug check passed: ${sampleSize} generated seeds satisfy narrative-variant diversity rules.`);
