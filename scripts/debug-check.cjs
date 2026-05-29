@@ -33,7 +33,7 @@ run(
 writeFileSync(path.join(outDir, 'package.json'), JSON.stringify({ type: 'commonjs' }));
 
 const { generateCharacterSeed, validateGeneratedSeed } = require(path.join(outDir, 'lib/generator.js'));
-const { visualThemes, visualThemeVariants, narrativeMotifs, narrativeVariants } = require(path.join(outDir, 'data/seedData.js'));
+const { visualThemes, visualThemeVariants, narrativeMotifs, narrativeVariants, culturalOrigins } = require(path.join(outDir, 'data/seedData.js'));
 
 const failures = [];
 
@@ -55,6 +55,10 @@ const themeCounts = new Map();
 const themeVariantCounts = new Map();
 const storyDetailCounts = new Map();
 const combinationCounts = new Map();
+const cultureCounts = new Map();
+const classScoreCounts = new Map();
+const classScoreTotals = new Map();
+const scholarThemeCounts = new Map();
 
 for (const theme of visualThemes) {
   const count = visualThemeVariants.filter((variant) => variant.visualThemeId === theme.id).length;
@@ -89,6 +93,12 @@ for (let index = 0; index < sampleSize; index += 1) {
     increment(storyDetailCounts, detail);
   }
   increment(combinationCounts, `${seed.primaryClass}+${seed.visualTheme?.id ?? 'no-theme'}+${seed.narrativeMotif?.id ?? 'no-motif'}`);
+  increment(cultureCounts, seed.culturalOrigin?.id ?? 'no-culture');
+  increment(classScoreCounts, `${seed.primaryClass}:${seed.classAnchorScore}`);
+  classScoreTotals.set(seed.primaryClass, (classScoreTotals.get(seed.primaryClass) ?? 0) + seed.classAnchorScore);
+  if (['divine_archivist', 'academy_mage', 'archive_performer'].includes(seed.visualTheme?.id)) {
+    increment(scholarThemeCounts, seed.visualTheme.id);
+  }
 
   for (const issue of validateGeneratedSeed(seed)) {
     failures.push(`Generated validation issue: ${issue.message} :: ${summary}`);
@@ -255,6 +265,21 @@ for (let index = 0; index < sampleSize; index += 1) {
   }
 }
 
+const scholarTotal = [...scholarThemeCounts.values()].reduce((sum, count) => sum + count, 0);
+if (scholarTotal > sampleSize * 0.28) {
+  failures.push(`scholar themes dominated distribution: ${scholarTotal}/${sampleSize}`);
+}
+
+const divineArchivistCount = themeCounts.get('divine_archivist') ?? 0;
+if (divineArchivistCount > sampleSize * 0.13) {
+  failures.push(`divine_archivist dominated distribution: ${divineArchivistCount}/${sampleSize}`);
+}
+
+const maxCulture = topEntries(cultureCounts, 1)[0];
+if (maxCulture && maxCulture[1] > sampleSize * 0.22) {
+  failures.push(`culture dominated distribution: ${maxCulture[0]} = ${maxCulture[1]}`);
+}
+
 const maxNarrativeVariant = topEntries(narrativeVariantCounts, 1)[0];
 if (maxNarrativeVariant && maxNarrativeVariant[1] > sampleSize * 0.16) {
   failures.push(`narrative variant dominated diversity: ${maxNarrativeVariant[0]} = ${maxNarrativeVariant[1]}`);
@@ -287,6 +312,16 @@ printStats('Top 20 narrative variants', narrativeVariantCounts);
 printStats('Top 20 themes', themeCounts);
 printStats('Top 20 visual theme variants', themeVariantCounts);
 printStats('Top 20 story details', storyDetailCounts);
+printStats('Culture distribution', cultureCounts);
+printStats('Class identity score buckets', classScoreCounts);
+console.log('\nAverage class identity score');
+for (const [className, total] of [...classScoreTotals.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+  const count = [...classScoreCounts.entries()]
+    .filter(([bucket]) => bucket.startsWith(`${className}:`))
+    .reduce((sum, [, bucketCount]) => sum + bucketCount, 0);
+  console.log(`${className}: ${(total / count).toFixed(2)}/5`);
+}
+printStats('Scholar theme distribution', scholarThemeCounts);
 printStats('Most common Class + Theme + Motif combinations', combinationCounts);
 
 rmSync(outDir, { recursive: true, force: true });
@@ -297,4 +332,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`Debug check passed: ${sampleSize} generated seeds satisfy narrative-variant diversity rules.`);
+console.log(`Debug check passed: ${sampleSize} generated seeds satisfy hierarchical identity v6 rules.`);

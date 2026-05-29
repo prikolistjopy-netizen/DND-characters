@@ -197,6 +197,25 @@ export type NarrativeVariant = {
   fxBias: string[];
 };
 
+export type ClassAnchor = {
+  className: CharacterClass;
+  label: string;
+  weaponTags: WeaponTag[];
+  armorTags: ArmorTag[];
+  poseTags: PoseTag[];
+  detailKeywords: string[];
+};
+
+export type CulturalOrigin = {
+  id: string;
+  label: string;
+  clothingDetails: string[];
+  materials: string[];
+  ornaments: string[];
+  atmosphere: string[];
+  colorHints: string[];
+};
+
 export type BuildTemplate = {
   id: string;
   label: string;
@@ -233,6 +252,33 @@ export const characterClasses: Array<WeightedOption<{ name: CharacterClass }>> =
   { name: 'warlock', weight: 7 },
   { name: 'monk', weight: 5 },
   { name: 'artificer', weight: 3 },
+];
+
+export const classAnchors: ClassAnchor[] = [
+  { className: 'wizard', label: 'Wizard Arcane Identity', weaponTags: ['staff', 'orb', 'book', 'wand', 'magic-focus'], armorTags: ['cloth'], poseTags: ['casting', 'map', 'tools'], detailKeywords: ['robe', 'spellbook', 'grimoire', 'scroll', 'glyph', 'arcane', 'academy'] },
+  { className: 'rogue', label: 'Rogue Skirmisher Identity', weaponTags: ['dagger', 'rapier', 'bow', 'tool', 'map', 'compass', 'scroll'], armorTags: ['light', 'cloth'], poseTags: ['rapier', 'bow', 'dual-blades', 'map', 'tools', 'tracking'], detailKeywords: ['cloak', 'lockpick', 'stolen', 'hidden', 'alley', 'stealth', 'satchel'] },
+  { className: 'ranger', label: 'Ranger Wilderness Identity', weaponTags: ['bow', 'spear', 'handaxe', 'dual-blades', 'map', 'compass'], armorTags: ['light', 'medium', 'natural'], poseTags: ['bow', 'tracking', 'map', 'tools'], detailKeywords: ['trail', 'muddy', 'wilderness', 'hunter', 'tracks', 'leather', 'lantern'] },
+  { className: 'monk', label: 'Monk Martial Identity', weaponTags: ['unarmed', 'staff', 'simple', 'spear'], armorTags: ['none', 'cloth'], poseTags: ['monk', 'general'], detailKeywords: ['wraps', 'beads', 'sash', 'monastery', 'temple', 'staff'] },
+  { className: 'paladin', label: 'Paladin Sacred Knight Identity', weaponTags: ['holy-focus', 'shield', 'mace', 'warhammer', 'spear', 'martial'], armorTags: ['medium', 'heavy', 'metal', 'shield'], poseTags: ['shield', 'prayer', 'general'], detailKeywords: ['holy', 'relic', 'shield', 'symbol', 'banner', 'oath'] },
+  { className: 'cleric', label: 'Cleric Ritual Identity', weaponTags: ['holy-focus', 'staff', 'mace', 'warhammer', 'book', 'shield'], armorTags: ['medium', 'heavy', 'cloth', 'metal'], poseTags: ['prayer', 'casting', 'map', 'tools', 'shield'], detailKeywords: ['prayer', 'holy', 'ritual', 'relic', 'book', 'censer'] },
+  { className: 'bard', label: 'Bard Performer Identity', weaponTags: ['instrument', 'flute', 'book', 'scroll', 'rapier', 'tool'], armorTags: ['cloth', 'light'], poseTags: ['performance', 'tools', 'rapier'], detailKeywords: ['song', 'lute', 'flute', 'story', 'performance', 'recital', 'archive'] },
+  { className: 'artificer', label: 'Artificer Device Identity', weaponTags: ['tool', 'mechanical-focus', 'mechanical-weapon', 'magic-focus'], armorTags: ['light', 'medium', 'metal'], poseTags: ['tools', 'casting'], detailKeywords: ['gear', 'clockwork', 'device', 'brass', 'caliper', 'mechanical'] },
+  { className: 'warlock', label: 'Warlock Pact Identity', weaponTags: ['magic-focus', 'book', 'orb', 'wand', 'staff', 'fey-focus'], armorTags: ['cloth', 'light'], poseTags: ['casting', 'rapier'], detailKeywords: ['pact', 'void', 'occult', 'curse', 'talisman', 'eldritch'] },
+  { className: 'barbarian', label: 'Barbarian Primal Identity', weaponTags: ['heavy', 'greataxe', 'greatsword', 'spear', 'handaxe'], armorTags: ['medium', 'natural', 'cloth'], poseTags: ['heavy-melee', 'general'], detailKeywords: ['trophy', 'hide', 'clan', 'scar', 'rugged', 'war'] },
+  { className: 'fighter', label: 'Fighter Martial Identity', weaponTags: ['martial', 'shield', 'greatsword', 'spear', 'warhammer', 'dual-blades', 'mace', 'bow'], armorTags: ['light', 'medium', 'heavy', 'metal'], poseTags: ['shield', 'heavy-melee', 'dual-blades', 'general', 'bow'], detailKeywords: ['veteran', 'guard', 'arena', 'banner', 'combat', 'campaign'] },
+  { className: 'druid', label: 'Druid Natural Identity', weaponTags: ['staff', 'simple', 'spear', 'fey-focus', 'instrument'], armorTags: ['cloth', 'natural', 'light'], poseTags: ['casting', 'tracking', 'general'], detailKeywords: ['leaf', 'forest', 'bark', 'reed', 'nature', 'fey', 'wild'] },
+  { className: 'sorcerer', label: 'Sorcerer Innate Magic Identity', weaponTags: ['magic-focus', 'orb', 'wand', 'staff', 'book'], armorTags: ['cloth'], poseTags: ['casting'], detailKeywords: ['aura', 'birthmark', 'arcane', 'spark', 'void', 'dragon'] },
+];
+
+export const culturalOrigins: Array<WeightedOption<CulturalOrigin>> = [
+  { id: 'northern_frontier', label: 'Northern Frontier', clothingDetails: ['fur trim', 'weathered leather', 'snow-dusted cloak edge'], materials: ['carved bone', 'iron rivets'], ornaments: ['carved bone charms', 'wolf-knot toggles'], atmosphere: ['cold open-air grit'], colorHints: ['charcoal grey', 'frost blue'], weight: 8 },
+  { id: 'imperial_heartland', label: 'Imperial Heartland', clothingDetails: ['heraldic embroidery', 'tailored mantle', 'formal layered hems'], materials: ['polished fittings', 'noble fabrics'], ornaments: ['seal-stamped clasp', 'laurel trim'], atmosphere: ['disciplined courtly polish'], colorHints: ['deep crimson', 'warm gold'], weight: 8 },
+  { id: 'desert_kingdoms', label: 'Desert Kingdoms', clothingDetails: ['wrapped cloth', 'sun veil', 'sand-worn equipment'], materials: ['bronze', 'dyed linen'], ornaments: ['bronze ornaments', 'glass bead cords'], atmosphere: ['dry heat haze'], colorHints: ['sand ochre', 'turquoise'], weight: 7 },
+  { id: 'feywild_exile', label: 'Feywild Exile', clothingDetails: ['living fabrics', 'petal-edged cloak', 'moonlit color panels'], materials: ['glowing flowers', 'woven moonvine'], ornaments: ['glowing flower pins', 'silver thorn charms'], atmosphere: ['unearthly twilight'], colorHints: ['moonlit violet', 'soft green'], weight: 7 },
+  { id: 'ancient_monastery', label: 'Ancient Monastery', clothingDetails: ['monastery cloth', 'plain layered wraps', 'weathered prayer shawl'], materials: ['aged wood', 'undyed linen'], ornaments: ['prayer ribbons', 'wooden talismans'], atmosphere: ['quiet incense discipline'], colorHints: ['saffron', 'warm umber'], weight: 7 },
+  { id: 'ruined_arcane_state', label: 'Ruined Arcane State', clothingDetails: ['academy ruin patches', 'salvaged robe panels', 'cracked glyph fragments sewn in'], materials: ['salvaged magical relics', 'chipped crystal'], ornaments: ['broken faculty pin', 'rune shard necklace'], atmosphere: ['fallen scholastic grandeur'], colorHints: ['faded blue', 'ashen silver'], weight: 8 },
+  { id: 'free_city_states', label: 'Free City States', clothingDetails: ['layered street cloak', 'market-dyed sash', 'practical city boots'], materials: ['mixed textiles', 'brass buckles'], ornaments: ['guild token', 'coin-chain trim'], atmosphere: ['busy cosmopolitan edge'], colorHints: ['brick red', 'brass yellow'], weight: 8 },
+  { id: 'dragon_coast', label: 'Dragon Coast', clothingDetails: ['salt-proof coat trim', 'wind-tied scarf', 'scale-pattern panels'], materials: ['lacquered scale', 'sea-worn brass'], ornaments: ['dragon tooth bead', 'coastal knotwork'], atmosphere: ['stormy sea air'], colorHints: ['deep teal', 'storm bronze'], weight: 7 },
 ];
 
 export const races: Array<WeightedOption<RaceOption>> = [
@@ -652,7 +698,7 @@ export const visualThemes: Array<WeightedOption<VisualTheme>> = [
   { id: 'wandering_storyteller', label: 'Wandering Storyteller', buildTemplateId: 'lorekeeper_bard', archetypeTags: ['noble', 'pirate'], archetypeNames: ['haunted noble heir', 'pirate relic diver'], preferredMoods: ['rainy alley ambush'], preferredLights: ['low lantern light'], preferredFx: ['floating embers'], preferredWeapons: ['lute reinforced as a dueling club', 'song-scroll case'], preferredArmor: ['small travel cloak', 'travel cloak over leather'], preferredPoses: ['performing a playful fey flourish'], preferredSilhouettes: ['asymmetrical cloak profile'], visualDetails: ['well-worn songbook', 'roadside tale charms'], weight: 7 },
   { id: 'cursed_lore_singer', label: 'Cursed Lore Singer', buildTemplateId: 'lorekeeper_bard', archetypeTags: ['cursed', 'scholar'], archetypeNames: ['cursed cartographer'], preferredMoods: ['haunted midnight ritual'], preferredLights: ['cold moon rim light'], preferredFx: ['black-violet motes', 'subtle magical runes'], preferredWeapons: ['song-scroll case', 'small spellbook'], preferredArmor: ['travel-worn cloth layers'], preferredPoses: ['tracing a glowing sigil in the air'], preferredSilhouettes: ['lean and sharp-edged'], visualDetails: ['curse-annotated verses', 'black-thread bookmark'], weight: 7 },
   { id: 'court_loremaster', label: 'Court Loremaster', buildTemplateId: 'lorekeeper_bard', archetypeTags: ['noble', 'scholar'], archetypeNames: ['haunted noble heir'], preferredMoods: ['arcane study wonder'], preferredLights: ['blue arcane glyph light'], preferredFx: ['subtle magical runes'], preferredWeapons: ['annotated performance notes', 'rapier with jeweled guard'], preferredArmor: ['travel cloak over leather'], preferredPoses: ['duelist turn with one foot sliding back'], preferredSilhouettes: ['asymmetrical cloak profile'], visualDetails: ['court genealogy scroll', 'velvet archive sash'], weight: 6 },
-  { id: 'divine_archivist', label: 'Divine Archivist', buildTemplateId: 'divine_scholar', archetypeTags: ['cartographer', 'scholar', 'holy'], archetypeNames: ['cursed cartographer', 'clockwork scholar'], preferredMoods: ['arcane study wonder', 'radiant temple resolve'], preferredLights: ['candlelit map glow'], preferredFx: ['map glow lines', 'subtle magical runes'], preferredWeapons: ['annotated map and compass', 'scroll case and compass', 'holy book and ritual staff'], preferredArmor: ['travel-worn cloth layers', 'embroidered arcane robes'], preferredPoses: ['studying a map under candlelight', 'ritual prep around carefully arranged instruments'], preferredSilhouettes: ['asymmetrical cloak profile', 'gadget-laden workshop silhouette'], visualDetails: ['indexed holy maps', 'ribboned archive keys'], weight: 8 },
+  { id: 'divine_archivist', label: 'Divine Archivist', buildTemplateId: 'divine_scholar', archetypeTags: ['cartographer', 'scholar', 'holy'], archetypeNames: ['cursed cartographer', 'clockwork scholar'], preferredMoods: ['arcane study wonder', 'radiant temple resolve'], preferredLights: ['candlelit map glow'], preferredFx: ['map glow lines', 'subtle magical runes'], preferredWeapons: ['annotated map and compass', 'scroll case and compass', 'holy book and ritual staff'], preferredArmor: ['travel-worn cloth layers', 'embroidered arcane robes'], preferredPoses: ['studying a map under candlelight', 'ritual prep around carefully arranged instruments'], preferredSilhouettes: ['asymmetrical cloak profile', 'gadget-laden workshop silhouette'], visualDetails: ['indexed holy maps', 'ribboned archive keys'], weight: 4 },
 ];
 
 
