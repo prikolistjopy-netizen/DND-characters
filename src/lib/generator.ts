@@ -48,6 +48,36 @@ type TemplateSelection = {
   reason: string;
 };
 
+type SmartSelectionLayer =
+  | 'Build Template'
+  | 'Visual Theme'
+  | 'Visual Theme Variant'
+  | 'Narrative Motif'
+  | 'Narrative Variant'
+  | 'Culture'
+  | 'Armor'
+  | 'Weapon / Tool'
+  | 'Silhouette'
+  | 'Pose'
+  | 'Mood'
+  | 'Light'
+  | 'FX';
+
+type SmartCandidate<T> = {
+  item: T;
+  score: number;
+  reasons: string[];
+};
+
+type SmartSelectionContext = {
+  useSmartPool: boolean;
+  trace: string[];
+};
+
+export type GenerationOptions = {
+  useSmartPool?: boolean;
+};
+
 export type CharacterSeed = {
   mode: Mode;
   primaryClass: CharacterClass;
@@ -93,6 +123,7 @@ export type ValidationIssue = {
 const smallRaceNames = ['gnome', 'halfling', 'fairy'];
 const casterClasses: CharacterClass[] = ['wizard', 'sorcerer'];
 const hardArmorTags = ['light', 'medium', 'heavy', 'metal'];
+const scholarThemeIds = new Set(['divine_archivist', 'academy_mage', 'archive_performer']);
 const fallbackTemplateByClass: Record<CharacterClass, string> = {
   artificer: 'battle_engineer',
   barbarian: 'savage_berserker',
@@ -149,16 +180,25 @@ function uniqueCleanDetails(details: string[]): string[] {
   return [...new Set(details.map((detail) => detail.trim()).filter((detail) => detail.length > 0 && !detail.endsWith(',')))];
 }
 
+function shuffled<T>(items: T[]): T[] {
+  const copy = [...items];
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
+  }
+  return copy;
+}
+
 function pickVisualDetails(theme: VisualTheme, variant: VisualThemeVariant): string[] {
-  const stable = uniqueCleanDetails(theme.visualDetails).sort(() => Math.random() - 0.5);
-  const fresh = uniqueCleanDetails(variant.visualDetails).sort(() => Math.random() - 0.5);
-  return uniqueCleanDetails([...stable.slice(0, 2), ...fresh.slice(0, 1), ...stable, ...fresh]).slice(0, 3);
+  const stable = shuffled(uniqueCleanDetails(theme.visualDetails));
+  const fresh = shuffled(uniqueCleanDetails(variant.visualDetails));
+  return uniqueCleanDetails([...stable.slice(0, 2), ...fresh.slice(0, 1), ...shuffled([...stable, ...fresh])]).slice(0, 3);
 }
 
 function pickStoryDetails(motif: NarrativeMotif, variant: NarrativeVariant): string[] {
-  const stable = uniqueCleanDetails(motif.storyDetails).sort(() => Math.random() - 0.5);
-  const fresh = uniqueCleanDetails(variant.storyDetails).sort(() => Math.random() - 0.5);
-  return uniqueCleanDetails([...stable.slice(0, 1), ...fresh.slice(0, 2), ...stable, ...fresh]).slice(0, 3);
+  const stable = uniqueCleanDetails(motif.storyDetails);
+  const fresh = uniqueCleanDetails(variant.storyDetails);
+  return shuffled(uniqueCleanDetails([...stable, ...fresh])).slice(0, 3);
 }
 
 function weightedPick<T extends { weight: number }>(options: readonly T[]): T {
@@ -173,6 +213,122 @@ function weightedPick<T extends { weight: number }>(options: readonly T[]): T {
   }
 
   return options[options.length - 1];
+}
+
+
+const smartRecentPicks = new Map<SmartSelectionLayer, string[]>();
+
+export function resetSmartCandidatePoolMemory(): void {
+  smartRecentPicks.clear();
+}
+
+function getCandidateId(item: unknown): string {
+  if (typeof item === 'object' && item !== null) {
+    const record = item as Record<string, unknown>;
+    if (typeof record.id === 'string') return record.id;
+    if (typeof record.name === 'string') return record.name;
+    if (typeof record.label === 'string') return record.label;
+  }
+
+  return String(item);
+}
+
+function recentPenalty(layer: SmartSelectionLayer, id: string): number {
+  const history = smartRecentPicks.get(layer) ?? [];
+  const last10 = history.slice(-10).filter((item) => item === id).length;
+  const last20 = history.slice(-20).filter((item) => item === id).length;
+  const last50 = history.slice(-50).filter((item) => item === id).length;
+
+  let penalty = 0;
+  if (last10 >= 1) penalty -= 5;
+  if (last20 >= 3) penalty -= 10;
+  if (last50 >= 5) penalty -= 15;
+  return penalty;
+}
+
+function rememberSmartPick(layer: SmartSelectionLayer, id: string): void {
+  const history = smartRecentPicks.get(layer) ?? [];
+  history.push(id);
+  smartRecentPicks.set(layer, history.slice(-50));
+}
+
+function topPoolSize(candidateCount: number): number {
+  if (candidateCount <= 3) return candidateCount;
+  if (candidateCount <= 8) return 4;
+  if (candidateCount <= 20) return 6;
+  return 8;
+}
+
+function pickControlledPoolIndex(poolSize: number): number {
+  if (poolSize <= 3) return Math.floor(Math.random() * poolSize);
+
+  const roll = Math.random();
+  const topEnd = Math.min(3, poolSize);
+  const middleEnd = Math.min(6, poolSize);
+
+  if (roll < 0.7) {
+    return Math.floor(Math.random() * topEnd);
+  }
+
+  if (roll < 0.95 && middleEnd > topEnd) {
+    return topEnd + Math.floor(Math.random() * (middleEnd - topEnd));
+  }
+
+  if (poolSize > middleEnd) {
+    return middleEnd + Math.floor(Math.random() * (poolSize - middleEnd));
+  }
+
+  return Math.floor(Math.random() * poolSize);
+}
+
+function formatCandidatePool<T>(candidates: Array<SmartCandidate<T>>): string {
+  return candidates
+    .map((candidate) => `${getCandidateId(candidate.item)} ${Math.round(candidate.score)}`)
+    .join(', ');
+}
+
+function smartSelect<T>(
+  layer: SmartSelectionLayer,
+  candidates: Array<SmartCandidate<T>>,
+  context: SmartSelectionContext,
+  baselinePick: () => T,
+): T {
+  if (!context.useSmartPool || candidates.length === 0) {
+    return baselinePick();
+  }
+
+  const scored = candidates
+    .map((candidate) => {
+      const id = getCandidateId(candidate.item);
+      const penalty = recentPenalty(layer, id);
+      const score = candidate.score + penalty + Math.random() * 4;
+      return { ...candidate, score, recentPenalty: penalty };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  const poolSize = topPoolSize(scored.length);
+  const topPool = scored.slice(0, poolSize);
+  const selected = topPool[pickControlledPoolIndex(topPool.length)];
+  const selectedId = getCandidateId(selected.item);
+  rememberSmartPick(layer, selectedId);
+
+  context.trace.push(
+    `${layer} candidates: ${scored.length}. Top pool (${poolSize}): ${formatCandidatePool(topPool)}. Selected: ${selectedId} ${Math.round(selected.score)}. Reason: random among top compatible pool${selected.recentPenalty < 0 ? `; recent penalty ${selected.recentPenalty}` : ''}${selected.reasons.length > 0 ? `; ${selected.reasons.join('; ')}` : ''}.`,
+  );
+
+  return selected.item;
+}
+
+function optionScore<T extends { weight: number; tags?: string[]; name?: string; id?: string }>(
+  option: T,
+  preferredNames: string[],
+  preferredTags: string[] = [],
+): number {
+  let score = option.weight;
+  if (option.name && preferredNames.includes(option.name)) score += 20;
+  if (option.id && preferredNames.includes(option.id)) score += 20;
+  if (option.tags) score += option.tags.filter((tag) => preferredTags.includes(tag)).length * 8;
+  return score;
 }
 
 function pickByName<T extends { name: string }>(options: Array<WeightedOption<T>>, names: string[]): Array<WeightedOption<T>> {
@@ -311,6 +467,14 @@ function templateScore(template: BuildTemplate, primaryClass: CharacterClass, ar
     return -1;
   }
 
+  if (isCartographerLike(archetype)) {
+    const hasCartographerTool = weapons.some((weapon) => template.allowedWeapons.includes(weapon.name) && hasAny(weapon.tags, ['map', 'book', 'scroll', 'compass', 'staff']));
+    const hasCartographerPose = poses.some((pose) => template.allowedPoses.includes(pose.name) && hasAny(pose.tags, ['map', 'tools']));
+    if (!hasCartographerTool || !hasCartographerPose) {
+      return -1;
+    }
+  }
+
   const preferredIds = preferredTemplateIds(primaryClass, archetype, mode);
   if (!preferredIds.includes(template.id)) {
     return -1;
@@ -339,15 +503,33 @@ function templateScore(template: BuildTemplate, primaryClass: CharacterClass, ar
   return score;
 }
 
-function selectBuildTemplate(primaryClass: CharacterClass, archetype: ArchetypeOption, race: RaceOption, mode: Mode): TemplateSelection {
+function selectBuildTemplate(primaryClass: CharacterClass, archetype: ArchetypeOption, race: RaceOption, mode: Mode, context: SmartSelectionContext): TemplateSelection {
   const scored = buildTemplates
     .map((template) => ({ template, score: templateScore(template, primaryClass, archetype, race, mode) }))
     .filter((entry) => entry.score > 1);
 
   if (scored.length > 0) {
-    const bestScore = Math.max(...scored.map((entry) => entry.score));
-    const best = scored.filter((entry) => entry.score === bestScore).map((entry) => ({ ...entry.template, weight: entry.template.weight }));
-    const template = weightedPick(best);
+    const smartScoredWithoutScholar = context.useSmartPool && !isCartographerLike(archetype) && scored.some((entry) => entry.template.id !== 'divine_scholar')
+      ? scored.filter((entry) => entry.template.id !== 'divine_scholar')
+      : scored;
+    const smartScored = context.useSmartPool && primaryClass !== 'ranger' && smartScoredWithoutScholar.some((entry) => entry.template.id !== 'frontier_hunter')
+      ? smartScoredWithoutScholar.filter((entry) => entry.template.id !== 'frontier_hunter')
+      : smartScoredWithoutScholar;
+    const baselinePick = () => {
+      const bestScore = Math.max(...scored.map((entry) => entry.score));
+      const best = scored.filter((entry) => entry.score === bestScore).map((entry) => ({ ...entry.template, weight: entry.template.weight }));
+      return weightedPick(best);
+    };
+    const template = smartSelect(
+      'Build Template',
+      smartScored.map((entry) => ({
+        item: entry.template,
+        score: entry.score * 12 + entry.template.weight - (entry.template.id === 'divine_scholar' && !isCartographerLike(archetype) ? 50 : 0) - (entry.template.id === 'frontier_hunter' ? 260 : 0),
+        reasons: [`class ${primaryClass}`, `preferred ${preferredTemplateIds(primaryClass, archetype, mode).join(' / ')}`, ...(entry.template.id === 'divine_scholar' && !isCartographerLike(archetype) ? ['scholar branch soft penalty'] : []), ...(entry.template.id === 'frontier_hunter' ? ['single-theme frontier soft penalty'] : [])],
+      })),
+      context,
+      baselinePick,
+    );
     return {
       template,
       reason: `primary class ${primaryClass} preferred ${preferredTemplateIds(primaryClass, archetype, mode).join(' / ')}; matched archetype tags ${archetype.tags.join(', ')}`,
@@ -362,7 +544,7 @@ function selectBuildTemplate(primaryClass: CharacterClass, archetype: ArchetypeO
 }
 
 
-function selectVisualTheme(template: BuildTemplate, archetype: ArchetypeOption, race: RaceOption): VisualTheme {
+function selectVisualTheme(template: BuildTemplate, archetype: ArchetypeOption, race: RaceOption, context: SmartSelectionContext): VisualTheme {
   const candidates = visualThemes.filter((theme) => theme.buildTemplateId === template.id);
   const forcedByArchetype = candidates.filter((theme) => {
     if (archetype.tags.includes('void')) return theme.id === 'void_oracle';
@@ -374,26 +556,47 @@ function selectVisualTheme(template: BuildTemplate, archetype: ArchetypeOption, 
 
   const pool = forcedByArchetype.length > 0 ? forcedByArchetype : candidates;
   const scored = pool.map((theme) => {
-    let score = theme.weight;
-    if (theme.archetypeNames.includes(archetype.name)) score += 10;
-    score += theme.archetypeTags.filter((tag) => archetype.tags.includes(tag)).length * 4;
-    if (race.name === 'fairy' || race.name === 'satyr') score += theme.id.includes('fey') || theme.id.includes('sprite') ? 3 : 0;
-    return { ...theme, weight: Math.max(1, score) };
+    let score = theme.weight + 35;
+    const reasons = [`template ${template.id}`];
+    if (theme.archetypeNames.includes(archetype.name)) {
+      score += 24;
+      reasons.push(`archetype ${archetype.name}`);
+    }
+    const tagMatches = theme.archetypeTags.filter((tag) => archetype.tags.includes(tag)).length;
+    score += tagMatches * 10;
+    if (tagMatches > 0) reasons.push(`${tagMatches} archetype tag match(es)`);
+    if (race.name === 'fairy' || race.name === 'satyr') {
+      const feyFit = theme.id.includes('fey') || theme.id.includes('sprite') || theme.archetypeTags.includes('fey');
+      score += feyFit ? 10 : -4;
+      if (feyFit) reasons.push('fey race fit');
+    }
+    if (scholarThemeIds.has(theme.id)) score -= 30;
+    if (theme.id === 'trail_warden') score -= 55;
+    if (theme.id === 'battle_chaplain') score -= 20;
+    return { item: theme, score, reasons };
   });
 
   if (scored.length === 0) {
     return weightedPick(visualThemes.filter((theme) => theme.buildTemplateId === template.id));
   }
 
-  const bestScore = Math.max(...scored.map((theme) => theme.weight));
-  return weightedPick(scored.filter((theme) => theme.weight === bestScore));
+  return smartSelect(
+    'Visual Theme',
+    scored,
+    context,
+    () => {
+      const baseline = scored.map((entry) => ({ ...entry.item, weight: Math.max(1, entry.score) }));
+      const bestScore = Math.max(...baseline.map((theme) => theme.weight));
+      return weightedPick(baseline.filter((theme) => theme.weight === bestScore));
+    },
+  );
 }
 
 function themeNames(names: string[], fallback: string[]): string[] {
   return names.length > 0 ? names : fallback;
 }
 
-function selectVisualThemeVariant(theme: VisualTheme, fxOptions: string[] = theme.preferredFx): VisualThemeVariant {
+function selectVisualThemeVariant(theme: VisualTheme, context: SmartSelectionContext, fxOptions: string[] = theme.preferredFx): VisualThemeVariant {
   const variants = visualThemeVariants.filter((variant) => variant.visualThemeId === theme.id);
   if (variants.length === 0) {
     return {
@@ -406,10 +609,21 @@ function selectVisualThemeVariant(theme: VisualTheme, fxOptions: string[] = them
     };
   }
 
-  return weightedPick(variants.map((variant) => ({
-    ...variant,
-    weight: Math.max(1, variant.weight + variant.preferredFx.filter((fx) => fxOptions.includes(fx)).length),
-  })));
+  const scored = variants.map((variant) => ({
+    item: variant,
+    score: variant.weight + variant.preferredFx.filter((fx) => fxOptions.includes(fx)).length * 8 + 20,
+    reasons: [`theme ${theme.id}`, `${variant.preferredFx.filter((fx) => fxOptions.includes(fx)).length} FX fit(s)`],
+  }));
+
+  return smartSelect(
+    'Visual Theme Variant',
+    scored,
+    context,
+    () => weightedPick(variants.map((variant) => ({
+      ...variant,
+      weight: Math.max(1, variant.weight + variant.preferredFx.filter((fx) => fxOptions.includes(fx)).length),
+    }))),
+  );
 }
 
 
@@ -418,7 +632,7 @@ type MotifSelection = {
   reason: string;
 };
 
-function selectNarrativeMotif(seed: Pick<CharacterSeed, 'primaryClass' | 'race' | 'archetype' | 'buildTemplate' | 'visualTheme'>): MotifSelection {
+function selectNarrativeMotif(seed: Pick<CharacterSeed, 'primaryClass' | 'race' | 'archetype' | 'buildTemplate' | 'visualTheme'>, context: SmartSelectionContext): MotifSelection {
   const allTags = [...seed.archetype.tags, seed.buildTemplate.id, seed.visualTheme.id];
   const candidates = narrativeMotifs.filter((motif) => {
     if (motif.id === 'seasoned_adventurer') return false;
@@ -429,7 +643,14 @@ function selectNarrativeMotif(seed: Pick<CharacterSeed, 'primaryClass' | 'race' 
     return buildMatch && themeMatch && classAllowed && tagsAllowed;
   });
 
-  const scored = candidates.map((motif) => {
+  const commonMotifs = ['exile', 'lost_heir'];
+  const motifPool = context.useSmartPool && candidates.some((motif) => !commonMotifs.includes(motif.id))
+    ? candidates.filter((motif) => !commonMotifs.includes(motif.id))
+    : context.useSmartPool && candidates.some((motif) => motif.id !== 'exile')
+      ? candidates.filter((motif) => motif.id !== 'exile')
+      : candidates;
+
+  const scored = motifPool.map((motif) => {
     let score = motif.weight;
     score += motif.archetypeTags.filter((tag) => seed.archetype.tags.includes(tag)).length * 4;
     if (motif.classBias.includes(seed.primaryClass)) score += 3;
@@ -439,8 +660,19 @@ function selectNarrativeMotif(seed: Pick<CharacterSeed, 'primaryClass' | 'race' 
   });
 
   if (scored.length > 0) {
-    const bestScore = Math.max(...scored.map((motif) => motif.weight));
-    const motif = weightedPick(scored.filter((item) => item.weight === bestScore));
+    const motif = smartSelect(
+      'Narrative Motif',
+      scored.map((motif) => ({
+        item: motif,
+        score: motif.weight + 25 - (motif.id === 'exile' ? 90 : 0) - (motif.id === 'lost_heir' ? 45 : 0),
+        reasons: [`template ${seed.buildTemplate.id}`, `theme ${seed.visualTheme.id}`, ...(motif.id === 'exile' ? ['generic exile soft penalty'] : []), ...(motif.id === 'lost_heir' ? ['lost heir freshness penalty'] : [])],
+      })),
+      context,
+      () => {
+        const bestScore = Math.max(...scored.map((item) => item.weight));
+        return weightedPick(scored.filter((item) => item.weight === bestScore));
+      },
+    );
     return {
       motif,
       reason: `matched ${seed.buildTemplate.id}/${seed.visualTheme.id}, class ${seed.primaryClass}, race ${seed.race.name}, archetype tags ${seed.archetype.tags.join(', ')}`,
@@ -453,7 +685,7 @@ function selectNarrativeMotif(seed: Pick<CharacterSeed, 'primaryClass' | 'race' 
   };
 }
 
-function selectNarrativeVariant(motif: NarrativeMotif, fxOptions: string[] = motif.fxBias): NarrativeVariant {
+function selectNarrativeVariant(motif: NarrativeMotif, context: SmartSelectionContext, fxOptions: string[] = motif.fxBias): NarrativeVariant {
   const variants = narrativeVariants.filter((variant) => variant.narrativeMotifId === motif.id);
   if (variants.length === 0) {
     return {
@@ -467,10 +699,21 @@ function selectNarrativeVariant(motif: NarrativeMotif, fxOptions: string[] = mot
     };
   }
 
-  return weightedPick(variants.map((variant) => ({
-    ...variant,
-    weight: Math.max(1, variant.weight + variant.fxBias.filter((fx) => fxOptions.includes(fx)).length),
-  })));
+  const scored = variants.map((variant) => ({
+    item: variant,
+    score: variant.weight + variant.fxBias.filter((fx) => fxOptions.includes(fx)).length * 8 + 15,
+    reasons: [`motif ${motif.id}`, `${variant.fxBias.filter((fx) => fxOptions.includes(fx)).length} FX fit(s)`],
+  }));
+
+  return smartSelect(
+    'Narrative Variant',
+    scored,
+    context,
+    () => weightedPick(variants.map((variant) => ({
+      ...variant,
+      weight: Math.max(1, variant.weight + variant.fxBias.filter((fx) => fxOptions.includes(fx)).length),
+    }))),
+  );
 }
 
 function templateOptions<T extends { name: string }>(options: Array<WeightedOption<T>>, names: string[]): Array<WeightedOption<T>> {
@@ -518,9 +761,11 @@ function constrainedWeaponOptions(template: BuildTemplate, archetype: ArchetypeO
   const names = themeNames((theme?.preferredWeapons ?? []).filter((name) => template.allowedWeapons.includes(name)), template.allowedWeapons);
   const sizeFilter = (weapon: WeightedOption<WeaponOption>) => !((['tiny', 'small'].includes(size) || race.tags.includes('fey')) && (weapon.tags.includes('oversized') || weapon.tags.includes('greataxe')));
   const preferredOptions = templateOptions(weapons, names).filter(sizeFilter);
-  const options = preferredOptions.length > 0 ? preferredOptions : templateOptions(weapons, template.allowedWeapons).filter(sizeFilter);
+  const templateAllowed = templateOptions(weapons, template.allowedWeapons).filter(sizeFilter);
+  const options = preferredOptions.length > 0 ? preferredOptions : templateAllowed;
+  const sourceOptions = isCartographerLike(archetype) ? templateAllowed : options;
 
-  return prefer(classAnchorWeaponOptions(options.length > 0 ? options : templateOptions(weapons, template.allowedWeapons), primaryClass), [
+  return prefer(classAnchorWeaponOptions(sourceOptions.length > 0 ? sourceOptions : templateOptions(weapons, template.allowedWeapons), primaryClass), [
     (weapon) => isCartographerLike(archetype) && hasAny(weapon.tags, ['map', 'compass', 'scroll', 'book', 'staff']),
     (weapon) => (archetype.tags.includes('oathkeeper') || archetype.tags.includes('fallen')) && hasAny(weapon.tags, ['shield', 'mace', 'warhammer', 'holy-focus']),
     (weapon) => hasAny(archetype.tags, ['frontier', 'scout', 'hunter']) && hasAny(weapon.tags, ['bow', 'spear', 'dual-blades', 'handaxe']),
@@ -531,7 +776,7 @@ function constrainedWeaponOptions(template: BuildTemplate, archetype: ArchetypeO
 
 function constrainedPoseOptions(template: BuildTemplate, archetype: ArchetypeOption, weapon: WeaponOption, theme?: VisualTheme) {
   const names = themeNames((theme?.preferredPoses ?? []).filter((name) => template.allowedPoses.includes(name)), template.allowedPoses);
-  const options = templateOptions(poses, names);
+  const options = isCartographerLike(archetype) ? templateOptions(poses, template.allowedPoses) : templateOptions(poses, names);
 
   return prefer(options, [
     (pose) => isCartographerLike(archetype) && hasAny(pose.tags, ['map', 'tools']),
@@ -602,6 +847,87 @@ function constrainedLightOptions(template: BuildTemplate, archetype: ArchetypeOp
   return prefer(options, [(light) => light.tags.some((tag) => archetype.tags.includes(tag))]);
 }
 
+
+function smartPickArmor(options: Array<WeightedOption<ArmorOption>>, primaryClass: CharacterClass, context: SmartSelectionContext): ArmorOption {
+  const anchor = getClassAnchor(primaryClass);
+  return smartSelect(
+    'Armor',
+    options.map((armor) => ({
+      item: armor,
+      score: optionScore(armor, [], anchor.armorTags) + (hasAny(armor.tags, anchor.armorTags) ? 35 : 0),
+      reasons: hasAny(armor.tags, anchor.armorTags) ? [`class anchor ${primaryClass}`] : [],
+    })),
+    context,
+    () => weightedPick(options),
+  );
+}
+
+function smartPickWeapon(options: Array<WeightedOption<WeaponOption>>, primaryClass: CharacterClass, archetype: ArchetypeOption, context: SmartSelectionContext): WeaponOption {
+  const anchor = getClassAnchor(primaryClass);
+  return smartSelect(
+    'Weapon / Tool',
+    options.map((weapon) => {
+      let score = optionScore(weapon, [], anchor.weaponTags) + (hasAny(weapon.tags, anchor.weaponTags) ? 45 : 0);
+      const reasons = hasAny(weapon.tags, anchor.weaponTags) ? [`class anchor ${primaryClass}`] : [];
+      if (isCartographerLike(archetype) && hasAny(weapon.tags, ['map', 'compass', 'scroll', 'book', 'staff'])) {
+        score += 100;
+        reasons.push('cartographer tool fit');
+      }
+      if (hasAny(archetype.tags, ['frontier', 'scout', 'hunter']) && hasAny(weapon.tags, ['bow', 'spear', 'dual-blades', 'handaxe'])) {
+        score += 20;
+        reasons.push('frontier weapon fit');
+      }
+      if (hasAny(archetype.tags, ['fey', 'trickster']) && hasAny(weapon.tags, ['rapier', 'instrument', 'flute', 'dagger', 'fey-focus'])) {
+        score += 20;
+        reasons.push('fey/trickster tool fit');
+      }
+      return { item: weapon, score, reasons };
+    }),
+    context,
+    () => weightedPick(options),
+  );
+}
+
+function smartPickPose(options: Array<WeightedOption<PoseOption>>, weapon: WeaponOption, archetype: ArchetypeOption, context: SmartSelectionContext): PoseOption {
+  return smartSelect(
+    'Pose',
+    options.map((pose) => {
+      let score = pose.weight + 20;
+      const reasons: string[] = [];
+      if (hasAny(weapon.tags, ['bow', 'longbow', 'shortbow']) && pose.tags.includes('bow')) { score += 40; reasons.push('bow pose fits weapon'); }
+      if (weapon.tags.includes('shield') && pose.tags.includes('shield')) { score += 40; reasons.push('shield pose fits weapon'); }
+      if (weapon.tags.includes('dual-blades') && pose.tags.includes('dual-blades')) { score += 40; reasons.push('dual-blades pose fits weapon'); }
+      if (weapon.tags.includes('rapier') && pose.tags.includes('rapier')) { score += 40; reasons.push('rapier pose fits weapon'); }
+      if (hasAny(weapon.tags, ['heavy', 'greataxe', 'greatsword']) && pose.tags.includes('heavy-melee')) { score += 40; reasons.push('heavy melee pose fits weapon'); }
+      if (hasAny(weapon.tags, ['staff', 'orb', 'wand', 'book', 'magic-focus', 'holy-focus']) && hasAny(pose.tags, ['casting', 'prayer'])) { score += 30; reasons.push('focus casting pose fit'); }
+      if (hasAny(weapon.tags, ['tool', 'mechanical-focus', 'map', 'compass', 'scroll']) && hasAny(pose.tags, ['tools', 'map'])) { score += 30; reasons.push('tool pose fit'); }
+      if (isCartographerLike(archetype) && hasAny(pose.tags, ['map', 'tools'])) { score += 100; reasons.push('cartographer pose fit'); }
+      if (hasAny(archetype.tags, ['frontier', 'scout', 'hunter']) && hasAny(pose.tags, ['tracking', 'bow', 'general'])) { score += 10; reasons.push('archetype pose fit'); }
+      return { item: pose, score, reasons };
+    }),
+    context,
+    () => weightedPick(options),
+  );
+}
+
+function smartPickSimpleOption<T extends WeightedOption<{ name: string; tags: string[] }>>(
+  layer: SmartSelectionLayer,
+  options: T[],
+  preferredTags: string[],
+  context: SmartSelectionContext,
+): T {
+  return smartSelect(
+    layer,
+    options.map((option) => ({
+      item: option,
+      score: optionScore(option, [], preferredTags) + 15,
+      reasons: option.tags.some((tag) => preferredTags.includes(tag)) ? ['tag fit'] : [],
+    })),
+    context,
+    () => weightedPick(options),
+  );
+}
+
 function constrainedFxOptions(template: BuildTemplate, archetype: ArchetypeOption, theme?: VisualTheme, motif?: NarrativeMotif, themeVariant?: VisualThemeVariant, narrativeVariant?: NarrativeVariant) {
   const themeFx = [...(theme?.preferredFx ?? []), ...(themeVariant?.preferredFx ?? [])];
   const names = themeNames(themeFx.filter((name) => template.allowedFx.includes(name)), template.allowedFx);
@@ -639,25 +965,30 @@ function calculateClassAnchorScore(seed: Pick<CharacterSeed, 'primaryClass' | 'w
   return Math.min(5, score);
 }
 
-function createSeed(): CharacterSeed {
+function createSeed(context: SmartSelectionContext): CharacterSeed {
   const mode = weightedPick(modeWeights).name;
   const classes = pickClasses(mode);
   const primaryClass = classes[0];
   const race = weightedPick(races);
   const size = getRaceSize(race);
   const archetype = pickArchetype(classes, primaryClass);
-  const { template: buildTemplate, reason: templateReason } = selectBuildTemplate(primaryClass, archetype, race, mode);
-  const visualTheme = selectVisualTheme(buildTemplate, archetype, race);
-  const visualThemeVariant = selectVisualThemeVariant(visualTheme, buildTemplate.allowedFx);
-  const motifSelection = selectNarrativeMotif({ primaryClass, race, archetype, buildTemplate, visualTheme });
+  const { template: buildTemplate, reason: templateReason } = selectBuildTemplate(primaryClass, archetype, race, mode, context);
+  const visualTheme = selectVisualTheme(buildTemplate, archetype, race, context);
+  const visualThemeVariant = selectVisualThemeVariant(visualTheme, context, buildTemplate.allowedFx);
+  const motifSelection = selectNarrativeMotif({ primaryClass, race, archetype, buildTemplate, visualTheme }, context);
   const narrativeMotif = motifSelection.motif;
-  const narrativeVariant = selectNarrativeVariant(narrativeMotif, buildTemplate.allowedFx);
-  const culturalOrigin = weightedPick(culturalOrigins);
+  const narrativeVariant = selectNarrativeVariant(narrativeMotif, context, buildTemplate.allowedFx);
+  const culturalOrigin = smartSelect(
+    'Culture',
+    culturalOrigins.map((culture) => ({ item: culture, score: culture.weight + 20, reasons: ['culture flavor only'] })),
+    context,
+    () => weightedPick(culturalOrigins),
+  );
   const cultureDetails = pickCultureDetails(culturalOrigin);
-  const armor = weightedPick(constrainedArmorOptions(buildTemplate, archetype, primaryClass, size, visualTheme));
-  const weapon = weightedPick(constrainedWeaponOptions(buildTemplate, archetype, size, race, primaryClass, visualTheme));
-  const silhouette = weightedPick(constrainedSilhouetteOptions(buildTemplate, { mode, primaryClass, race, size, archetype }, visualTheme));
-  const pose = weightedPick(constrainedPoseOptions(buildTemplate, archetype, weapon, visualTheme));
+  const armor = smartPickArmor(constrainedArmorOptions(buildTemplate, archetype, primaryClass, size, visualTheme), primaryClass, context);
+  const weapon = smartPickWeapon(constrainedWeaponOptions(buildTemplate, archetype, size, race, primaryClass, visualTheme), primaryClass, archetype, context);
+  const silhouette = smartPickSimpleOption('Silhouette', constrainedSilhouetteOptions(buildTemplate, { mode, primaryClass, race, size, archetype }, visualTheme), getClassAnchor(primaryClass).poseTags, context);
+  const pose = smartPickPose(constrainedPoseOptions(buildTemplate, archetype, weapon, visualTheme), weapon, archetype, context);
 
   const seed: CharacterSeed = {
     mode,
@@ -684,9 +1015,9 @@ function createSeed(): CharacterSeed {
     weapon,
     pose,
     emotion: weightedPick(emotions).name,
-    mood: weightedPick(constrainedMoodOptions(buildTemplate, archetype, visualTheme, narrativeMotif, narrativeVariant)),
-    light: weightedPick(constrainedLightOptions(buildTemplate, archetype, visualTheme)),
-    fx: weightedPick(constrainedFxOptions(buildTemplate, archetype, visualTheme, narrativeMotif, visualThemeVariant, narrativeVariant)),
+    mood: smartPickSimpleOption('Mood', constrainedMoodOptions(buildTemplate, archetype, visualTheme, narrativeMotif, narrativeVariant), archetype.tags, context),
+    light: smartPickSimpleOption('Light', constrainedLightOptions(buildTemplate, archetype, visualTheme), archetype.tags, context),
+    fx: smartPickSimpleOption('FX', constrainedFxOptions(buildTemplate, archetype, visualTheme, narrativeMotif, visualThemeVariant, narrativeVariant), [...archetype.tags, ...visualTheme.archetypeTags], context),
   };
 
   return { ...seed, classAnchorScore: calculateClassAnchorScore(seed) };
@@ -919,81 +1250,81 @@ function withClassAnchorScore(seed: CharacterSeed): CharacterSeed {
   return { ...seed, classAnchorScore: calculateClassAnchorScore(seed) };
 }
 
-function rerollLayer(seed: CharacterSeed, layer: RegenerableLayer): CharacterSeed {
+function rerollLayer(seed: CharacterSeed, layer: RegenerableLayer, context: SmartSelectionContext): CharacterSeed {
   if (layer === 'template') {
-    const selection = selectBuildTemplate(seed.primaryClass, seed.archetype, seed.race, seed.mode);
-    const visualTheme = selectVisualTheme(selection.template, seed.archetype, seed.race);
-    const visualThemeVariant = selectVisualThemeVariant(visualTheme, selection.template.allowedFx);
-    const motifSelection = selectNarrativeMotif({ ...seed, buildTemplate: selection.template, visualTheme });
-    const narrativeVariant = selectNarrativeVariant(motifSelection.motif, selection.template.allowedFx);
+    const selection = selectBuildTemplate(seed.primaryClass, seed.archetype, seed.race, seed.mode, context);
+    const visualTheme = selectVisualTheme(selection.template, seed.archetype, seed.race, context);
+    const visualThemeVariant = selectVisualThemeVariant(visualTheme, context, selection.template.allowedFx);
+    const motifSelection = selectNarrativeMotif({ ...seed, buildTemplate: selection.template, visualTheme }, context);
+    const narrativeVariant = selectNarrativeVariant(motifSelection.motif, context, selection.template.allowedFx);
     return { ...seed, buildTemplate: selection.template, templateReason: selection.reason, visualTheme, visualThemeVariant, visualDetails: pickVisualDetails(visualTheme, visualThemeVariant), narrativeMotif: motifSelection.motif, narrativeVariant, motifReason: motifSelection.reason, storyDetails: pickStoryDetails(motifSelection.motif, narrativeVariant), promptFragments: [...motifSelection.motif.promptFragments, ...narrativeVariant.promptFragments, ...visualThemeVariant.promptFragments] };
   }
 
   if (layer === 'theme') {
-    const visualTheme = selectVisualTheme(seed.buildTemplate, seed.archetype, seed.race);
-    const visualThemeVariant = selectVisualThemeVariant(visualTheme, seed.buildTemplate.allowedFx);
-    const motifSelection = selectNarrativeMotif({ ...seed, visualTheme });
-    const narrativeVariant = selectNarrativeVariant(motifSelection.motif, seed.buildTemplate.allowedFx);
+    const visualTheme = selectVisualTheme(seed.buildTemplate, seed.archetype, seed.race, context);
+    const visualThemeVariant = selectVisualThemeVariant(visualTheme, context, seed.buildTemplate.allowedFx);
+    const motifSelection = selectNarrativeMotif({ ...seed, visualTheme }, context);
+    const narrativeVariant = selectNarrativeVariant(motifSelection.motif, context, seed.buildTemplate.allowedFx);
     return { ...seed, visualTheme, visualThemeVariant, visualDetails: pickVisualDetails(visualTheme, visualThemeVariant), narrativeMotif: motifSelection.motif, narrativeVariant, motifReason: motifSelection.reason, storyDetails: pickStoryDetails(motifSelection.motif, narrativeVariant), promptFragments: [...motifSelection.motif.promptFragments, ...narrativeVariant.promptFragments, ...visualThemeVariant.promptFragments] };
   }
 
   if (layer === 'motif') {
-    const motifSelection = selectNarrativeMotif(seed);
-    const narrativeVariant = selectNarrativeVariant(motifSelection.motif, seed.buildTemplate.allowedFx);
+    const motifSelection = selectNarrativeMotif(seed, context);
+    const narrativeVariant = selectNarrativeVariant(motifSelection.motif, context, seed.buildTemplate.allowedFx);
     return { ...seed, narrativeMotif: motifSelection.motif, narrativeVariant, motifReason: motifSelection.reason, storyDetails: pickStoryDetails(motifSelection.motif, narrativeVariant), promptFragments: [...motifSelection.motif.promptFragments, ...narrativeVariant.promptFragments, ...seed.visualThemeVariant.promptFragments] };
   }
 
   if (layer === 'themeVariant') {
-    const visualThemeVariant = selectVisualThemeVariant(seed.visualTheme, seed.buildTemplate.allowedFx);
+    const visualThemeVariant = selectVisualThemeVariant(seed.visualTheme, context, seed.buildTemplate.allowedFx);
     return { ...seed, visualThemeVariant, visualDetails: pickVisualDetails(seed.visualTheme, visualThemeVariant), promptFragments: [...seed.narrativeMotif.promptFragments, ...seed.narrativeVariant.promptFragments, ...visualThemeVariant.promptFragments] };
   }
 
   if (layer === 'narrativeVariant') {
-    const narrativeVariant = selectNarrativeVariant(seed.narrativeMotif, seed.buildTemplate.allowedFx);
+    const narrativeVariant = selectNarrativeVariant(seed.narrativeMotif, context, seed.buildTemplate.allowedFx);
     return { ...seed, narrativeVariant, storyDetails: pickStoryDetails(seed.narrativeMotif, narrativeVariant), promptFragments: [...seed.narrativeMotif.promptFragments, ...narrativeVariant.promptFragments, ...seed.visualThemeVariant.promptFragments] };
   }
 
   if (layer === 'culture') {
-    const culturalOrigin = weightedPick(culturalOrigins);
+    const culturalOrigin = smartSelect('Culture', culturalOrigins.map((culture) => ({ item: culture, score: culture.weight + 20, reasons: ['culture flavor only'] })), context, () => weightedPick(culturalOrigins));
     return withClassAnchorScore({ ...seed, culturalOrigin, cultureDetails: pickCultureDetails(culturalOrigin) });
   }
 
   if (layer === 'armor') {
-    return { ...seed, armor: weightedPick(constrainedArmorOptions(seed.buildTemplate, seed.archetype, seed.primaryClass, seed.size, seed.visualTheme)) };
+    return { ...seed, armor: smartPickArmor(constrainedArmorOptions(seed.buildTemplate, seed.archetype, seed.primaryClass, seed.size, seed.visualTheme), seed.primaryClass, context) };
   }
 
   if (layer === 'weapon') {
-    const weapon = weightedPick(constrainedWeaponOptions(seed.buildTemplate, seed.archetype, seed.size, seed.race, seed.primaryClass, seed.visualTheme));
-    return { ...seed, weapon, pose: weightedPick(constrainedPoseOptions(seed.buildTemplate, seed.archetype, weapon, seed.visualTheme)) };
+    const weapon = smartPickWeapon(constrainedWeaponOptions(seed.buildTemplate, seed.archetype, seed.size, seed.race, seed.primaryClass, seed.visualTheme), seed.primaryClass, seed.archetype, context);
+    return { ...seed, weapon, pose: smartPickPose(constrainedPoseOptions(seed.buildTemplate, seed.archetype, weapon, seed.visualTheme), weapon, seed.archetype, context) };
   }
 
   if (layer === 'silhouette') {
-    return { ...seed, silhouette: weightedPick(constrainedSilhouetteOptions(seed.buildTemplate, seed, seed.visualTheme)) };
+    return { ...seed, silhouette: smartPickSimpleOption('Silhouette', constrainedSilhouetteOptions(seed.buildTemplate, seed, seed.visualTheme), getClassAnchor(seed.primaryClass).poseTags, context) };
   }
 
   if (layer === 'pose') {
-    return { ...seed, pose: weightedPick(constrainedPoseOptions(seed.buildTemplate, seed.archetype, seed.weapon, seed.visualTheme)) };
+    return { ...seed, pose: smartPickPose(constrainedPoseOptions(seed.buildTemplate, seed.archetype, seed.weapon, seed.visualTheme), seed.weapon, seed.archetype, context) };
   }
 
   if (layer === 'mood') {
-    return { ...seed, mood: weightedPick(constrainedMoodOptions(seed.buildTemplate, seed.archetype, seed.visualTheme, seed.narrativeMotif, seed.narrativeVariant)) };
+    return { ...seed, mood: smartPickSimpleOption('Mood', constrainedMoodOptions(seed.buildTemplate, seed.archetype, seed.visualTheme, seed.narrativeMotif, seed.narrativeVariant), seed.archetype.tags, context) };
   }
 
   if (layer === 'light') {
-    return { ...seed, light: weightedPick(constrainedLightOptions(seed.buildTemplate, seed.archetype, seed.visualTheme)) };
+    return { ...seed, light: smartPickSimpleOption('Light', constrainedLightOptions(seed.buildTemplate, seed.archetype, seed.visualTheme), seed.archetype.tags, context) };
   }
 
-  return { ...seed, fx: weightedPick(constrainedFxOptions(seed.buildTemplate, seed.archetype, seed.visualTheme, seed.narrativeMotif, seed.visualThemeVariant, seed.narrativeVariant)) };
+  return { ...seed, fx: smartPickSimpleOption('FX', constrainedFxOptions(seed.buildTemplate, seed.archetype, seed.visualTheme, seed.narrativeMotif, seed.visualThemeVariant, seed.narrativeVariant), [...seed.archetype.tags, ...seed.visualTheme.archetypeTags], context) };
 }
 
-function replaceWithFallbackTemplate(seed: CharacterSeed, trace: string[]): CharacterSeed {
+function replaceWithFallbackTemplate(seed: CharacterSeed, trace: string[], context: SmartSelectionContext): CharacterSeed {
   const fallback = getTemplate(fallbackTemplateByClass[seed.primaryClass]);
   trace.push(`Switching to safe fallback buildTemplate ${fallback.id} for ${seed.primaryClass}.`);
 
-  const visualTheme = selectVisualTheme(fallback, seed.archetype, seed.race);
-  const visualThemeVariant = selectVisualThemeVariant(visualTheme, fallback.allowedFx);
-  const motifSelection = selectNarrativeMotif({ ...seed, buildTemplate: fallback, visualTheme });
-  const narrativeVariant = selectNarrativeVariant(motifSelection.motif, fallback.allowedFx);
+  const visualTheme = selectVisualTheme(fallback, seed.archetype, seed.race, context);
+  const visualThemeVariant = selectVisualThemeVariant(visualTheme, context, fallback.allowedFx);
+  const motifSelection = selectNarrativeMotif({ ...seed, buildTemplate: fallback, visualTheme }, context);
+  const narrativeVariant = selectNarrativeVariant(motifSelection.motif, context, fallback.allowedFx);
   const nextSeed: CharacterSeed = {
     ...seed,
     buildTemplate: fallback,
@@ -1011,22 +1342,22 @@ function replaceWithFallbackTemplate(seed: CharacterSeed, trace: string[]): Char
     promptFragments: [...motifSelection.motif.promptFragments, ...narrativeVariant.promptFragments, ...visualThemeVariant.promptFragments],
   };
 
-  const armor = weightedPick(constrainedArmorOptions(fallback, nextSeed.archetype, nextSeed.primaryClass, nextSeed.size, nextSeed.visualTheme));
-  const weapon = weightedPick(constrainedWeaponOptions(fallback, nextSeed.archetype, nextSeed.size, nextSeed.race, nextSeed.primaryClass, nextSeed.visualTheme));
+  const armor = smartPickArmor(constrainedArmorOptions(fallback, nextSeed.archetype, nextSeed.primaryClass, nextSeed.size, nextSeed.visualTheme), nextSeed.primaryClass, context);
+  const weapon = smartPickWeapon(constrainedWeaponOptions(fallback, nextSeed.archetype, nextSeed.size, nextSeed.race, nextSeed.primaryClass, nextSeed.visualTheme), nextSeed.primaryClass, nextSeed.archetype, context);
 
   return {
     ...nextSeed,
     armor,
     weapon,
-    silhouette: weightedPick(constrainedSilhouetteOptions(fallback, nextSeed, nextSeed.visualTheme)),
-    pose: weightedPick(constrainedPoseOptions(fallback, nextSeed.archetype, weapon, nextSeed.visualTheme)),
-    mood: weightedPick(constrainedMoodOptions(fallback, nextSeed.archetype, nextSeed.visualTheme, nextSeed.narrativeMotif, nextSeed.narrativeVariant)),
-    light: weightedPick(constrainedLightOptions(fallback, nextSeed.archetype, nextSeed.visualTheme)),
-    fx: weightedPick(constrainedFxOptions(fallback, nextSeed.archetype, nextSeed.visualTheme, nextSeed.narrativeMotif, nextSeed.visualThemeVariant, nextSeed.narrativeVariant)),
+    silhouette: smartPickSimpleOption('Silhouette', constrainedSilhouetteOptions(fallback, nextSeed, nextSeed.visualTheme), getClassAnchor(nextSeed.primaryClass).poseTags, context),
+    pose: smartPickPose(constrainedPoseOptions(fallback, nextSeed.archetype, weapon, nextSeed.visualTheme), weapon, nextSeed.archetype, context),
+    mood: smartPickSimpleOption('Mood', constrainedMoodOptions(fallback, nextSeed.archetype, nextSeed.visualTheme, nextSeed.narrativeMotif, nextSeed.narrativeVariant), nextSeed.archetype.tags, context),
+    light: smartPickSimpleOption('Light', constrainedLightOptions(fallback, nextSeed.archetype, nextSeed.visualTheme), nextSeed.archetype.tags, context),
+    fx: smartPickSimpleOption('FX', constrainedFxOptions(fallback, nextSeed.archetype, nextSeed.visualTheme, nextSeed.narrativeMotif, nextSeed.visualThemeVariant, nextSeed.narrativeVariant), [...nextSeed.archetype.tags, ...nextSeed.visualTheme.archetypeTags], context),
   };
 }
 
-function resolveSeedConflicts(seed: CharacterSeed, trace: string[]): CharacterSeed {
+function resolveSeedConflicts(seed: CharacterSeed, trace: string[], context: SmartSelectionContext): CharacterSeed {
   let nextSeed = seed;
 
   for (let attempt = 1; attempt <= 20; attempt += 1) {
@@ -1041,11 +1372,11 @@ function resolveSeedConflicts(seed: CharacterSeed, trace: string[]): CharacterSe
     trace.push(`Reroll attempt ${attempt}: ${layers.join(', ')} because ${issues.map((issue) => issue.message).join('; ')}.`);
 
     for (const layer of layers) {
-      nextSeed = rerollLayer(nextSeed, layer);
+      nextSeed = rerollLayer(nextSeed, layer, context);
     }
   }
 
-  nextSeed = replaceWithFallbackTemplate(nextSeed, trace);
+  nextSeed = replaceWithFallbackTemplate(nextSeed, trace, context);
 
   for (let attempt = 1; attempt <= 20; attempt += 1) {
     const issues = validateGeneratedSeed(nextSeed);
@@ -1057,7 +1388,7 @@ function resolveSeedConflicts(seed: CharacterSeed, trace: string[]): CharacterSe
     const layers = [...new Set<RegenerableLayer>(issues.flatMap((issue) => issue.layers))];
     trace.push(`Fallback reroll attempt ${attempt}: ${layers.join(', ')}.`);
     for (const layer of layers.filter((layer) => layer !== 'template')) {
-      nextSeed = rerollLayer(nextSeed, layer);
+      nextSeed = rerollLayer(nextSeed, layer, context);
     }
   }
 
@@ -1065,10 +1396,10 @@ function resolveSeedConflicts(seed: CharacterSeed, trace: string[]): CharacterSe
   const safeTemplate = getTemplate(seed.primaryClass === 'monk' ? 'wandering_martial_artist' : fallbackTemplateByClass[seed.primaryClass]);
   const armor = armors.find((option) => option.name === (seed.primaryClass === 'monk' ? 'no armor, simple travel wraps' : safeTemplate.allowedArmor[0])) ?? armors[0];
   const weapon = weapons.find((option) => option.name === safeTemplate.allowedWeapons[0]) ?? weapons[0];
-  const visualTheme = selectVisualTheme(safeTemplate, nextSeed.archetype, nextSeed.race);
-  const visualThemeVariant = selectVisualThemeVariant(visualTheme, safeTemplate.allowedFx);
-  const motifSelection = selectNarrativeMotif({ ...nextSeed, buildTemplate: safeTemplate, visualTheme });
-  const narrativeVariant = selectNarrativeVariant(motifSelection.motif, safeTemplate.allowedFx);
+  const visualTheme = selectVisualTheme(safeTemplate, nextSeed.archetype, nextSeed.race, context);
+  const visualThemeVariant = selectVisualThemeVariant(visualTheme, context, safeTemplate.allowedFx);
+  const motifSelection = selectNarrativeMotif({ ...nextSeed, buildTemplate: safeTemplate, visualTheme }, context);
+  const narrativeVariant = selectNarrativeVariant(motifSelection.motif, context, safeTemplate.allowedFx);
   return {
     ...nextSeed,
     buildTemplate: safeTemplate,
@@ -1143,9 +1474,11 @@ function formatPrompt(seed: CharacterSeed): string {
   ].join(' ');
 }
 
-export function generateCharacterSeed(): GenerationResult {
-  const trace: string[] = ['Starting v4 narrative-motif cascade generation.'];
-  const seed = createSeed();
+export function generateCharacterSeed(options: GenerationOptions = {}): GenerationResult {
+  const useSmartPool = options.useSmartPool ?? true;
+  const trace: string[] = [`Starting v8 smart candidate pool generation (${useSmartPool ? 'smart pool' : 'baseline weighted'} mode).`];
+  const context: SmartSelectionContext = { useSmartPool, trace };
+  const seed = createSeed(context);
 
   trace.push(`Selected mode: ${seed.mode}.`);
   trace.push(`Selected class: primary ${seed.primaryClass}; classes ${seed.classes.join(' / ')}.`);
@@ -1162,7 +1495,7 @@ export function generateCharacterSeed(): GenerationResult {
   trace.push(`Motif selection reason: ${seed.motifReason}.`);
   trace.push(`Motif compatibility filters: template ${seed.buildTemplate.id}, theme ${seed.visualTheme.id}, class ${seed.primaryClass}, race ${seed.race.name}, tags ${seed.archetype.tags.join(', ')}.`);
 
-  const resolvedSeed = withClassAnchorScore(resolveSeedConflicts(seed, trace));
+  const resolvedSeed = withClassAnchorScore(resolveSeedConflicts(seed, trace, context));
   trace.push(`Final selected visualTheme: ${resolvedSeed.visualTheme.id}.`);
   trace.push(`Final selected visualThemeVariant: ${resolvedSeed.visualThemeVariant.id}.`);
   trace.push(`Final selected narrativeMotif: ${resolvedSeed.narrativeMotif.id}.`);
