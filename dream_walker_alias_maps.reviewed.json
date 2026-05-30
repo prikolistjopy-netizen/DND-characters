@@ -1,0 +1,213 @@
+{
+  "buildTemplateAliasMap": {
+    "arcane_caster": [
+      "arcane_caster"
+    ],
+    "shadow_skirmisher": [
+      "shadow_skirmisher"
+    ],
+    "ritualist": [
+      "arcane_caster"
+    ],
+    "support_caster": [
+      "arcane_caster",
+      "holy_warrior"
+    ],
+    "exorcist": [
+      "holy_warrior",
+      "arcane_caster"
+    ],
+    "mystic_support": [
+      "arcane_caster",
+      "holy_warrior"
+    ],
+    "guardian": [
+      "holy_warrior",
+      "martial_veteran"
+    ],
+    "fey_touched": [
+      "fey_trickster"
+    ],
+    "occult_caster": [
+      "arcane_caster"
+    ],
+    "occult_guide": [
+      "arcane_caster",
+      "frontier_hunter"
+    ],
+    "defensive_tank": [
+      "holy_warrior",
+      "martial_veteran"
+    ],
+    "evasive_duelist": [
+      "shadow_skirmisher",
+      "fey_trickster"
+    ],
+    "illusionist": [
+      "arcane_caster"
+    ],
+    "occult_hunter": [
+      "frontier_hunter",
+      "holy_warrior",
+      "shadow_skirmisher"
+    ],
+    "scholar": [
+      "arcane_caster",
+      "lorekeeper_bard"
+    ],
+    "scout": [
+      "frontier_hunter",
+      "shadow_skirmisher"
+    ],
+    "skirmisher": [
+      "shadow_skirmisher"
+    ],
+    "spellblade": [
+      "martial_veteran",
+      "arcane_caster"
+    ],
+    "monster_hunter": [
+      "frontier_hunter",
+      "martial_veteran"
+    ],
+    "nature_mystic": [
+      "frontier_hunter",
+      "fey_trickster"
+    ],
+    "performer": [
+      "skald_performer",
+      "lorekeeper_bard"
+    ],
+    "wandering_healer": [
+      "holy_warrior",
+      "frontier_hunter"
+    ],
+    "archer": [
+      "frontier_hunter",
+      "martial_veteran"
+    ],
+    "assassin": [
+      "shadow_skirmisher"
+    ],
+    "control_fighter": [
+      "martial_veteran"
+    ],
+    "cursed_caster": [
+      "arcane_caster"
+    ],
+    "dual_wielder": [
+      "shadow_skirmisher",
+      "martial_veteran"
+    ],
+    "duelist": [
+      "shadow_skirmisher",
+      "fey_trickster"
+    ],
+    "fey_wanderer": [
+      "fey_trickster",
+      "frontier_hunter"
+    ],
+    "martial_caster": [
+      "arcane_caster",
+      "martial_veteran"
+    ],
+    "occult_duelist": [
+      "shadow_skirmisher",
+      "arcane_caster"
+    ],
+    "occult_knight": [
+      "holy_warrior",
+      "arcane_caster"
+    ],
+    "occult_survivor": [
+      "arcane_caster",
+      "shadow_skirmisher"
+    ],
+    "sleep_warden": [
+      "holy_warrior"
+    ],
+    "spiritual_guide": [
+      "holy_warrior",
+      "arcane_caster"
+    ],
+    "wanderer": [
+      "frontier_hunter",
+      "wandering_martial_artist"
+    ],
+    "wandering_guide": [
+      "frontier_hunter",
+      "holy_warrior"
+    ],
+    "wandering_sage": [
+      "arcane_caster",
+      "frontier_hunter"
+    ]
+  },
+  "themeIdMap": {
+    "Dream Walker": "dream_walker",
+    "Rune Scholar": "rune_scholar",
+    "Monster Tracker": "monster_tracker"
+  },
+  "pillarAliasMap": {
+    "mystical": [
+      "mystic"
+    ],
+    "grounded": [
+      "explorer"
+    ],
+    "occult": [
+      "occult"
+    ],
+    "arcane": [
+      "scholar",
+      "mystic"
+    ],
+    "divine": [
+      "divine"
+    ],
+    "martial": [
+      "warrior"
+    ],
+    "fey": [
+      "fey"
+    ],
+    "stealth": [
+      "shadow"
+    ],
+    "ritual": [
+      "mystic",
+      "occult"
+    ],
+    "wanderer": [
+      "explorer"
+    ],
+    "nature": [
+      "primal",
+      "explorer"
+    ],
+    "scholar": [
+      "scholar"
+    ],
+    "healer": [
+      "divine"
+    ],
+    "illusion": [
+      "mystic"
+    ],
+    "primal": [
+      "primal"
+    ],
+    "legendary": [
+      "mystic"
+    ],
+    "noble": [
+      "noble"
+    ],
+    "personal": [
+      "explorer"
+    ]
+  },
+  "unknownBuildTags": {},
+  "unknownThemeTags": {},
+  "unknownPillarTags": {}
+}
