@@ -158,6 +158,16 @@ export type VisualTheme = {
   preferredArmor: string[];
   preferredPoses: string[];
   preferredSilhouettes: string[];
+  fantasyPillarId?: FantasyPillarId;
+  classBias?: CharacterClass[];
+  raceBias?: string[];
+  sizeBias?: SizeCategory[];
+  visualFantasy?: string;
+  visualMotifIds?: string[];
+  detailPoolIds?: string[];
+  armorLanguageIds?: string[];
+  weaponLanguageIds?: string[];
+  companionBias?: CompanionTier[];
   visualDetails: string[];
 };
 
@@ -230,6 +240,125 @@ export type BuildTemplate = {
   allowedLights: string[];
   allowedFx: string[];
   forbiddenTags: string[];
+};
+
+
+export type FantasyPillarId =
+  | 'warrior'
+  | 'scholar'
+  | 'explorer'
+  | 'mystic'
+  | 'divine'
+  | 'shadow'
+  | 'fey'
+  | 'noble'
+  | 'primal'
+  | 'occult'
+  | 'artificer'
+  | 'maritime';
+
+export type CompanionTier = 'none' | 'minor' | 'major' | 'legendary';
+export type SilhouetteCategory = 'vertical' | 'wide' | 'asymmetrical' | 'companion' | 'relic' | 'caster' | 'martial' | 'small' | 'mounted';
+
+export type FantasyPillar = { id: FantasyPillarId; label: string; description: string };
+
+export type SilhouetteProfile = {
+  id: string;
+  label: string;
+  category: SilhouetteCategory;
+  compatibleBuildTemplates: string[];
+  compatibleThemes?: string[];
+  compatibleSizes: SizeCategory[];
+  forbiddenClasses?: CharacterClass[];
+  visualDescription: string;
+  promptFragment: string;
+  weight?: number;
+};
+
+export type VisualMotif = {
+  id: string;
+  label: string;
+  compatibleThemes: string[];
+  compatibleBuildTemplates: string[];
+  shapes: string[];
+  materials: string[];
+  ornamentDetails: string[];
+  promptFragments: string[];
+};
+
+export type ArmorLanguage = {
+  id: string;
+  label: string;
+  armorCategory: ArmorTag[];
+  compatibleBuildTemplates: string[];
+  compatibleThemes: string[];
+  compatibleCultures?: string[];
+  promptFragments: string[];
+  detailHints: string[];
+};
+
+export type WeaponLanguage = {
+  id: string;
+  label: string;
+  baseWeaponTags: WeaponTag[];
+  compatibleBuildTemplates: string[];
+  compatibleThemes: string[];
+  promptFragments: string[];
+  detailHints: string[];
+};
+
+export type CompanionProfile = {
+  id: string;
+  label: string;
+  tier: CompanionTier;
+  companionType: 'animal' | 'bird' | 'spirit' | 'dragon' | 'construct' | 'celestial' | 'fey' | 'undead' | 'shadow';
+  compatibleClasses: CharacterClass[];
+  compatibleBuildTemplates: string[];
+  compatibleThemes: string[];
+  sizeImpact: 'none' | 'small_silhouette' | 'dual_silhouette' | 'mounted_silhouette';
+  visualDetails: string[];
+  promptFragment: string;
+  weight: number;
+};
+
+export type CompanionRelationship = { id: string; label: string; promptFragment: string; weight: number };
+
+export type ThemeContentProfile = {
+  themeId: string;
+  heroDetails: string[];
+  rareDetails: string[];
+  legendaryDetails: string[];
+  storyProps: string[];
+  faceDetails?: string[];
+  handDetails?: string[];
+  cloakDetails?: string[];
+  beltDetails?: string[];
+  jewelryDetails?: string[];
+  backgroundProps?: string[];
+  companionCompatibleDetails?: string[];
+};
+
+export type ThemeVisualProfile = {
+  themeId: string;
+  fantasyPillarId: FantasyPillarId;
+  visualFantasy: string;
+  visualMotifIds: string[];
+  detailPoolIds: string[];
+  armorLanguageIds: string[];
+  weaponLanguageIds: string[];
+  classBias: CharacterClass[];
+  raceBias?: string[];
+  sizeBias?: SizeCategory[];
+  companionBias?: CompanionTier[];
+};
+
+export type VisualDetailBudget = {
+  majorVisualDetails: number;
+  minorVisualDetails: number;
+  storyProps: number;
+  cultureDetails: number;
+  companionDetails: number;
+  legendaryDetails: number;
 };
 
 export const modeWeights = [
@@ -736,6 +865,212 @@ export const visualThemeVariants: Array<WeightedOption<VisualThemeVariant>> = vi
 });
 
 
+
+export const fantasyPillars: FantasyPillar[] = [
+  { id: 'warrior', label: 'Warrior', description: 'Readable martial force, battlefield command, weapons-first identity.' },
+  { id: 'scholar', label: 'Scholar', description: 'Books, maps, runes, research tools, and learned precision.' },
+  { id: 'explorer', label: 'Explorer', description: 'Road-worn travel, tracking gear, relic routes, and survival tools.' },
+  { id: 'mystic', label: 'Mystic', description: 'Prophecy, dreams, stars, ritual geometry, and uncanny insight.' },
+  { id: 'divine', label: 'Divine', description: 'Sacred armor, relics, prayer items, radiant or funerary iconography.' },
+  { id: 'shadow', label: 'Shadow', description: 'Stealth silhouettes, theft gear, urban grit, contracts, and hidden tools.' },
+  { id: 'fey', label: 'Fey', description: 'Living fabrics, floral geometry, moonlit ornament, and trickster elegance.' },
+  { id: 'noble', label: 'Noble', description: 'Heraldry, court tokens, signets, polished textiles, and inherited status.' },
+  { id: 'primal', label: 'Primal', description: 'Hide, bone, trophies, scars, beasts, and raw wilderness power.' },
+  { id: 'occult', label: 'Occult', description: 'Pacts, omens, void marks, forbidden relics, and unsettling talismans.' },
+  { id: 'artificer', label: 'Artificer', description: 'Devices, tools, brass fittings, clockwork, and engineered magic.' },
+  { id: 'maritime', label: 'Maritime', description: 'Salt-worn gear, ropes, sea charts, storm relics, and nautical fasteners.' },
+];
+
+export const themeVisualProfiles: ThemeVisualProfile[] = [
+  { themeId: 'void_oracle', fantasyPillarId: 'occult', visualFantasy: 'Looks like someone who knows something no mortal should know.', visualMotifIds: ['eclipse_motif'], detailPoolIds: ['void_oracle'], armorLanguageIds: ['void_oracle_robes', 'academy_robes'], weaponLanguageIds: ['void_orb_focus', 'academy_spell_staff'], classBias: ['warlock', 'sorcerer', 'wizard'], companionBias: ['minor', 'major', 'legendary'] },
+  { themeId: 'star_seer', fantasyPillarId: 'mystic', visualFantasy: 'Reads as a calm astrologer whose clothing maps the sky.', visualMotifIds: ['eclipse_motif', 'rune_motif'], detailPoolIds: ['void_oracle', 'academy_mage'], armorLanguageIds: ['academy_robes', 'void_oracle_robes'], weaponLanguageIds: ['void_orb_focus', 'academy_spell_staff'], classBias: ['wizard', 'sorcerer', 'warlock'] },
+  { themeId: 'ritualist', fantasyPillarId: 'mystic', visualFantasy: 'Looks like a prepared ritual caster surrounded by tools and circles.', visualMotifIds: ['rune_motif', 'eclipse_motif'], detailPoolIds: ['academy_mage', 'void_oracle'], armorLanguageIds: ['academy_robes', 'void_oracle_robes'], weaponLanguageIds: ['academy_spell_staff', 'void_orb_focus'], classBias: ['wizard', 'warlock', 'cleric'] },
+  { themeId: 'academy_mage', fantasyPillarId: 'scholar', visualFantasy: 'Looks competent, educated, precise, and connected to an arcane institution.', visualMotifIds: ['rune_motif'], detailPoolIds: ['academy_mage'], armorLanguageIds: ['academy_robes'], weaponLanguageIds: ['academy_spell_staff'], classBias: ['wizard', 'sorcerer', 'bard'] },
+  { themeId: 'divine_archivist', fantasyPillarId: 'scholar', visualFantasy: 'Looks like a sacred researcher guarding dangerous records.', visualMotifIds: ['rune_motif', 'cathedral_motif'], detailPoolIds: ['academy_mage', 'grave_warden'], armorLanguageIds: ['academy_robes', 'gravewarden_mail'], weaponLanguageIds: ['academy_spell_staff', 'reliquary_warhammer'], classBias: ['cleric', 'wizard'] },
+  { themeId: 'trail_warden', fantasyPillarId: 'explorer', visualFantasy: 'Looks like someone who survives long roads and reads the wilderness quickly.', visualMotifIds: ['beast_motif'], detailPoolIds: ['trail_warden', 'monster_tracker'], armorLanguageIds: ['hunter_leather', 'battle_worn_frontier_plate'], weaponLanguageIds: ['ranger_bone_bow', 'dragon_hunter_blade'], classBias: ['ranger', 'druid', 'fighter'], companionBias: ['minor', 'major', 'legendary'] },
+  { themeId: 'beast_slayer', fantasyPillarId: 'primal', visualFantasy: 'Looks like someone whose body and gear record brutal monster hunts.', visualMotifIds: ['beast_motif'], detailPoolIds: ['monster_tracker'], armorLanguageIds: ['hunter_leather'], weaponLanguageIds: ['dragon_hunter_blade', 'ranger_bone_bow'], classBias: ['barbarian', 'ranger', 'fighter'], companionBias: ['minor', 'major'] },
+  { themeId: 'monster_slayer_veteran', fantasyPillarId: 'warrior', visualFantasy: 'Looks like a professional veteran of impossible hunts.', visualMotifIds: ['beast_motif'], detailPoolIds: ['monster_tracker', 'mercenary_captain'], armorLanguageIds: ['battle_worn_frontier_plate', 'hunter_leather'], weaponLanguageIds: ['dragon_hunter_blade'], classBias: ['fighter', 'ranger'] },
+  { themeId: 'grave_warden', fantasyPillarId: 'divine', visualFantasy: 'Looks like a guardian standing between the living and the dead.', visualMotifIds: ['cathedral_motif'], detailPoolIds: ['grave_warden'], armorLanguageIds: ['gravewarden_mail', 'ceremonial_sun_plate'], weaponLanguageIds: ['reliquary_warhammer'], classBias: ['cleric', 'paladin'], companionBias: ['minor', 'major'] },
+  { themeId: 'battle_chaplain', fantasyPillarId: 'divine', visualFantasy: 'Looks like battlefield faith made practical and armored.', visualMotifIds: ['cathedral_motif'], detailPoolIds: ['battle_chaplain', 'mercenary_captain'], armorLanguageIds: ['gravewarden_mail', 'ceremonial_sun_plate'], weaponLanguageIds: ['reliquary_warhammer'], classBias: ['cleric', 'paladin', 'fighter'], companionBias: ['minor', 'major'] },
+  { themeId: 'sun_knight', fantasyPillarId: 'divine', visualFantasy: 'Looks like a radiant champion built around sacred courage.', visualMotifIds: ['cathedral_motif'], detailPoolIds: ['battle_chaplain'], armorLanguageIds: ['ceremonial_sun_plate'], weaponLanguageIds: ['reliquary_warhammer'], classBias: ['paladin', 'cleric'] },
+  { themeId: 'relic_thief', fantasyPillarId: 'shadow', visualFantasy: 'Looks like someone who steals objects that should be in museums.', visualMotifIds: ['rune_motif'], detailPoolIds: ['relic_thief'], armorLanguageIds: ['hunter_leather'], weaponLanguageIds: ['fey_cane_sword', 'academy_spell_staff'], classBias: ['rogue', 'ranger', 'bard'] },
+  { themeId: 'bounty_hunter', fantasyPillarId: 'shadow', visualFantasy: 'Looks practical, dangerous, and paid to find people who hide.', visualMotifIds: ['beast_motif'], detailPoolIds: ['monster_tracker', 'relic_thief'], armorLanguageIds: ['hunter_leather'], weaponLanguageIds: ['dragon_hunter_blade', 'ranger_bone_bow'], classBias: ['rogue', 'ranger', 'fighter'] },
+  { themeId: 'urban_assassin', fantasyPillarId: 'shadow', visualFantasy: 'Reads as a precise city killer with concealed tools.', visualMotifIds: ['rune_motif'], detailPoolIds: ['relic_thief'], armorLanguageIds: ['hunter_leather'], weaponLanguageIds: ['fey_cane_sword'], classBias: ['rogue'] },
+  { themeId: 'pirate_raider', fantasyPillarId: 'maritime', visualFantasy: 'Looks salt-worn, dangerous, and loaded with sea relics.', visualMotifIds: ['nautical_motif'], detailPoolIds: ['pirate_raider', 'relic_thief'], armorLanguageIds: ['hunter_leather'], weaponLanguageIds: ['dragon_hunter_blade', 'mechanical_tool_focus'], classBias: ['rogue', 'artificer', 'bard'] },
+  { themeId: 'fey_noble', fantasyPillarId: 'fey', visualFantasy: 'Looks like courtly beauty from a realm with different rules.', visualMotifIds: ['thorn_motif'], detailPoolIds: ['fey_noble'], armorLanguageIds: ['fey_court_garb'], weaponLanguageIds: ['fey_cane_sword'], classBias: ['bard', 'warlock', 'druid'], raceBias: ['fairy', 'satyr', 'elf'], companionBias: ['minor', 'major', 'legendary'] },
+  { themeId: 'moonlit_duelist', fantasyPillarId: 'fey', visualFantasy: 'Looks elegant, fast, and dangerous under moonlight.', visualMotifIds: ['thorn_motif'], detailPoolIds: ['fey_noble'], armorLanguageIds: ['fey_court_garb'], weaponLanguageIds: ['fey_cane_sword'], classBias: ['bard', 'rogue', 'warlock'] },
+  { themeId: 'forest_sprite', fantasyPillarId: 'fey', visualFantasy: 'Looks playful, wild, and surrounded by living forest texture.', visualMotifIds: ['thorn_motif'], detailPoolIds: ['fey_noble'], armorLanguageIds: ['fey_court_garb'], weaponLanguageIds: ['fey_cane_sword'], classBias: ['druid', 'bard'] },
+  { themeId: 'mercenary_captain', fantasyPillarId: 'warrior', visualFantasy: 'Looks like a battlefield leader with contracts and command gear.', visualMotifIds: ['cathedral_motif'], detailPoolIds: ['mercenary_captain'], armorLanguageIds: ['battle_worn_frontier_plate'], weaponLanguageIds: ['dragon_hunter_blade'], classBias: ['fighter'] },
+  { themeId: 'arena_champion', fantasyPillarId: 'warrior', visualFantasy: 'Looks like a public fighter whose scars became reputation.', visualMotifIds: ['beast_motif'], detailPoolIds: ['mercenary_captain', 'monster_tracker'], armorLanguageIds: ['battle_worn_frontier_plate'], weaponLanguageIds: ['dragon_hunter_blade'], classBias: ['fighter', 'barbarian'] },
+  { themeId: 'royal_guard', fantasyPillarId: 'noble', visualFantasy: 'Looks disciplined, formal, and sworn to protect a seat of power.', visualMotifIds: ['cathedral_motif'], detailPoolIds: ['mercenary_captain'], armorLanguageIds: ['ceremonial_sun_plate'], weaponLanguageIds: ['dragon_hunter_blade'], classBias: ['fighter', 'paladin'] },
+  { themeId: 'clockwork_sapper', fantasyPillarId: 'artificer', visualFantasy: 'Looks like a combat engineer built from tools, brass, and sparks.', visualMotifIds: ['rune_motif'], detailPoolIds: ['academy_mage', 'mercenary_captain'], armorLanguageIds: ['battle_worn_frontier_plate'], weaponLanguageIds: ['mechanical_tool_focus', 'academy_spell_staff'], classBias: ['artificer'], companionBias: ['minor', 'legendary'] },
+  { themeId: 'tribal_champion', fantasyPillarId: 'primal', visualFantasy: 'Looks like a clan champion carrying trophies and scars.', visualMotifIds: ['beast_motif'], detailPoolIds: ['monster_tracker'], armorLanguageIds: ['hunter_leather'], weaponLanguageIds: ['dragon_hunter_blade'], classBias: ['barbarian'] },
+];
+
+export const visualMotifs: VisualMotif[] = [
+  { id: 'eclipse_motif', label: 'Eclipse Motif', compatibleThemes: ['void_oracle', 'star_seer', 'dream_walker'], compatibleBuildTemplates: ['arcane_caster'], shapes: ['crescent shapes', 'orbital rings', 'partial circles', 'black sun symbols'], materials: ['obsidian', 'black crystal', 'tarnished silver'], ornamentDetails: ['orbiting crescent ornaments', 'black sun symbols woven into the outfit'], promptFragments: ['repeating eclipse geometry', 'orbiting crescent ornaments', 'black sun symbols woven into the outfit'] },
+  { id: 'cathedral_motif', label: 'Cathedral Motif', compatibleThemes: ['grave_warden', 'sun_knight', 'battle_chaplain', 'wandering_healer', 'royal_guard'], compatibleBuildTemplates: ['holy_warrior', 'martial_veteran'], shapes: ['arches', 'stained glass geometry', 'sacred vertical lines'], materials: ['polished brass', 'pale stone', 'stained glass'], ornamentDetails: ['sacred arch patterns on armor', 'stained-glass inspired trim'], promptFragments: ['cathedral-like ornamentation', 'stained-glass inspired trim', 'sacred arch patterns on armor'] },
+  { id: 'beast_motif', label: 'Beast Motif', compatibleThemes: ['monster_tracker', 'beast_slayer', 'tribal_champion', 'trail_warden', 'monster_slayer_veteran', 'arena_champion'], compatibleBuildTemplates: ['frontier_hunter', 'savage_berserker', 'martial_veteran'], shapes: ['fang patterns', 'claw geometry', 'bone ornamentation'], materials: ['bone', 'hide', 'leather', 'horn'], ornamentDetails: ['fang-shaped ornaments', 'bone trophies integrated into gear'], promptFragments: ['fang-shaped ornaments', 'bone trophies integrated into gear', 'claw-mark patterns across armor'] },
+  { id: 'nautical_motif', label: 'Nautical Motif', compatibleThemes: ['pirate_raider', 'relic_diver', 'storm_sailor'], compatibleBuildTemplates: ['shadow_skirmisher', 'battle_engineer', 'lorekeeper_bard'], shapes: ['ropes', 'anchors', 'wave patterns', 'knots'], materials: ['weathered brass', 'soaked leather', 'salt-stained cloth'], ornamentDetails: ['rope knots', 'nautical fasteners'], promptFragments: ['rope knots and nautical fasteners', 'salt-worn equipment', 'wave-pattern embroidery'] },
+  { id: 'rune_motif', label: 'Rune Motif', compatibleThemes: ['rune_scholar', 'academy_mage', 'battle_mage', 'arcane_caster', 'ritualist', 'divine_archivist', 'relic_thief', 'clockwork_sapper'], compatibleBuildTemplates: ['arcane_caster', 'divine_scholar', 'battle_engineer', 'shadow_skirmisher'], shapes: ['angular glyphs', 'geometric seals', 'floating tablets'], materials: ['carved stone', 'glowing ink', 'etched metal'], ornamentDetails: ['floating glyph fragments', 'etched magical formulae'], promptFragments: ['angular rune patterns', 'floating glyph fragments', 'etched magical formulae'] },
+  { id: 'thorn_motif', label: 'Thorn Motif', compatibleThemes: ['fey_noble', 'forest_sprite', 'fey_trickster', 'moonlit_duelist', 'wandering_bard'], compatibleBuildTemplates: ['fey_trickster', 'lorekeeper_bard'], shapes: ['thorn curls', 'flower geometry', 'vine spirals'], materials: ['living wood', 'moonlit silver', 'glowing petals'], ornamentDetails: ['thorn-like ornamentation', 'living vine trim'], promptFragments: ['thorn-like ornamentation', 'living vine trim', 'moonlit floral patterns'] },
+];
+
+export const armorLanguages: ArmorLanguage[] = [
+  { id: 'battle_worn_frontier_plate', label: 'Battle-Worn Frontier Plate', armorCategory: ['medium', 'heavy', 'metal'], compatibleBuildTemplates: ['frontier_hunter', 'martial_veteran', 'holy_warrior'], compatibleThemes: ['trail_warden', 'monster_slayer_veteran', 'mercenary_captain', 'arena_champion'], promptFragments: ['dented campaign plates', 'leather repairs', 'mud-stained lower armor'], detailHints: ['dented campaign plates', 'leather repairs', 'mud-stained lower armor'] },
+  { id: 'ceremonial_sun_plate', label: 'Ceremonial Sun Plate', armorCategory: ['medium', 'heavy', 'metal'], compatibleBuildTemplates: ['holy_warrior', 'martial_veteran'], compatibleThemes: ['sun_knight', 'battle_chaplain', 'royal_guard'], promptFragments: ['radiant trim', 'polished gold accents', 'sunburst engravings'], detailHints: ['radiant trim', 'polished gold accents', 'sunburst engravings'] },
+  { id: 'gravewarden_mail', label: 'Gravewarden Mail', armorCategory: ['medium', 'heavy', 'metal'], compatibleBuildTemplates: ['holy_warrior', 'divine_scholar'], compatibleThemes: ['grave_warden', 'battle_chaplain', 'divine_archivist'], promptFragments: ['blackened chain links', 'funeral charms', 'ash-stained tabard'], detailHints: ['blackened chain links', 'funeral charms', 'ash-stained tabard'] },
+  { id: 'academy_robes', label: 'Academy Robes', armorCategory: ['cloth', 'none'], compatibleBuildTemplates: ['arcane_caster', 'divine_scholar', 'lorekeeper_bard'], compatibleThemes: ['academy_mage', 'ritualist', 'divine_archivist', 'star_seer'], promptFragments: ['embroidered arcane trim', 'academy insignia', 'ink-stained cuffs'], detailHints: ['embroidered arcane trim', 'academy insignia', 'ink-stained cuffs'] },
+  { id: 'void_oracle_robes', label: 'Void Oracle Robes', armorCategory: ['cloth', 'none'], compatibleBuildTemplates: ['arcane_caster'], compatibleThemes: ['void_oracle', 'star_seer', 'ritualist'], promptFragments: ['starless embroidery', 'torn prophetic cloth strips', 'black-thread fasteners'], detailHints: ['starless embroidery', 'torn prophetic cloth strips', 'black-thread fasteners'] },
+  { id: 'hunter_leather', label: 'Hunter Leather', armorCategory: ['light', 'medium', 'natural'], compatibleBuildTemplates: ['frontier_hunter', 'shadow_skirmisher', 'savage_berserker'], compatibleThemes: ['trail_warden', 'beast_slayer', 'bounty_hunter', 'relic_thief', 'swamp_tracker'], promptFragments: ['reinforced shoulder hide', 'trophy loops', 'survival stitching'], detailHints: ['reinforced shoulder hide', 'trophy loops', 'survival stitching'] },
+  { id: 'fey_court_garb', label: 'Fey Court Garb', armorCategory: ['cloth', 'light'], compatibleBuildTemplates: ['fey_trickster', 'lorekeeper_bard'], compatibleThemes: ['fey_noble', 'moonlit_duelist', 'forest_sprite', 'wandering_bard'], promptFragments: ['impossible fabric folds', 'living floral accents', 'moonlit silk ribbons'], detailHints: ['impossible fabric folds', 'living floral accents', 'moonlit silk ribbons'] },
+];
+
+export const weaponLanguages: WeaponLanguage[] = [
+  { id: 'dragon_hunter_blade', label: 'Dragon Hunter Blade', baseWeaponTags: ['martial', 'greatsword', 'spear', 'handaxe', 'dual-blades'], compatibleBuildTemplates: ['martial_veteran', 'frontier_hunter', 'savage_berserker'], compatibleThemes: ['monster_slayer_veteran', 'arena_champion', 'beast_slayer', 'trail_warden'], promptFragments: ['heavy blade with scale marks', 'dragonbone grip', 'heat-blackened edge'], detailHints: ['scale marks', 'dragonbone grip', 'heat-blackened edge'] },
+  { id: 'reliquary_warhammer', label: 'Reliquary Warhammer', baseWeaponTags: ['warhammer', 'mace', 'holy-focus', 'shield', 'staff'], compatibleBuildTemplates: ['holy_warrior', 'divine_scholar'], compatibleThemes: ['grave_warden', 'sun_knight', 'battle_chaplain', 'divine_archivist'], promptFragments: ['sacred relic chamber inside the weapon', 'prayer strips', 'old temple metal'], detailHints: ['relic chamber', 'prayer strips', 'old temple metal'] },
+  { id: 'academy_spell_staff', label: 'Academy Spell Staff', baseWeaponTags: ['staff', 'wand', 'book', 'magic-focus', 'scroll'], compatibleBuildTemplates: ['arcane_caster', 'divine_scholar', 'lorekeeper_bard'], compatibleThemes: ['academy_mage', 'ritualist', 'star_seer', 'divine_archivist'], promptFragments: ['polished wood', 'measuring rings', 'academy seal'], detailHints: ['polished wood', 'measuring rings', 'academy seal'] },
+  { id: 'void_orb_focus', label: 'Void Orb Focus', baseWeaponTags: ['orb', 'magic-focus', 'wand', 'book'], compatibleBuildTemplates: ['arcane_caster'], compatibleThemes: ['void_oracle', 'star_seer', 'ritualist'], promptFragments: ['black crystal core', 'orbiting fragments', 'thread-wrapped handle'], detailHints: ['black crystal core', 'orbiting fragments', 'thread-wrapped handle'] },
+  { id: 'ranger_bone_bow', label: 'Ranger Bone Bow', baseWeaponTags: ['bow', 'shortbow', 'longbow', 'spear'], compatibleBuildTemplates: ['frontier_hunter', 'shadow_skirmisher'], compatibleThemes: ['trail_warden', 'monster_slayer_veteran', 'bounty_hunter', 'swamp_tracker'], promptFragments: ['horn-backed bow', 'bone charms', 'notched grip'], detailHints: ['horn-backed bow', 'bone charms', 'notched grip'] },
+  { id: 'fey_cane_sword', label: 'Fey Cane Sword', baseWeaponTags: ['rapier', 'dagger', 'fey-focus', 'instrument', 'flute'], compatibleBuildTemplates: ['fey_trickster', 'lorekeeper_bard', 'shadow_skirmisher'], compatibleThemes: ['fey_noble', 'moonlit_duelist', 'wandering_bard', 'relic_thief'], promptFragments: ['thorn engraving', 'moonlit metal', 'hidden blade line'], detailHints: ['thorn engraving', 'moonlit metal', 'hidden blade line'] },
+  { id: 'mechanical_tool_focus', label: 'Mechanical Tool Focus', baseWeaponTags: ['tool', 'mechanical-focus', 'mechanical-weapon', 'magic-focus'], compatibleBuildTemplates: ['battle_engineer'], compatibleThemes: ['clockwork_sapper', 'pirate_raider'], promptFragments: ['a practical arcane tool focus with brass calipers and sparking mechanisms'], detailHints: ['brass calibrator rings', 'sparking wrench head'] },
+  { id: 'monastic_focus', label: 'Monastic Focus', baseWeaponTags: ['unarmed', 'staff', 'spear', 'simple'], compatibleBuildTemplates: ['wandering_martial_artist'], compatibleThemes: ['temple_guardian', 'silent_avenger', 'mountain_hermit', 'wandering_master', 'dragon_style_adept'], promptFragments: ['a disciplined monk focus of wraps, prayer beads, and simple weapons'], detailHints: ['worn hand wraps', 'smooth prayer beads'] },
+];
+
+function makeSilhouette(id: string, label: string, category: SilhouetteCategory, templates: string[], themes: string[], sizes: SizeCategory[], description: string, weight = 5): SilhouetteProfile {
+  return { id, label, category, compatibleBuildTemplates: templates, compatibleThemes: themes, compatibleSizes: sizes, visualDescription: description, promptFragment: description, weight };
+}
+
+export const silhouetteProfiles: SilhouetteProfile[] = [
+  makeSilhouette('bastion', 'Bastion', 'martial', ['martial_veteran', 'holy_warrior'], ['royal_guard', 'battle_chaplain'], ['medium', 'large'], 'a firm shield-ready martial silhouette'),
+  makeSilhouette('oathbearer', 'Oathbearer', 'vertical', ['holy_warrior'], ['sun_knight', 'battle_chaplain'], ['small', 'medium', 'large'], 'upright sacred profile with oath symbols'),
+  makeSilhouette('broken_veteran', 'Broken Veteran', 'asymmetrical', ['martial_veteran', 'holy_warrior'], ['veteran_officer', 'fallen_saint'], ['small', 'medium', 'large'], 'asymmetrical veteran silhouette with damaged gear'),
+  makeSilhouette('beast_hunter', 'Beast Hunter', 'martial', ['frontier_hunter', 'martial_veteran'], ['trail_warden', 'monster_slayer_veteran', 'beast_slayer'], ['small', 'medium', 'large'], 'hunter profile with trophies and long travel gear'),
+  makeSilhouette('duel_saint', 'Duel Saint', 'martial', ['fey_trickster', 'holy_warrior'], ['moonlit_duelist', 'sun_knight'], ['small', 'medium'], 'slender duelist profile with sacred or fey linework'),
+  makeSilhouette('banner_commander', 'Banner Commander', 'wide', ['martial_veteran', 'holy_warrior'], ['mercenary_captain', 'battle_chaplain'], ['medium', 'large'], 'command silhouette widened by a torn banner'),
+  makeSilhouette('arena_colossus', 'Arena Colossus', 'wide', ['martial_veteran', 'savage_berserker'], ['arena_champion', 'raider_king'], ['medium', 'large'], 'massive public-fighter silhouette built for spectacle'),
+  makeSilhouette('siege_breaker_profile', 'Siege Breaker Profile', 'wide', ['martial_veteran', 'savage_berserker'], ['arena_champion', 'storm_warrior'], ['medium', 'large'], 'wide breaker profile with heavy weapon emphasis'),
+  makeSilhouette('royal_guard_column', 'Royal Guard Column', 'vertical', ['martial_veteran', 'holy_warrior'], ['royal_guard', 'sun_knight'], ['medium', 'large'], 'formal vertical guard silhouette'),
+  makeSilhouette('mercenary_cloak_profile', 'Mercenary Cloak Profile', 'asymmetrical', ['martial_veteran'], ['mercenary_captain', 'veteran_officer'], ['small', 'medium', 'large'], 'cloak-and-command profile with practical gear'),
+  makeSilhouette('walking_observatory', 'Walking Observatory', 'caster', ['arcane_caster'], ['star_seer', 'void_oracle'], ['medium', 'large'], 'caster silhouette ringed by astronomy tools'),
+  makeSilhouette('living_library', 'Living Library', 'caster', ['arcane_caster', 'divine_scholar'], ['academy_mage', 'divine_archivist'], ['small', 'medium', 'large'], 'book-heavy silhouette with floating pages'),
+  makeSilhouette('eclipse_oracle', 'Eclipse Oracle', 'caster', ['arcane_caster'], ['void_oracle', 'star_seer'], ['small', 'medium', 'large'], 'ritual caster silhouette framed by eclipse geometry'),
+  makeSilhouette('rune_architect', 'Rune Architect', 'caster', ['arcane_caster', 'battle_engineer'], ['academy_mage', 'clockwork_sapper'], ['small', 'medium', 'large'], 'angular caster profile made of tools and glyphs'),
+  makeSilhouette('arcane_duelist', 'Arcane Duelist', 'asymmetrical', ['arcane_caster', 'fey_trickster'], ['battle_mage', 'moonlit_duelist'], ['small', 'medium'], 'one-handed duelist caster profile'),
+  makeSilhouette('spell_scroll_cascade', 'Spell Scroll Cascade', 'caster', ['arcane_caster', 'divine_scholar'], ['academy_mage', 'ritualist'], ['small', 'medium'], 'cascade of scrolls around a compact caster'),
+  makeSilhouette('star_seer_column', 'Star Seer Column', 'vertical', ['arcane_caster'], ['star_seer'], ['medium', 'large'], 'tall calm column marked with constellations'),
+  makeSilhouette('ritual_circle_bearer', 'Ritual Circle Bearer', 'relic', ['arcane_caster', 'divine_scholar'], ['ritualist', 'divine_archivist'], ['small', 'medium', 'large'], 'figure carrying a visible ritual circle motif'),
+  makeSilhouette('floating_grimoire_profile', 'Floating Grimoire Profile', 'caster', ['arcane_caster'], ['academy_mage', 'void_oracle'], ['small', 'medium', 'large'], 'caster with a hovering grimoire as a second read'),
+  makeSilhouette('battle_mage_vanguard', 'Battle Mage Vanguard', 'martial', ['arcane_caster'], ['battle_mage'], ['medium', 'large'], 'forward battlefield caster silhouette'),
+  makeSilhouette('long_road_walker', 'Long Road Walker', 'asymmetrical', ['frontier_hunter'], ['trail_warden'], ['small', 'medium', 'large'], 'travel cloak and road-pack explorer shape'),
+  makeSilhouette('expedition_leader', 'Expedition Leader', 'relic', ['frontier_hunter', 'divine_scholar'], ['trail_warden', 'relic_thief'], ['small', 'medium', 'large'], 'leader profile with maps and expedition equipment'),
+  makeSilhouette('monster_tracker_profile', 'Monster Tracker Profile', 'martial', ['frontier_hunter', 'shadow_skirmisher'], ['bounty_hunter', 'monster_slayer_veteran'], ['small', 'medium', 'large'], 'low hunter silhouette with trophies and tracking gear'),
+  makeSilhouette('falconer_profile', 'Falconer Profile', 'companion', ['frontier_hunter', 'shadow_skirmisher'], ['trail_warden', 'bounty_hunter'], ['small', 'medium', 'large'], 'hunter silhouette with bird companion perch'),
+  makeSilhouette('dragon_warden_profile', 'Dragon Warden Profile', 'companion', ['frontier_hunter', 'holy_warrior'], ['sun_knight', 'trail_warden'], ['medium', 'large'], 'guardian silhouette paired with a draconic companion'),
+  makeSilhouette('rope_and_pack_profile', 'Rope and Pack Profile', 'asymmetrical', ['frontier_hunter', 'shadow_skirmisher'], ['trail_warden', 'relic_thief'], ['small', 'medium', 'large'], 'asymmetrical travel pack profile with rope lines'),
+  makeSilhouette('horizon_walker_profile', 'Horizon Walker Profile', 'vertical', ['frontier_hunter'], ['trail_warden'], ['small', 'medium', 'large'], 'long view explorer silhouette pointing toward distance'),
+  makeSilhouette('relic_diver_profile', 'Relic Diver Profile', 'relic', ['shadow_skirmisher', 'battle_engineer'], ['pirate_raider', 'relic_thief'], ['medium', 'large'], 'salt-worn relic diver with satchels and coils'),
+  makeSilhouette('beastmaster_pair', 'Beastmaster Pair', 'companion', ['frontier_hunter'], ['trail_warden', 'beast_slayer'], ['small', 'medium', 'large'], 'dual silhouette with animal companion'),
+  makeSilhouette('mounted_scout', 'Mounted Scout', 'mounted', ['frontier_hunter', 'holy_warrior'], ['trail_warden', 'sun_knight'], ['medium', 'large'], 'mounted or mount-ready scout silhouette'),
+  makeSilhouette('living_omen', 'Living Omen', 'caster', ['arcane_caster'], ['void_oracle'], ['small', 'medium', 'large'], 'still occult silhouette surrounded by ominous signs'),
+  makeSilhouette('dream_pilgrim', 'Dream Pilgrim', 'vertical', ['arcane_caster'], ['dream_walker', 'void_oracle'], ['small', 'medium', 'large'], 'sleep-walking pilgrim shape with dream haze'),
+  makeSilhouette('bound_vessel', 'Bound Vessel', 'asymmetrical', ['arcane_caster', 'fey_trickster'], ['void_oracle', 'moonlit_duelist'], ['small', 'medium'], 'bound magical vessel with wraps and talismans'),
+  makeSilhouette('pact_keeper', 'Pact Keeper', 'caster', ['arcane_caster'], ['void_oracle'], ['small', 'medium', 'large'], 'occult focus silhouette with pact marks'),
+  makeSilhouette('forbidden_researcher_profile', 'Forbidden Researcher Profile', 'caster', ['arcane_caster', 'divine_scholar'], ['ritualist', 'divine_archivist'], ['small', 'medium', 'large'], 'researcher carrying dangerous texts'),
+  makeSilhouette('nightmare_medium', 'Nightmare Medium', 'caster', ['arcane_caster'], ['void_oracle'], ['medium', 'large'], 'medium silhouette pulled upward by dream smoke'),
+  makeSilhouette('hollow_prophet', 'Hollow Prophet', 'vertical', ['arcane_caster'], ['void_oracle'], ['medium', 'large'], 'thin prophetic silhouette with empty center line'),
+  makeSilhouette('shadow_chained_vessel', 'Shadow-Chained Vessel', 'asymmetrical', ['arcane_caster', 'shadow_skirmisher'], ['void_oracle', 'urban_assassin'], ['medium', 'large'], 'shadow-bound figure with chain shapes'),
+  makeSilhouette('omen_bell_bearer', 'Omen Bell Bearer', 'relic', ['arcane_caster', 'holy_warrior'], ['void_oracle', 'grave_warden'], ['small', 'medium', 'large'], 'relic-bearing profile marked by an omen bell'),
+  makeSilhouette('mirror_oracle', 'Mirror Oracle', 'relic', ['arcane_caster'], ['void_oracle', 'star_seer'], ['small', 'medium', 'large'], 'oracle with cracked mirror as strong secondary shape'),
+  makeSilhouette('reliquary_bearer', 'Reliquary Bearer', 'relic', ['holy_warrior', 'divine_scholar'], ['battle_chaplain', 'divine_archivist'], ['small', 'medium', 'large'], 'sacred relic carried as the main silhouette break'),
+  makeSilhouette('lantern_warden', 'Lantern Warden', 'relic', ['holy_warrior'], ['grave_warden'], ['small', 'medium', 'large'], 'grave lantern silhouette with pale flame'),
+  makeSilhouette('sun_champion', 'Sun Champion', 'vertical', ['holy_warrior'], ['sun_knight'], ['medium', 'large'], 'radiant vertical silhouette crowned by sun rays'),
+  makeSilhouette('pilgrim_medic', 'Pilgrim Medic', 'asymmetrical', ['holy_warrior'], ['wandering_healer'], ['small', 'medium', 'large'], 'pilgrim healer profile with satchels'),
+  makeSilhouette('grave_watcher', 'Grave Watcher', 'vertical', ['holy_warrior'], ['grave_warden'], ['small', 'medium', 'large'], 'solemn grave watch profile'),
+  makeSilhouette('funeral_knight_profile', 'Funeral Knight Profile', 'martial', ['holy_warrior'], ['grave_warden', 'fallen_saint'], ['medium', 'large'], 'armored funeral knight silhouette'),
+  makeSilhouette('battle_chaplain_profile', 'Battle Chaplain Profile', 'martial', ['holy_warrior'], ['battle_chaplain'], ['small', 'medium', 'large'], 'worn armored priest silhouette'),
+  makeSilhouette('relic_shield_bearer', 'Relic Shield Bearer', 'relic', ['holy_warrior'], ['sun_knight', 'battle_chaplain'], ['medium', 'large'], 'shield-first profile with reliquary shape'),
+  makeSilhouette('saint_with_banners', 'Saint with Banners', 'wide', ['holy_warrior'], ['sun_knight', 'battle_chaplain'], ['medium', 'large'], 'saintly wide silhouette framed by banners'),
+  makeSilhouette('temple_exorcist', 'Temple Exorcist', 'asymmetrical', ['holy_warrior', 'wandering_martial_artist'], ['temple_guardian', 'grave_warden'], ['small', 'medium', 'large'], 'ritual exorcist with relics and motion'),
+  makeSilhouette('compact_martial_stance', 'Compact Martial Stance', 'small', ['martial_veteran', 'wandering_martial_artist', 'savage_berserker'], [], ['tiny', 'small'], 'compact martial stance scaled for small bodies'),
+  makeSilhouette('small_cloak_and_staff', 'Small Cloak and Staff', 'small', ['arcane_caster', 'divine_scholar', 'wandering_martial_artist'], [], ['tiny', 'small'], 'small cloaked figure with clear staff read'),
+  makeSilhouette('small_relic_bearer', 'Small Relic Bearer', 'small', ['holy_warrior', 'divine_scholar'], [], ['tiny', 'small'], 'small figure carrying a readable relic'),
+  makeSilhouette('compact_beastmaster', 'Compact Beastmaster', 'companion', ['frontier_hunter'], [], ['tiny', 'small'], 'small figure paired with animal companion'),
+  makeSilhouette('small_arcane_scholar', 'Small Arcane Scholar', 'small', ['arcane_caster', 'lorekeeper_bard'], [], ['tiny', 'small'], 'small scholarly caster silhouette with book shapes'),
+];
+
+function makeCompanion(id: string, label: string, tier: CompanionTier, companionType: CompanionProfile['companionType'], classes: CharacterClass[], templates: string[], themes: string[], sizeImpact: CompanionProfile['sizeImpact'], details: string[], promptFragment: string, weight: number): CompanionProfile {
+  return { id, label, tier, companionType, compatibleClasses: classes, compatibleBuildTemplates: templates, compatibleThemes: themes, sizeImpact, visualDetails: details, promptFragment, weight };
+}
+
+export const companionProfiles: CompanionProfile[] = [
+  makeCompanion('raven', 'raven', 'minor', 'bird', ['warlock', 'wizard', 'rogue', 'ranger'], ['arcane_caster', 'shadow_skirmisher', 'frontier_hunter'], ['void_oracle', 'bounty_hunter', 'trail_warden'], 'small_silhouette', ['black feathers on the shoulder', 'watchful raven eyes'], 'a raven perched nearby', 7),
+  makeCompanion('crow', 'crow', 'minor', 'bird', ['rogue', 'warlock'], ['shadow_skirmisher', 'arcane_caster'], ['urban_assassin', 'void_oracle'], 'small_silhouette', ['crow perched on a ruined sign', 'dark feathers near the cloak'], 'a crow watching from the edge of the frame', 6),
+  makeCompanion('owl', 'owl', 'minor', 'bird', ['wizard', 'ranger', 'druid'], ['arcane_caster', 'frontier_hunter'], ['academy_mage', 'trail_warden'], 'small_silhouette', ['owl feather charm', 'round-eyed owl perched above'], 'an owl circling overhead', 6),
+  makeCompanion('fox', 'fox', 'minor', 'animal', ['bard', 'druid', 'ranger'], ['fey_trickster', 'frontier_hunter'], ['fey_noble', 'forest_sprite', 'trail_warden'], 'small_silhouette', ['fox tracks in dust', 'fox tail peeking from grass'], 'a fox slipping around the boots', 6),
+  makeCompanion('ferret', 'ferret', 'minor', 'animal', ['rogue', 'bard'], ['shadow_skirmisher', 'fey_trickster'], ['relic_thief', 'wandering_bard'], 'small_silhouette', ['ferret in a satchel', 'tiny paw prints on the map'], 'a ferret peeking from a satchel', 5),
+  makeCompanion('cat', 'cat', 'minor', 'animal', ['wizard', 'bard', 'rogue'], ['arcane_caster', 'lorekeeper_bard', 'shadow_skirmisher'], ['academy_mage', 'court_loremaster', 'urban_assassin'], 'small_silhouette', ['cat curled around loose scrolls', 'green cat eyes in shadow'], 'a cat seated among scrolls', 5),
+  makeCompanion('rat', 'rat', 'minor', 'animal', ['rogue', 'warlock'], ['shadow_skirmisher', 'arcane_caster'], ['urban_assassin', 'void_oracle'], 'small_silhouette', ['rat tracks near the boots', 'small rat perched on a crate'], 'a rat moving through the foreground', 4),
+  makeCompanion('lizard', 'lizard', 'minor', 'animal', ['druid', 'sorcerer', 'artificer'], ['frontier_hunter', 'arcane_caster', 'battle_engineer'], ['trail_warden', 'battle_mage', 'clockwork_sapper'], 'small_silhouette', ['lizard on a shoulder strap', 'scaled companion curled near tools'], 'a small lizard companion clinging to gear', 4),
+  makeCompanion('dream_moth', 'dream moth', 'minor', 'spirit', ['warlock', 'wizard', 'sorcerer'], ['arcane_caster'], ['void_oracle', 'star_seer'], 'small_silhouette', ['moonlit moth wings', 'tiny dream-moth glow'], 'a dream moth floating near the face', 5),
+  makeCompanion('prayer_dove', 'prayer dove', 'minor', 'celestial', ['cleric', 'paladin'], ['holy_warrior', 'divine_scholar'], ['sun_knight', 'battle_chaplain', 'grave_warden'], 'small_silhouette', ['white feathers caught in prayer ribbons', 'dove perched on a relic'], 'a prayer dove near the shoulder', 5),
+  makeCompanion('clockwork_mouse', 'clockwork mouse', 'minor', 'construct', ['artificer', 'wizard'], ['battle_engineer', 'arcane_caster'], ['clockwork_sapper', 'academy_mage'], 'small_silhouette', ['tiny brass mouse gears', 'clockwork mouse on a belt pouch'], 'a clockwork mouse crawling over gear', 5),
+  makeCompanion('wolf', 'wolf', 'major', 'animal', ['ranger', 'druid', 'barbarian'], ['frontier_hunter', 'savage_berserker'], ['trail_warden', 'beast_slayer'], 'dual_silhouette', ['wolf shoulder silhouette', 'wolf tracks beside the boots'], 'a wolf companion beside the character', 7),
+  makeCompanion('hound', 'hound', 'major', 'animal', ['fighter', 'ranger', 'rogue'], ['frontier_hunter', 'martial_veteran', 'shadow_skirmisher'], ['bounty_hunter', 'mercenary_captain'], 'dual_silhouette', ['hound leash rings', 'hound guarding the foreground'], 'a loyal hound standing guard', 6),
+  makeCompanion('falcon', 'falcon', 'major', 'bird', ['ranger', 'fighter', 'rogue'], ['frontier_hunter', 'shadow_skirmisher'], ['trail_warden', 'bounty_hunter'], 'dual_silhouette', ['falcon hood on belt', 'falcon perched on raised arm'], 'a falcon perched on the raised arm', 6),
+  makeCompanion('eagle', 'eagle', 'major', 'bird', ['ranger', 'paladin'], ['frontier_hunter', 'holy_warrior'], ['trail_warden', 'sun_knight'], 'dual_silhouette', ['eagle feather mantle', 'eagle wings framing the figure'], 'an eagle companion circling above', 5),
+  makeCompanion('panther', 'panther', 'major', 'animal', ['ranger', 'rogue', 'druid'], ['frontier_hunter', 'shadow_skirmisher'], ['bounty_hunter', 'swamp_tracker'], 'dual_silhouette', ['panther shadow at the feet', 'black fur caught on bracers'], 'a panther low in the foreground', 5),
+  makeCompanion('bear', 'bear', 'major', 'animal', ['ranger', 'druid', 'barbarian'], ['frontier_hunter', 'savage_berserker'], ['trail_warden', 'beast_slayer'], 'dual_silhouette', ['bear-claw charm', 'bear bulk behind the figure'], 'a bear companion behind the character', 4),
+  makeCompanion('boar', 'boar', 'major', 'animal', ['ranger', 'barbarian'], ['frontier_hunter', 'savage_berserker'], ['trail_warden', 'tribal_champion'], 'dual_silhouette', ['boar tusk charms', 'boar snout in foreground'], 'a boar companion braced at the side', 4),
+  makeCompanion('stag', 'stag', 'major', 'animal', ['druid', 'ranger', 'paladin'], ['frontier_hunter', 'holy_warrior'], ['trail_warden', 'fey_noble', 'sun_knight'], 'dual_silhouette', ['antler shadow behind the figure', 'stag bells on a strap'], 'a stag standing behind the character', 5),
+  makeCompanion('elk', 'elk', 'major', 'animal', ['druid', 'ranger'], ['frontier_hunter'], ['trail_warden'], 'mounted_silhouette', ['elk saddle blanket', 'antlers framing the silhouette'], 'an elk companion large enough to ride', 4),
+  makeCompanion('battle_mastiff', 'battle mastiff', 'major', 'animal', ['fighter', 'paladin', 'cleric'], ['martial_veteran', 'holy_warrior'], ['battle_chaplain', 'mercenary_captain'], 'dual_silhouette', ['armored mastiff collar', 'mastiff guarding the foreground'], 'a battle mastiff at heel', 5),
+  makeCompanion('temple_hound', 'temple hound', 'major', 'celestial', ['cleric', 'paladin', 'monk'], ['holy_warrior', 'wandering_martial_artist'], ['grave_warden', 'temple_guardian'], 'dual_silhouette', ['temple hound prayer collar', 'pale hound flame'], 'a temple hound standing like a guardian', 5),
+  makeCompanion('spirit_fox', 'spirit fox', 'major', 'spirit', ['druid', 'bard', 'warlock'], ['fey_trickster', 'frontier_hunter'], ['fey_noble', 'forest_sprite', 'moonlit_duelist'], 'dual_silhouette', ['spirit fox tails in soft glow', 'glowing paw prints'], 'a translucent spirit fox companion', 5),
+  makeCompanion('young_dragon', 'young dragon', 'legendary', 'dragon', ['sorcerer', 'ranger', 'paladin'], ['arcane_caster', 'frontier_hunter', 'holy_warrior'], ['battle_mage', 'sun_knight', 'trail_warden'], 'dual_silhouette', ['young dragon curling around the shoulders', 'tiny smoke from dragon nostrils'], 'a young dragon coiled around the silhouette', 2),
+  makeCompanion('wyvern_hatchling', 'wyvern hatchling', 'legendary', 'dragon', ['ranger', 'rogue', 'barbarian'], ['frontier_hunter', 'shadow_skirmisher', 'savage_berserker'], ['trail_warden', 'pirate_raider', 'beast_slayer'], 'dual_silhouette', ['wyvern hatchling wing hooks', 'small wyvern tail curled around gear'], 'a wyvern hatchling perched on packs', 2),
+  makeCompanion('phoenix_fledgling', 'phoenix fledgling', 'legendary', 'celestial', ['cleric', 'paladin', 'sorcerer'], ['holy_warrior', 'arcane_caster'], ['sun_knight', 'battle_mage'], 'dual_silhouette', ['phoenix ember feathers', 'warm fledgling glow'], 'a phoenix fledgling shedding sparks', 2),
+  makeCompanion('moon_stag', 'moon stag', 'legendary', 'fey', ['druid', 'ranger', 'bard'], ['frontier_hunter', 'fey_trickster'], ['fey_noble', 'forest_sprite', 'trail_warden'], 'mounted_silhouette', ['moon stag antlers', 'silver hoof glow'], 'a moon stag companion behind the figure', 2),
+  makeCompanion('great_spirit_wolf', 'great spirit wolf', 'legendary', 'spirit', ['ranger', 'druid', 'barbarian'], ['frontier_hunter', 'savage_berserker'], ['trail_warden', 'beast_slayer'], 'dual_silhouette', ['great spirit wolf outline', 'blue-white wolf breath'], 'a great spirit wolf looming behind', 2),
+  makeCompanion('void_raven', 'void raven', 'legendary', 'shadow', ['warlock', 'wizard', 'sorcerer'], ['arcane_caster'], ['void_oracle', 'star_seer'], 'dual_silhouette', ['void raven eclipse wings', 'starless feathers'], 'a void raven distorting the air', 2),
+  makeCompanion('shadow_drake', 'shadow drake', 'legendary', 'shadow', ['warlock', 'rogue'], ['arcane_caster', 'shadow_skirmisher'], ['void_oracle', 'urban_assassin'], 'dual_silhouette', ['shadow drake curled in smoke', 'drake eyes in the dark'], 'a shadow drake crouched in the background', 1),
+  makeCompanion('celestial_griffon', 'celestial griffon', 'legendary', 'celestial', ['paladin', 'cleric'], ['holy_warrior'], ['sun_knight', 'battle_chaplain'], 'mounted_silhouette', ['celestial griffon feathers', 'gold talon silhouette'], 'a celestial griffon companion', 1),
+  makeCompanion('sun_lion', 'sun lion', 'legendary', 'celestial', ['paladin', 'cleric'], ['holy_warrior'], ['sun_knight'], 'dual_silhouette', ['sun lion mane glow', 'lion paw mark in dust'], 'a sun lion blazing softly nearby', 1),
+  makeCompanion('ancient_treant_sapling', 'ancient treant sapling', 'legendary', 'fey', ['druid', 'ranger'], ['frontier_hunter', 'fey_trickster'], ['forest_sprite', 'trail_warden'], 'dual_silhouette', ['tiny ancient tree face', 'leafy sapling companion'], 'an ancient treant sapling walking beside them', 1),
+  makeCompanion('clockwork_owl_sentinel', 'clockwork owl sentinel', 'legendary', 'construct', ['artificer', 'wizard'], ['battle_engineer', 'arcane_caster'], ['clockwork_sapper', 'academy_mage'], 'dual_silhouette', ['clockwork owl brass wings', 'tiny lens eyes'], 'a clockwork owl sentinel orbiting the shoulder', 2),
+  makeCompanion('living_constellation_bird', 'living constellation bird', 'legendary', 'spirit', ['wizard', 'sorcerer', 'warlock'], ['arcane_caster'], ['star_seer', 'void_oracle'], 'dual_silhouette', ['constellation bird outline', 'stars connected like wings'], 'a living constellation bird floating nearby', 2),
+];
+
+export const companionRelationships: CompanionRelationship[] = [
+  { id: 'raised_from_cub', label: 'raised from a cub', promptFragment: 'companion reads as raised from a cub', weight: 8 },
+  { id: 'inherited_from_mentor', label: 'inherited from mentor', promptFragment: 'companion carries a mentor-token on its collar', weight: 7 },
+  { id: 'saved_during_childhood', label: 'saved during childhood', promptFragment: 'companion bond suggests a childhood rescue', weight: 6 },
+  { id: 'bound_through_ritual', label: 'bound through ritual', promptFragment: 'companion is bound through visible ritual marks', weight: 7 },
+  { id: 'last_survivor', label: 'last survivor of its kind', promptFragment: 'companion feels like the last survivor of its kind', weight: 4 },
+  { id: 'accidentally_imprinted', label: 'accidentally imprinted', promptFragment: 'companion seems accidentally imprinted and loyal', weight: 5 },
+  { id: 'family_companion', label: 'family companion', promptFragment: 'companion carries old family markings', weight: 6 },
+  { id: 'war_companion', label: 'war companion', promptFragment: 'companion has battle-worn harness and campaign scars', weight: 6 },
+  { id: 'rescued_battlefield', label: 'rescued from a battlefield', promptFragment: 'companion shows signs of a battlefield rescue', weight: 6 },
+  { id: 'abandoned_egg', label: 'found as an abandoned egg', promptFragment: 'companion bond began with an abandoned egg', weight: 4 },
+  { id: 'ancient_oath_companion', label: 'ancient oath companion', promptFragment: 'companion is tied to an ancient oath', weight: 5 },
+];
+
+export const themeContentProfiles: ThemeContentProfile[] = [
+  { themeId: 'void_oracle', heroDetails: ['dark veins near the eyes', 'sleep-deprived eyes', 'starless pupils', 'faint void cracks across the skin', 'thin black tear marks', 'floating omen talismans', 'black-thread family charm', 'torn prophecy scrolls', 'stitched celestial charts', 'ritual bindings on forearms', 'obsidian astrolabe', 'crystal orb wrapped in black thread', 'sealed prophecy journal', 'void-touched prayer beads', 'astronomical measuring tools'], rareDetails: ['orbiting black feathers', 'broken halo fragments', 'floating eclipse symbols', 'shattered celestial compass', 'starless constellation tattoos', 'void-burned fingertips', 'cracked observatory lens', 'eclipsed prayer wheel'], legendaryDetails: ['miniature eclipse orbiting behind the head', 'living prophecy parchment that rewrites itself', 'shadow moving independently', 'fractured starlight crown', 'void rift reflected in one eye'], storyProps: ['stack of unfinished prophecies', 'burned astronomical charts', 'sealed omen boxes', 'collapsed observatory instruments', 'black crystal fragments'], cloakDetails: ['embroidered eclipse patterns', 'stitched star maps', 'frayed prophecy strips', 'void-burned hem', 'ritual knot fasteners'], handDetails: ['ink-stained fingers', 'void-burn scars', 'astronomical measuring rings', 'black-thread wrappings', 'prophecy tattoos'], companionCompatibleDetails: ['companion feathers bent by void wind', 'small omen tags tied to companion harness'] },
+  { themeId: 'dream_walker', heroDetails: ['silver sleep mask', 'dream journals', 'moon-thread bracelets', 'glass dream vials', 'pale sleepless complexion', 'soft glowing eyelids', 'sleep ritual circles', 'moonlit mist ribbons', 'unfinished dream sketches', 'lucid dreaming notes'], rareDetails: ['floating dream fragments', 'half-transparent memories', 'sleep sigils', 'moonlit reflections around the body', 'dreamcatcher chains', 'bottle of captured dreams'], legendaryDetails: ['sleeping spirit silhouette following behind', 'living dream butterflies', 'fractured reality reflections', 'dream serpent coiling through the air'], storyProps: ['recorded nightmares', 'memory bottles', 'unfinished dream maps', 'sleep ward talismans', 'silver pillow charm'] },
+  { themeId: 'academy_mage', heroDetails: ['organized spell notes', 'academy insignia', 'precision measuring tools', 'annotated spellbook', 'faculty recommendation seals', 'ink-stained robe cuffs', 'stacked academy books', 'examination scrolls', 'polished spell focus', 'lecture notes bound with ribbon'], rareDetails: ['graduation honors', 'arcane thesis fragments', 'mentor annotations', 'restricted section library pass', 'professor correspondence'], legendaryDetails: ['living spellbook', 'floating lecture notes', 'archmage commendation seal', 'spectral classroom diagrams'], storyProps: ['unfinished thesis', 'academy badge', 'field research journal', 'rejected research proposal', 'academy map'] },
+  { themeId: 'rune_scholar', heroDetails: ['angular rune notes', 'etched stone tablets', 'rune measuring cords', 'glowing ink bottle', 'formulae stitched into cuffs'], rareDetails: ['floating theorem glyphs', 'ancient rune slate', 'forbidden grammar chart'], legendaryDetails: ['runes rearranging themselves in the air', 'stone tablet that whispers translations'], storyProps: ['copied ruin inscriptions', 'broken translation key', 'field rune rubbings'] },
+  { themeId: 'monster_tracker', heroDetails: ['claw trophies', 'tracking tags', 'scarred bestiary', 'monster teeth necklace', 'field sketch journal', 'beast-hide cloak', 'hunter tally marks', 'bite-scarred armor', 'specimen vials', 'reinforced travel boots'], rareDetails: ['dragon scale trophy', 'giant claw fragments', 'ancient bounty markers', 'preserved monster eye charm', 'claw-marked shield plate'], legendaryDetails: ['living monster map', 'dragon skull charm', 'legendary hunt records', 'animated bestiary page'], storyProps: ['monster bounty records', 'blood-stained trail notes', 'strange tracks cast in clay', 'broken trap chain', 'hunter license tags'], companionCompatibleDetails: ['matching hunter tags on companion collar', 'companion bite marks on old monster hide'] },
+  { themeId: 'trail_warden', heroDetails: ['mud-stained travel cloak', 'weathered map tube', 'tracking notches on bow grip', 'patched leather straps', 'road dust on boots', 'wilderness herbs tied to belt', 'trail marker cords', 'campfire smoke in fabric'], rareDetails: ['ancient trail badge', 'rare beast track sketch', 'storm-proof lantern', 'forgotten mile marker charm'], legendaryDetails: ['living trail map', 'wind that points toward the road', 'ancestral pathfinder compass'], storyProps: ['folded route map', 'old camp token', 'field ration tally', 'broken compass needle'], companionCompatibleDetails: ['companion paw-print tags', 'shared road dust on companion harness'] },
+  { themeId: 'grave_warden', heroDetails: ['gravekeeper keys', 'funeral bell', 'ancestor prayer strips', 'burial registry book', 'black mourning sash', 'lantern with pale flame', 'bone rosary', 'grave soil pouch', 'weathered tomb map'], rareDetails: ['cracked death mask', 'silver last-rites coin', 'ghost-lit candle cage', 'ancestral name tablets'], legendaryDetails: ['spectral handprints on the cloak', 'floating grave bells', 'halo of funeral candles', 'translucent ancestors behind the figure'], storyProps: ['old burial records', 'sealed coffin tags', 'memorial ribbons', 'forgotten epitaph rubbings'], companionCompatibleDetails: ['companion collar with funeral charm', 'pale flame reflected in companion eyes'] },
+  { themeId: 'battle_chaplain', heroDetails: ['battlefield prayer strips', 'worn armor dents', 'field sermon book', 'blood-marked bandages', 'portable reliquary', 'patched holy tabard', 'campaign rosary', 'battlefield incense tin'], rareDetails: ['saint medal cracked by an arrow', 'field hospital tally', 'recovered banner saint icon'], legendaryDetails: ['spectral prayer banners', 'halo of battlefield dust', 'saintly hand over the shoulder'], storyProps: ['wounded ally tags', 'field blessing ledger', 'sealed casualty list', 'burned prayer ribbon'] },
+  { themeId: 'relic_thief', heroDetails: ['fine lockpicks', 'stolen relic case', 'folded trap maps', 'hidden dagger straps', 'coded museum labels', 'rope harness', 'compact satchel', 'wax-sealed stolen inventory', 'soft-soled boots'], rareDetails: ['cursed jewel case', 'counterfeit museum pass', 'black-market relic tags', 'collapsible grappling hook'], legendaryDetails: ['floating stolen relic', 'invisible lock outline', 'ghostly trap mechanism', 'artifact that refuses to stay hidden'], storyProps: ['coded notebook', 'stolen exhibit plaque', 'vault blueprint', 'broken alarm charm'] },
+  { themeId: 'pirate_raider', heroDetails: ['rope belt', 'sea charts', 'barnacle relics', 'salt-stained relic hooks', 'weathered brass buckles', 'coiled boarding rope', 'tide-marked satchel', 'pirate compass'], rareDetails: ['barnacle-encrusted reliquary', 'smuggled shrine coin', 'storm-blackened spyglass', 'cursed pearl token'], legendaryDetails: ['ghostly sea chart glowing above the hand', 'shipwreck crown wrapped in kelp', 'barnacle relic that whispers tide names'], storyProps: ['folded sea charts', 'black-market cargo manifest', 'salt-worn treasure map', 'barnacle relic case'], beltDetails: ['rope belt', 'nautical fasteners'], cloakDetails: ['salt-stained cloak hem', 'wave-pattern embroidery'] },
+  { themeId: 'fey_noble', heroDetails: ['living flower jewelry', 'moonlit silk ribbons', 'thorn crown', 'glowing pollen around the hair', 'impossible fabric folds', 'butterfly-wing cloak clasp', 'silver leaf embroidery', 'fey court token'], rareDetails: ['floating blossoms', 'moon glass jewelry', 'living vine circlet', 'whispered names woven into fabric'], legendaryDetails: ['tiny moon orbiting shoulder', 'crown of living starlight flowers', 'cloak made of shifting seasons', 'fey mirror shards floating nearby'], storyProps: ['sealed court invitation', 'impossible rose in a glass case', 'fey oath ribbon', 'courtly duel token'], companionCompatibleDetails: ['matching flower charm on companion', 'companion fur dusted with pollen'] },
+  { themeId: 'arena_champion', heroDetails: ['arena victory cords', 'scarred gauntlets', 'sand-stained armor edge', 'crowd token necklace', 'champion tally marks', 'gladiator belt plate'], rareDetails: ['defeated champion crest', 'gold arena bead', 'weapon nick from famous duel'], legendaryDetails: ['ghostly roar of the arena crowd', 'champion laurels made of sparks'], storyProps: ['old arena contract', 'torn victory sash', 'challenge token'] },
+  { themeId: 'mercenary_captain', heroDetails: ['campaign maps', 'unit insignia', 'battle reports', 'command cloak', 'contract scroll tubes', 'payment seals', 'mercenary tokens', 'scarred gauntlets', 'weathered banners', 'campaign journal'], rareDetails: ['enemy insignia collection', 'execution ledger', 'first company banner fragment', 'coin from the first contract', 'commander signet'], legendaryDetails: ['banner that survived a massacre', 'ghostly silhouettes of old soldiers', 'war table map projected in the air'], storyProps: ['signed contract papers', 'old muster roll', 'fallen comrades list', 'sealed battle orders'] },
+];
+
 export const narrativeMotifs: Array<NarrativeMotif> = [
   { id: 'lost_heir', label: 'Lost Heir', weight: 7, compatibleBuildTemplates: ['holy_warrior', 'shadow_skirmisher', 'fey_trickster', 'arcane_caster', 'lorekeeper_bard'], compatibleVisualThemes: [], archetypeTags: ['noble'], classBias: ['bard', 'rogue', 'paladin', 'warlock'], raceBias: [], forbiddenClasses: [], forbiddenTags: [], storyDetails: ['broken signet ring', 'faded noble crest hidden under the cloak', 'half-burned inheritance letter'], promptFragments: ['carries subtle signs of a forgotten noble bloodline', 'wears a damaged family token'], moodBias: ['haunted midnight ritual', 'rainy alley ambush'], fxBias: [] },
   { id: 'oathbreaker', label: 'Oathbreaker', weight: 7, compatibleBuildTemplates: ['holy_warrior', 'savage_berserker', 'shadow_skirmisher', 'martial_veteran'], compatibleVisualThemes: ['fallen_saint', 'blood_oath_survivor'], archetypeTags: ['fallen', 'oathkeeper', 'cursed'], classBias: ['paladin', 'fighter', 'barbarian'], raceBias: [], forbiddenClasses: [], forbiddenTags: [], storyDetails: ['cracked oath symbol', 'burned prayer ribbon', 'scar across the old heraldry'], promptFragments: ['marked by a broken vow', 'old sacred symbols are damaged but not fully abandoned'], moodBias: ['haunted midnight ritual'], fxBias: ['dark holy glow', 'floating embers'] },
@@ -889,7 +1224,7 @@ export const buildTemplates: Array<WeightedOption<BuildTemplate>> = [
     preferredArchetypeTags: ['battlefield', 'hunter', 'frontier', 'draconic'],
     allowedArmor: ['half plate with campaign dents', 'scale mail with heraldic sash', 'chain mail under a weathered tabard', 'reinforced artificer coat', 'full plate with engraved pauldrons', 'small fitted chain shirt', 'compact leather harness', 'light ceremonial half-plate'],
     allowedWeapons: ['longsword and round shield', 'heavy greatsword', 'spear and torn banner', 'dual ranger blades', 'ritual warhammer'],
-    allowedPoses: ['weapon raised in a decisive challenge', 'overhead strike with a heavy blade', 'ground slam sending dust through the scene', 'guarded stance behind a raised shield', 'dual slash from a low stance', 'close-quarters ready stance', 'planting a banner spear before the charge', 'dragging a maul through battlefield dust', 'planting a spear in a victory roar', 'charging out of flying embers', 'circling with a handaxe low'],
+    allowedPoses: ['ready stance on a cracked dungeon tile', 'weapon raised in a decisive challenge', 'overhead strike with a heavy blade', 'ground slam sending dust through the scene', 'guarded stance behind a raised shield', 'dual slash from a low stance', 'close-quarters ready stance', 'planting a banner spear before the charge', 'dragging a maul through battlefield dust', 'planting a spear in a victory roar', 'charging out of flying embers', 'circling with a handaxe low'],
     allowedSilhouettes: ['broad heroic triangle', 'stocky shield-forward stance', 'lean and sharp-edged', 'compact and nimble'],
     allowedMoods: ['battle-scarred epic', 'grim dungeon hunt', 'battlefield benediction'],
     allowedLights: ['storm lightning silhouette', 'warm torchlight from below', 'low lantern light'],

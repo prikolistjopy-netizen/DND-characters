@@ -33,7 +33,7 @@ run(
 writeFileSync(path.join(outDir, 'package.json'), JSON.stringify({ type: 'commonjs' }));
 
 const { generateCharacterSeed, validateGeneratedSeed } = require(path.join(outDir, 'lib/generator.js'));
-const { visualThemes, visualThemeVariants, narrativeMotifs, narrativeVariants, culturalOrigins } = require(path.join(outDir, 'data/seedData.js'));
+const { visualThemes, visualThemeVariants, narrativeMotifs, narrativeVariants, culturalOrigins, themeContentProfiles } = require(path.join(outDir, 'data/seedData.js'));
 
 const failures = [];
 
@@ -59,6 +59,14 @@ const cultureCounts = new Map();
 const classScoreCounts = new Map();
 const classScoreTotals = new Map();
 const scholarThemeCounts = new Map();
+const silhouetteCounts = new Map();
+const visualMotifCounts = new Map();
+const companionCounts = new Map();
+const armorLanguageCounts = new Map();
+const weaponLanguageCounts = new Map();
+const visualDetailCounts = new Map();
+let companionActiveCount = 0;
+let conflictCount = 0;
 
 for (const theme of visualThemes) {
   const count = visualThemeVariants.filter((variant) => variant.visualThemeId === theme.id).length;
@@ -94,13 +102,22 @@ for (let index = 0; index < sampleSize; index += 1) {
   }
   increment(combinationCounts, `${seed.primaryClass}+${seed.visualTheme?.id ?? 'no-theme'}+${seed.narrativeMotif?.id ?? 'no-motif'}`);
   increment(cultureCounts, seed.culturalOrigin?.id ?? 'no-culture');
+  increment(silhouetteCounts, seed.silhouetteProfile?.id ?? 'no-silhouette');
+  increment(visualMotifCounts, seed.visualMotif?.id ?? 'no-visual-motif');
+  increment(companionCounts, seed.companion?.id ?? 'none');
+  increment(armorLanguageCounts, seed.armorLanguage?.id ?? 'no-armor-language');
+  increment(weaponLanguageCounts, seed.weaponLanguage?.id ?? 'no-weapon-language');
+  if (seed.companion) companionActiveCount += 1;
+  for (const detail of seed.visualDetails ?? []) increment(visualDetailCounts, detail);
   increment(classScoreCounts, `${seed.primaryClass}:${seed.classAnchorScore}`);
   classScoreTotals.set(seed.primaryClass, (classScoreTotals.get(seed.primaryClass) ?? 0) + seed.classAnchorScore);
   if (['divine_archivist', 'academy_mage', 'archive_performer'].includes(seed.visualTheme?.id)) {
     increment(scholarThemeCounts, seed.visualTheme.id);
   }
 
-  for (const issue of validateGeneratedSeed(seed)) {
+  const validationIssues = validateGeneratedSeed(seed);
+  if (validationIssues.length > 0) conflictCount += 1;
+  for (const issue of validationIssues) {
     failures.push(`Generated validation issue: ${issue.message} :: ${summary}`);
   }
 
@@ -117,6 +134,14 @@ for (let index = 0; index < sampleSize; index += 1) {
   const motifLineCount = result.seedOutput.split('\n').filter((line) => line.startsWith('Narrative Motif: ')).length;
   if (motifLineCount !== 1 || !seed.narrativeMotif || !seed.narrativeMotif.id) {
     failures.push(`seed should have exactly one narrative motif, found ${motifLineCount} :: ${summary}`);
+  }
+
+  if (!seed.silhouetteProfile || !seed.visualMotif || !seed.armorLanguage || !seed.weaponLanguage) {
+    failures.push(`visual library layers must include silhouette/motif/armor language/weapon language :: ${summary}`);
+  }
+
+  if ((seed.visualDetails ?? []).length > 8 || new Set(seed.visualDetails ?? []).size !== (seed.visualDetails ?? []).length) {
+    failures.push(`visual details must be unique and capped at 8 :: ${summary}`);
   }
 
   const storyDetailsLine = result.seedOutput.split('\n').find((line) => line.startsWith('Story Details: '));
@@ -322,6 +347,17 @@ for (const [className, total] of [...classScoreTotals.entries()].sort((a, b) => 
   console.log(`${className}: ${(total / count).toFixed(2)}/5`);
 }
 printStats('Scholar theme distribution', scholarThemeCounts);
+console.log('\nVisual library distribution');
+console.log(`Companion activation: ${companionActiveCount}/${sampleSize} (${((companionActiveCount / sampleSize) * 100).toFixed(1)}%)`);
+console.log(`Conflict rate: ${conflictCount}/${sampleSize} (${((conflictCount / sampleSize) * 100).toFixed(1)}%)`);
+printStats('Top silhouettes', silhouetteCounts);
+printStats('Top visual motifs', visualMotifCounts);
+printStats('Top companions', companionCounts);
+printStats('Top armor languages', armorLanguageCounts);
+printStats('Top weapon languages', weaponLanguageCounts);
+printStats('Top visual details', visualDetailCounts);
+console.log('\nUnderused detail pools');
+for (const [themeId, count] of themeContentProfiles.map((profile) => [profile.themeId, themeCounts.get(profile.themeId) ?? 0]).sort((a, b) => a[1] - b[1]).slice(0, 10)) console.log(`${String(count).padStart(4, ' ')}  ${themeId}`);
 printStats('Most common Class + Theme + Motif combinations', combinationCounts);
 
 rmSync(outDir, { recursive: true, force: true });
@@ -332,4 +368,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`Debug check passed: ${sampleSize} generated seeds satisfy hierarchical identity v6 rules.`);
+console.log(`Debug check passed: ${sampleSize} generated seeds satisfy Content Bible v3 visual-library rules.`);

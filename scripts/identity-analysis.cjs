@@ -35,7 +35,7 @@ run(
 writeFileSync(path.join(outDir, 'package.json'), JSON.stringify({ type: 'commonjs' }));
 
 const { generateCharacterSeed, resetSmartCandidatePoolMemory, validateGeneratedSeed } = require(path.join(outDir, 'lib/generator.js'));
-const { visualThemes } = require(path.join(outDir, 'data/seedData.js'));
+const { visualThemes, silhouetteProfiles, visualMotifs, armorLanguages, weaponLanguages, themeContentProfiles } = require(path.join(outDir, 'data/seedData.js'));
 
 function increment(map, key, amount = 1) {
   map.set(key, (map.get(key) ?? 0) + amount);
@@ -85,11 +85,12 @@ function detailDensity(seed) {
   const visual = seed.visualDetails.length;
   const story = seed.storyDetails.length;
   const culture = seed.cultureDetails.length;
-  return { visual, story, culture, total: visual + story + culture };
+  const companion = seed.companionDetails?.length ?? 0;
+  return { visual, story, culture, companion, total: visual + story + culture + companion };
 }
 
 function seedSummary(seed) {
-  return `${seed.primaryClass} ${seed.race.name} score ${seed.classAnchorScore}/5 | ${seed.culturalOrigin.label} | ${seed.buildTemplate.id} | ${seed.visualTheme.id}/${seed.visualThemeVariant.id} | ${seed.narrativeMotif.id}/${seed.narrativeVariant.id} | ${seed.weapon.name} | ${seed.fx.name}`;
+  return `${seed.primaryClass} ${seed.race.name} score ${seed.classAnchorScore}/5 | ${seed.culturalOrigin.label} | ${seed.fantasyPillar?.id ?? 'no-pillar'} | ${seed.buildTemplate.id} | ${seed.visualTheme.id}/${seed.visualThemeVariant.id} | ${seed.silhouetteProfile?.id ?? 'no-silhouette'} | ${seed.visualMotif?.id ?? 'no-motif'} | ${seed.armorLanguage?.id ?? 'no-armor-language'} | ${seed.weaponLanguage?.id ?? 'no-weapon-language'} | companion ${seed.companion?.id ?? 'none'} | ${seed.weapon.name} | ${seed.fx.name}`;
 }
 
 function analyze(label, useSmartPool) {
@@ -107,12 +108,21 @@ function analyze(label, useSmartPool) {
   const cultureCounts = new Map();
   const combinationCounts = new Map();
   const generatedSamples = [];
+  const silhouetteCounts = new Map();
+  const visualMotifCounts = new Map();
+  const companionCounts = new Map();
+  const armorLanguageCounts = new Map();
+  const weaponLanguageCounts = new Map();
+  const visualDetailCounts = new Map();
+  let conflictCount = 0;
+  let companionActiveCount = 0;
 
   for (let index = 0; index < sampleSize; index += 1) {
     const result = generateCharacterSeed({ useSmartPool });
     const { seed } = result;
     const issues = validateGeneratedSeed(seed);
     if (issues.length > 0) {
+      conflictCount += 1;
       failures.push(`${seedSummary(seed)} :: ${issues.map((issue) => issue.message).join('; ')}`);
     }
 
@@ -124,6 +134,13 @@ function analyze(label, useSmartPool) {
 
     increment(themeCounts, seed.visualTheme.id);
     increment(cultureCounts, seed.culturalOrigin.id);
+    increment(silhouetteCounts, seed.silhouetteProfile?.id ?? 'no-silhouette');
+    increment(visualMotifCounts, seed.visualMotif?.id ?? 'no-visual-motif');
+    increment(companionCounts, seed.companion?.id ?? 'none');
+    increment(armorLanguageCounts, seed.armorLanguage?.id ?? 'no-armor-language');
+    increment(weaponLanguageCounts, seed.weaponLanguage?.id ?? 'no-weapon-language');
+    if (seed.companion) companionActiveCount += 1;
+    for (const detail of seed.visualDetails ?? []) increment(visualDetailCounts, detail);
     increment(combinationCounts, `${seed.primaryClass}+${seed.visualTheme.id}+${seed.narrativeMotif.id}`);
     if (scholarThemes.has(seed.visualTheme.id)) {
       increment(scholarTriggers, `archetype:${seed.archetype.name}`);
@@ -139,6 +156,7 @@ function analyze(label, useSmartPool) {
     increment(detailDensityCounts, `visual:${density.visual}`);
     increment(detailDensityCounts, `story:${density.story}`);
     increment(detailDensityCounts, `culture:${density.culture}`);
+    increment(detailDensityCounts, `companion:${density.companion}`);
     increment(detailDensityCounts, `total:${density.total}`);
 
     seeds.push({ seed, budget, density, index });
@@ -146,12 +164,17 @@ function analyze(label, useSmartPool) {
   }
 
   const themeEntropy = entropy(themeCounts);
+  const silhouetteEntropy = entropy(silhouetteCounts);
   const expectedThemeCount = sampleSize / visualThemes.length;
   const overusedThemes = topEntries(themeCounts, visualThemes.length).filter(([, count]) => count > expectedThemeCount * 1.5).slice(0, 10);
   const underusedThemes = [...themeCounts.entries()].sort((a, b) => a[1] - b[1]).filter(([, count]) => count < expectedThemeCount * 0.5).slice(0, 10);
   const densityValues = seeds.map(({ density }) => density.total);
   const densityOutliers = seeds.filter(({ density }) => density.total > median(densityValues) + 3).slice(0, 10).map(({ seed, density }) => `${density.total} details :: ${seedSummary(seed)}`);
   const duplicateCombinationCount = [...combinationCounts.values()].reduce((sum, count) => sum + Math.max(0, count - 1), 0);
+  const underusedDetailPools = themeContentProfiles
+    .map((profile) => [profile.themeId, (themeCounts.get(profile.themeId) ?? 0)])
+    .sort((a, b) => a[1] - b[1])
+    .slice(0, 10);
   const scholarTotal = [...themeCounts.entries()].filter(([theme]) => scholarThemes.has(theme)).reduce((sum, [, count]) => sum + count, 0);
   const topTheme = topEntries(themeCounts, 1)[0];
   const classScoreAverage = seeds.reduce((sum, { seed }) => sum + seed.classAnchorScore, 0) / seeds.length;
@@ -184,6 +207,7 @@ function analyze(label, useSmartPool) {
     combinationCounts,
     generatedSamples,
     themeEntropy,
+    silhouetteEntropy,
     overusedThemes,
     underusedThemes,
     densityOutliers,
@@ -193,6 +217,15 @@ function analyze(label, useSmartPool) {
     classScoreAverage,
     highestClassIdentity,
     highestDiversity,
+    silhouetteCounts,
+    visualMotifCounts,
+    companionCounts,
+    armorLanguageCounts,
+    weaponLanguageCounts,
+    visualDetailCounts,
+    companionActiveCount,
+    conflictCount,
+    underusedDetailPools,
   };
 }
 
@@ -208,9 +241,12 @@ for (const report of [baseline, smart]) {
   console.log(`\n${report.label}`);
   console.log(`Class identity average: ${report.classScoreAverage.toFixed(3)}/5`);
   console.log(`Theme entropy: ${report.themeEntropy.entropy.toFixed(3)} bits (${(report.themeEntropy.normalized * 100).toFixed(1)}% normalized)`);
+  console.log(`Silhouette entropy: ${report.silhouetteEntropy.entropy.toFixed(3)} bits (${(report.silhouetteEntropy.normalized * 100).toFixed(1)}% normalized)`);
   console.log(`Top theme concentration: ${report.topTheme[0]} = ${report.topTheme[1]} (${formatPercent((report.topTheme[1] / sampleSize) * 100)})`);
   console.log(`Scholar theme concentration: ${report.scholarTotal} (${formatPercent((report.scholarTotal / sampleSize) * 100)})`);
   console.log(`Duplicate combination rate: ${formatPercent((report.duplicateCombinationCount / sampleSize) * 100)}`);
+  console.log(`Companion activation: ${report.companionActiveCount} (${formatPercent((report.companionActiveCount / sampleSize) * 100)})`);
+  console.log(`Conflict rate: ${formatPercent((report.conflictCount / sampleSize) * 100)}`);
 }
 console.log(`\nUnderused theme activation from baseline-underused set: baseline ${baselineUnderusedActivation}, smart ${smartUnderusedActivation}`);
 console.log(`Class identity delta smart-baseline: ${(smart.classScoreAverage - baseline.classScoreAverage).toFixed(3)}`);
@@ -250,6 +286,19 @@ console.log('Most overused themes');
 for (const [theme, count] of smart.overusedThemes) console.log(`${String(count).padStart(5, ' ')}  ${theme}`);
 console.log('Most underused themes');
 for (const [theme, count] of smart.underusedThemes) console.log(`${String(count).padStart(5, ' ')}  ${theme}`);
+console.log('\nVisual library distribution');
+console.log('Top silhouettes');
+for (const [item, count] of topEntries(smart.silhouetteCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top visual motifs');
+for (const [item, count] of topEntries(smart.visualMotifCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top companions');
+for (const [item, count] of topEntries(smart.companionCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top armor languages');
+for (const [item, count] of topEntries(smart.armorLanguageCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top weapon languages');
+for (const [item, count] of topEntries(smart.weaponLanguageCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Underused detail pools');
+for (const [item, count] of smart.underusedDetailPools) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
 console.log('\nG. 30 smart-pool test characters');
 smart.generatedSamples.forEach((seed, index) => console.log(`${index + 1}. ${seedSummary(seed)}`));
 console.log('\nH. 10 highest smart class identity characters');
