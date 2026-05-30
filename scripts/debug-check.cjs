@@ -64,7 +64,11 @@ const visualMotifCounts = new Map();
 const companionCounts = new Map();
 const armorLanguageCounts = new Map();
 const weaponLanguageCounts = new Map();
+const equipmentFinishCounts = new Map();
+const equipmentEnchantmentCounts = new Map();
+const enchantmentIntensityCounts = new Map();
 const visualDetailCounts = new Map();
+let equipmentContradictionCount = 0;
 let companionActiveCount = 0;
 let legendaryCompanionCount = 0;
 let frontierCompanionGroupCount = 0;
@@ -92,10 +96,31 @@ function classifyValidationIssue(issue) {
   if (message.includes('companion must') || message.includes('legendary companion') || message.includes('major/legendary companion')) mismatchCounts.companion += 1;
   if (message.includes('visual motif')) mismatchCounts.visualMotif += 1;
   if (message.includes('fantasy pillar')) mismatchCounts.pillar += 1;
+  if (message.includes('equipment enchantment')) equipmentContradictionCount += 1;
 }
 
 function isFrontierCompanionGroup(seed) {
   return ['ranger', 'druid'].includes(seed.primaryClass) || seed.buildTemplate.id === 'frontier_hunter' || ['trail_warden', 'monster_tracker', 'beast_slayer', 'forest_sprite'].includes(seed.visualTheme.id);
+}
+
+function isVoidFx(seed) { return seed.fx.tags.includes('void') || /void|black-violet|purple/.test(seed.fx.name); }
+function isHolyFx(seed) { return seed.fx.tags.includes('holy') || /holy|divine|spectral feather/.test(seed.fx.name); }
+function isFeyFx(seed) { return seed.fx.tags.includes('fey') || /fey|petal|witchfire|pollen|butterfl/.test(seed.fx.name); }
+function enchantmentFamily(seed) {
+  const id = seed.equipmentEnchantment?.id ?? 'none';
+  if (seed.enchantmentIntensity === 'none') return 'none';
+  if (/holy|relic|stained_glass/.test(id)) return 'holy';
+  if (/void|eclipse|starlight/.test(id)) return 'void';
+  if (/fey|flower/.test(id)) return 'fey';
+  if (/rune/.test(id)) return 'rune';
+  if (/mechanical/.test(id)) return 'mechanical';
+  if (/necrotic|grave/.test(id)) return 'necrotic';
+  return 'battle';
+}
+function hasContradictoryEquipmentFx(seed) {
+  const family = enchantmentFamily(seed);
+  if (['none', 'rune'].includes(family)) return false;
+  return (isVoidFx(seed) && ['holy', 'fey'].includes(family)) || (isHolyFx(seed) && ['void', 'fey', 'necrotic'].includes(family)) || (isFeyFx(seed) && ['void', 'holy', 'necrotic', 'mechanical'].includes(family));
 }
 
 for (const theme of visualThemes) {
@@ -137,6 +162,13 @@ for (let index = 0; index < sampleSize; index += 1) {
   increment(companionCounts, seed.companion?.id ?? 'none');
   increment(armorLanguageCounts, seed.armorLanguage?.id ?? 'no-armor-language');
   increment(weaponLanguageCounts, seed.weaponLanguage?.id ?? 'no-weapon-language');
+  increment(equipmentFinishCounts, seed.equipmentFinish?.id ?? 'no-equipment-finish');
+  increment(equipmentEnchantmentCounts, seed.equipmentEnchantment?.id ?? 'no-equipment-enchantment');
+  increment(enchantmentIntensityCounts, seed.enchantmentIntensity ?? 'no-intensity');
+  if (hasContradictoryEquipmentFx(seed)) {
+    equipmentContradictionCount += 1;
+    failures.push(`equipment enchantment contradicts FX :: ${summary}`);
+  }
   increment(companionClassTotals, seed.primaryClass);
   increment(companionBuildTemplateTotals, seed.buildTemplate.id);
   if (isFrontierCompanionGroup(seed)) frontierCompanionGroupCount += 1;
@@ -346,6 +378,19 @@ if (legendaryCompanionRate > 0.015) {
 if (frontierCompanionRate > 0.18) {
   failures.push(`ranger/druid/frontier companion activation exceeded 18% cap: ${frontierCompanionActiveCount}/${frontierCompanionGroupCount} (${(frontierCompanionRate * 100).toFixed(1)}%)`);
 }
+const noneIntensityRate = (enchantmentIntensityCounts.get('none') ?? 0) / sampleSize;
+const subtleIntensityRate = (enchantmentIntensityCounts.get('subtle') ?? 0) / sampleSize;
+const strongIntensityRate = (enchantmentIntensityCounts.get('strong') ?? 0) / sampleSize;
+const legendaryIntensityRate = (enchantmentIntensityCounts.get('legendary') ?? 0) / sampleSize;
+if (noneIntensityRate < 0.45 || noneIntensityRate > 0.65) failures.push(`equipment none intensity outside target: ${(noneIntensityRate * 100).toFixed(1)}%`);
+if (subtleIntensityRate < 0.20 || subtleIntensityRate > 0.40) failures.push(`equipment subtle intensity outside target: ${(subtleIntensityRate * 100).toFixed(1)}%`);
+if (strongIntensityRate < 0.05 || strongIntensityRate > 0.15) failures.push(`equipment strong intensity outside target: ${(strongIntensityRate * 100).toFixed(1)}%`);
+if (legendaryIntensityRate > 0.035) failures.push(`equipment legendary intensity exceeded 3.5% cap: ${(legendaryIntensityRate * 100).toFixed(1)}%`);
+const plainWeaponRate = (weaponLanguageCounts.get('plain_weapon_language') ?? 0) / sampleSize;
+const plainArmorRate = (armorLanguageCounts.get('plain_armor_language') ?? 0) / sampleSize;
+if (plainWeaponRate >= 0.20) failures.push(`plain weapon language fallback too high: ${(plainWeaponRate * 100).toFixed(1)}%`);
+if (plainArmorRate >= 0.20) failures.push(`plain armor language fallback too high: ${(plainArmorRate * 100).toFixed(1)}%`);
+if (equipmentContradictionCount > 0) failures.push(`equipment contradiction count should be zero: ${equipmentContradictionCount}`);
 
 const scholarTotal = [...scholarThemeCounts.values()].reduce((sum, count) => sum + count, 0);
 if (scholarTotal > sampleSize * 0.28) {
@@ -409,6 +454,11 @@ console.log(`Companion activation: ${companionActiveCount}/${sampleSize} (${((co
 console.log(`Legendary companion activation: ${legendaryCompanionCount}/${sampleSize} (${((legendaryCompanionCount / sampleSize) * 100).toFixed(1)}%)`);
 console.log(`Ranger/druid/frontier companion activation: ${frontierCompanionActiveCount}/${frontierCompanionGroupCount} (${(frontierCompanionRate * 100).toFixed(1)}%)`);
 console.log(`Conflict rate: ${conflictCount}/${sampleSize} (${((conflictCount / sampleSize) * 100).toFixed(1)}%)`);
+console.log(`Plain armor language fallback: ${armorLanguageCounts.get('plain_armor_language') ?? 0}/${sampleSize} (${(((armorLanguageCounts.get('plain_armor_language') ?? 0) / sampleSize) * 100).toFixed(1)}%)`);
+console.log(`Plain weapon language fallback: ${weaponLanguageCounts.get('plain_weapon_language') ?? 0}/${sampleSize} (${(((weaponLanguageCounts.get('plain_weapon_language') ?? 0) / sampleSize) * 100).toFixed(1)}%)`);
+console.log(`Equipment contradiction count: ${equipmentContradictionCount}`);
+console.log('Enchantment intensity distribution');
+for (const [key, count] of topEntries(enchantmentIntensityCounts, 10)) console.log(`${key}: ${count}/${sampleSize} (${((count / sampleSize) * 100).toFixed(1)}%)`);
 console.log('Mismatch statistics');
 for (const [key, count] of Object.entries(mismatchCounts)) console.log(`${key}: ${count}`);
 if (warnings.length > 0) {
@@ -430,6 +480,8 @@ printStats('Top visual motifs', visualMotifCounts);
 printStats('Top companions', companionCounts);
 printStats('Top armor languages', armorLanguageCounts);
 printStats('Top weapon languages', weaponLanguageCounts);
+printStats('Top equipment finishes', equipmentFinishCounts);
+printStats('Top equipment enchantments', equipmentEnchantmentCounts);
 printStats('Top visual details', visualDetailCounts);
 console.log('\nUnderused detail pools');
 for (const [themeId, count] of themeContentProfiles.map((profile) => [profile.themeId, themeCounts.get(profile.themeId) ?? 0]).sort((a, b) => a[1] - b[1]).slice(0, 10)) console.log(`${String(count).padStart(4, ' ')}  ${themeId}`);

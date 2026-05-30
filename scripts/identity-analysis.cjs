@@ -102,6 +102,28 @@ function classifyValidationIssue(issue, mismatchCounts) {
   if (message.includes('visual motif')) mismatchCounts.visualMotif += 1;
 }
 
+function enchantmentFamily(seed) {
+  const id = seed.equipmentEnchantment?.id ?? 'none';
+  if (seed.enchantmentIntensity === 'none') return 'none';
+  if (/holy|relic|stained_glass/.test(id)) return 'holy';
+  if (/void|eclipse|starlight/.test(id)) return 'void';
+  if (/fey|flower/.test(id)) return 'fey';
+  if (/rune/.test(id)) return 'rune';
+  if (/mechanical/.test(id)) return 'mechanical';
+  if (/necrotic|grave/.test(id)) return 'necrotic';
+  return 'battle';
+}
+
+function hasContradictoryEquipmentFx(seed) {
+  const family = enchantmentFamily(seed);
+  if (['none', 'rune'].includes(family)) return false;
+  const fxName = seed.fx.name;
+  const voidFx = seed.fx.tags.includes('void') || /void|black-violet|purple/.test(fxName);
+  const holyFx = seed.fx.tags.includes('holy') || /holy|divine|spectral feather/.test(fxName);
+  const feyFx = seed.fx.tags.includes('fey') || /fey|petal|witchfire|pollen|butterfl/.test(fxName);
+  return (voidFx && ['holy', 'fey'].includes(family)) || (holyFx && ['void', 'fey', 'necrotic'].includes(family)) || (feyFx && ['void', 'holy', 'necrotic', 'mechanical'].includes(family));
+}
+
 function analyze(label, useSmartPool) {
   resetSmartCandidatePoolMemory();
   const failures = [];
@@ -122,8 +144,12 @@ function analyze(label, useSmartPool) {
   const companionCounts = new Map();
   const armorLanguageCounts = new Map();
   const weaponLanguageCounts = new Map();
+  const equipmentFinishCounts = new Map();
+  const equipmentEnchantmentCounts = new Map();
+  const enchantmentIntensityCounts = new Map();
   const visualDetailCounts = new Map();
   let conflictCount = 0;
+  let equipmentContradictionCount = 0;
   let companionActiveCount = 0;
   let legendaryCompanionCount = 0;
   const companionByClass = new Map();
@@ -161,6 +187,10 @@ function analyze(label, useSmartPool) {
     increment(companionCounts, seed.companion?.id ?? 'none');
     increment(armorLanguageCounts, seed.armorLanguage?.id ?? 'no-armor-language');
     increment(weaponLanguageCounts, seed.weaponLanguage?.id ?? 'no-weapon-language');
+    increment(equipmentFinishCounts, seed.equipmentFinish?.id ?? 'no-equipment-finish');
+    increment(equipmentEnchantmentCounts, seed.equipmentEnchantment?.id ?? 'no-equipment-enchantment');
+    increment(enchantmentIntensityCounts, seed.enchantmentIntensity ?? 'no-intensity');
+    if (hasContradictoryEquipmentFx(seed)) equipmentContradictionCount += 1;
     increment(companionClassTotals, seed.primaryClass);
     increment(companionBuildTemplateTotals, seed.buildTemplate.id);
     if (seed.companion) {
@@ -251,7 +281,11 @@ function analyze(label, useSmartPool) {
     companionCounts,
     armorLanguageCounts,
     weaponLanguageCounts,
+    equipmentFinishCounts,
+    equipmentEnchantmentCounts,
+    enchantmentIntensityCounts,
     visualDetailCounts,
+    equipmentContradictionCount,
     companionActiveCount,
     legendaryCompanionCount,
     companionByClass,
@@ -284,6 +318,8 @@ for (const report of [baseline, smart]) {
   console.log(`Legendary companion rate: ${report.legendaryCompanionCount} (${formatPercent((report.legendaryCompanionCount / sampleSize) * 100)})`);
   console.log(`Conflict rate: ${formatPercent((report.conflictCount / sampleSize) * 100)}`);
   console.log(`Mismatch counts: weapon ${report.mismatchCounts.weaponLanguage}, armor ${report.mismatchCounts.armorLanguage}, silhouette ${report.mismatchCounts.silhouette}, companion ${report.mismatchCounts.companion}, visual motif ${report.mismatchCounts.visualMotif}`);
+  console.log(`Fallback language usage: armor ${report.armorLanguageCounts.get('plain_armor_language') ?? 0} (${formatPercent(((report.armorLanguageCounts.get('plain_armor_language') ?? 0) / sampleSize) * 100)}), weapon ${report.weaponLanguageCounts.get('plain_weapon_language') ?? 0} (${formatPercent(((report.weaponLanguageCounts.get('plain_weapon_language') ?? 0) / sampleSize) * 100)})`);
+  console.log(`Equipment contradiction count: ${report.equipmentContradictionCount}`);
 }
 console.log(`\nUnderused theme activation from baseline-underused set: baseline ${baselineUnderusedActivation}, smart ${smartUnderusedActivation}`);
 console.log(`Class identity delta smart-baseline: ${(smart.classScoreAverage - baseline.classScoreAverage).toFixed(3)}`);
@@ -327,6 +363,14 @@ console.log('\nVisual library distribution');
 console.log(`Companion activation: ${smart.companionActiveCount}/${sampleSize} (${formatPercent((smart.companionActiveCount / sampleSize) * 100)})`);
 console.log(`Legendary companion rate: ${smart.legendaryCompanionCount}/${sampleSize} (${formatPercent((smart.legendaryCompanionCount / sampleSize) * 100)})`);
 console.log(`Mismatch counts: weapon ${smart.mismatchCounts.weaponLanguage}, armor ${smart.mismatchCounts.armorLanguage}, silhouette ${smart.mismatchCounts.silhouette}, companion ${smart.mismatchCounts.companion}, visual motif ${smart.mismatchCounts.visualMotif}`);
+console.log(`Fallback language usage: armor ${smart.armorLanguageCounts.get('plain_armor_language') ?? 0}/${sampleSize} (${formatPercent(((smart.armorLanguageCounts.get('plain_armor_language') ?? 0) / sampleSize) * 100)}), weapon ${smart.weaponLanguageCounts.get('plain_weapon_language') ?? 0}/${sampleSize} (${formatPercent(((smart.weaponLanguageCounts.get('plain_weapon_language') ?? 0) / sampleSize) * 100)})`);
+console.log(`Equipment contradiction count: ${smart.equipmentContradictionCount}`);
+console.log('Equipment finish distribution');
+for (const [item, count] of topEntries(smart.equipmentFinishCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Enchantment intensity distribution');
+for (const [item, count] of topEntries(smart.enchantmentIntensityCounts, 10)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top equipment enchantments');
+for (const [item, count] of topEntries(smart.equipmentEnchantmentCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
 console.log('Companion activation by class');
 for (const [className, total] of [...smart.companionClassTotals.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
   const active = smart.companionByClass.get(className) ?? 0;
