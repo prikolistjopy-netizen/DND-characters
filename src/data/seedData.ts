@@ -65,7 +65,17 @@ export type WeaponTag =
   | 'warhammer'
   | 'handaxe'
   | 'greatsword'
-  | 'greataxe';
+  | 'greataxe'
+  | 'sword'
+  | 'blade'
+  | 'axe'
+  | 'hammer'
+  | 'focus'
+  | 'mechanical'
+  | 'holy'
+  | 'fey'
+  | 'occult'
+  | 'device';
 
 export type WeaponOption = {
   name: string;
@@ -483,50 +493,50 @@ export const armors: Array<WeightedOption<ArmorOption>> = [
 export const weapons: Array<WeightedOption<WeaponOption>> = [
   { name: 'unarmed strikes and prayer beads', tags: ['unarmed', 'simple'], weight: 7 },
   { name: 'simple monk shortspear', tags: ['simple', 'spear', 'melee'], weight: 5 },
-  { name: 'quarterstaff carved with runes', tags: ['staff', 'simple', 'magic-focus', 'melee'], weight: 8 },
-  { name: 'oak spell staff', tags: ['staff', 'magic-focus', 'simple'], weight: 7 },
-  { name: 'crystal orb focus', tags: ['orb', 'magic-focus'], weight: 6 },
-  { name: 'silver wand focus', tags: ['wand', 'magic-focus'], weight: 5 },
-  { name: 'weathered spellbook', tags: ['book', 'magic-focus'], weight: 6 },
+  { name: 'quarterstaff carved with runes', tags: ['staff', 'simple', 'magic-focus', 'focus', 'melee'], weight: 8 },
+  { name: 'oak spell staff', tags: ['staff', 'magic-focus', 'focus', 'simple'], weight: 7 },
+  { name: 'crystal orb focus', tags: ['orb', 'magic-focus', 'focus', 'occult'], weight: 6 },
+  { name: 'silver wand focus', tags: ['wand', 'magic-focus', 'focus'], weight: 5 },
+  { name: 'weathered spellbook', tags: ['book', 'magic-focus', 'focus'], weight: 6 },
   { name: 'scroll case and compass', tags: ['scroll', 'compass', 'map', 'tool'], weight: 7 },
   { name: 'annotated map and compass', tags: ['map', 'compass', 'tool'], weight: 5 },
-  { name: 'holy book and ritual staff', tags: ['book', 'staff', 'holy-focus', 'simple'], weight: 6 },
-  { name: 'longsword and round shield', tags: ['martial', 'melee', 'shield'], weight: 8 },
-  { name: 'mace and holy shield', tags: ['mace', 'simple', 'melee', 'shield', 'holy-focus'], weight: 7 },
-  { name: 'ritual warhammer', tags: ['warhammer', 'martial', 'melee', 'holy-focus'], weight: 5 },
-  { name: 'silver holy symbol and staff', tags: ['holy-focus', 'staff', 'simple'], weight: 6 },
-  { name: 'rapier with jeweled guard', tags: ['rapier', 'martial', 'melee', 'light'], weight: 7 },
-  { name: 'cane sword with fey etching', tags: ['rapier', 'fey-focus', 'martial', 'melee'], weight: 5 },
+  { name: 'holy book and ritual staff', tags: ['book', 'staff', 'holy-focus', 'holy', 'focus', 'simple'], weight: 6 },
+  { name: 'longsword and round shield', tags: ['martial', 'melee', 'shield', 'sword', 'blade'], weight: 8 },
+  { name: 'mace and holy shield', tags: ['mace', 'simple', 'melee', 'shield', 'holy-focus', 'holy'], weight: 7 },
+  { name: 'ritual warhammer', tags: ['warhammer', 'hammer', 'martial', 'melee', 'holy-focus', 'holy'], weight: 5 },
+  { name: 'silver holy symbol and staff', tags: ['holy-focus', 'holy', 'staff', 'simple', 'focus'], weight: 6 },
+  { name: 'rapier with jeweled guard', tags: ['rapier', 'sword', 'blade', 'martial', 'melee', 'light'], weight: 7 },
+  { name: 'cane sword with fey etching', tags: ['rapier', 'sword', 'blade', 'fey-focus', 'fey', 'martial', 'melee'], weight: 5 },
   { name: 'paired daggers', tags: ['dual-blades', 'dagger', 'light', 'simple', 'melee'], weight: 8 },
-  { name: 'dual ranger blades', tags: ['dual-blades', 'martial', 'melee'], weight: 7 },
+  { name: 'dual ranger blades', tags: ['dual-blades', 'sword', 'blade', 'martial', 'melee'], weight: 7 },
   { name: 'hunting longbow', tags: ['ranged', 'bow', 'longbow', 'martial'], weight: 7 },
   { name: 'shortbow and scout knife', tags: ['ranged', 'bow', 'shortbow', 'dagger', 'light'], weight: 6 },
   { name: 'ranger spear', tags: ['spear', 'simple', 'melee'], weight: 6 },
-  { name: 'handaxe and tracking cord', tags: ['handaxe', 'simple', 'melee'], weight: 5 },
-  { name: 'heavy greatsword', tags: ['heavy', 'martial', 'melee', 'greatsword'], weight: 6 },
-  { name: 'heavy greataxe', tags: ['heavy', 'martial', 'melee', 'greataxe'], weight: 7 },
+  { name: 'handaxe and tracking cord', tags: ['handaxe', 'axe', 'simple', 'melee'], weight: 5 },
+  { name: 'heavy greatsword', tags: ['heavy', 'martial', 'melee', 'greatsword', 'sword', 'blade'], weight: 6 },
+  { name: 'heavy greataxe', tags: ['heavy', 'martial', 'melee', 'greataxe', 'axe'], weight: 7 },
   { name: 'oversized maul', tags: ['heavy', 'oversized', 'martial', 'melee'], weight: 4 },
-  { name: 'alchemist tools and sparking wrench', tags: ['tool', 'mechanical-focus'], weight: 7 },
-  { name: 'clockwork gauntlet focus', tags: ['mechanical-focus', 'magic-focus', 'tool', 'mechanical-weapon'], weight: 6 },
-  { name: 'pistol-like arcane calibrator', tags: ['mechanical-focus', 'mechanical-weapon', 'tool', 'ranged'], weight: 4 },
+  { name: 'alchemist tools and sparking wrench', tags: ['tool', 'mechanical-focus', 'mechanical', 'device'], weight: 7 },
+  { name: 'clockwork gauntlet focus', tags: ['mechanical-focus', 'magic-focus', 'focus', 'tool', 'mechanical-weapon', 'mechanical', 'device'], weight: 6 },
+  { name: 'pistol-like arcane calibrator', tags: ['mechanical-focus', 'mechanical-weapon', 'mechanical', 'device', 'tool', 'ranged'], weight: 4 },
   { name: 'lute reinforced as a dueling club', tags: ['instrument', 'tool', 'simple', 'melee'], weight: 5 },
   { name: 'enchanted flute focus', tags: ['flute', 'instrument', 'fey-focus', 'tool'], weight: 5 },
-  { name: 'fey crystal focus', tags: ['fey-focus', 'magic-focus'], weight: 5 },
+  { name: 'fey crystal focus', tags: ['fey-focus', 'fey', 'magic-focus', 'focus'], weight: 5 },
   { name: 'spear and torn banner', tags: ['spear', 'martial', 'melee'], weight: 5 },
   { name: 'song-scroll case', tags: ['scroll', 'book', 'instrument', 'tool'], weight: 6 },
   { name: 'annotated performance notes', tags: ['book', 'scroll', 'instrument', 'tool'], weight: 5 },
-  { name: 'small spellbook', tags: ['book', 'magic-focus'], weight: 5 },
-  { name: 'crystal focus', tags: ['magic-focus', 'orb'], weight: 3 },
-  { name: 'floating spellbook', tags: ['book', 'magic-focus'], weight: 3 },
+  { name: 'small spellbook', tags: ['book', 'magic-focus', 'focus'], weight: 5 },
+  { name: 'crystal focus', tags: ['magic-focus', 'focus', 'orb'], weight: 3 },
+  { name: 'floating spellbook', tags: ['book', 'magic-focus', 'focus'], weight: 3 },
   { name: 'brass astrolabe', tags: ['tool', 'magic-focus', 'map'], weight: 3 },
-  { name: 'bone-carved wand', tags: ['wand', 'magic-focus'], weight: 3 },
-  { name: 'ink-stained grimoire', tags: ['book', 'magic-focus'], weight: 3 },
+  { name: 'bone-carved wand', tags: ['wand', 'magic-focus', 'focus'], weight: 3 },
+  { name: 'ink-stained grimoire', tags: ['book', 'magic-focus', 'focus'], weight: 3 },
   { name: 'celestial chart cylinder', tags: ['scroll', 'map', 'tool'], weight: 3 },
-  { name: 'relic censer', tags: ['holy-focus', 'simple'], weight: 3 },
-  { name: 'sun-forged mace', tags: ['mace', 'simple', 'melee', 'holy-focus'], weight: 3 },
-  { name: 'banner spear', tags: ['spear', 'martial', 'melee', 'holy-focus'], weight: 3 },
+  { name: 'relic censer', tags: ['holy-focus', 'holy', 'simple'], weight: 3 },
+  { name: 'sun-forged mace', tags: ['mace', 'simple', 'melee', 'holy-focus', 'holy'], weight: 3 },
+  { name: 'banner spear', tags: ['spear', 'martial', 'melee', 'holy-focus', 'holy'], weight: 3 },
   { name: 'reliquary shield', tags: ['shield', 'holy-focus'], weight: 3 },
-  { name: 'pilgrim staff', tags: ['staff', 'simple', 'holy-focus'], weight: 3 },
+  { name: 'pilgrim staff', tags: ['staff', 'simple', 'holy-focus', 'holy', 'focus'], weight: 3 },
   { name: 'assassin stiletto', tags: ['dagger', 'light', 'simple', 'melee'], weight: 3 },
   { name: 'folding crossbow', tags: ['ranged', 'martial'], weight: 3 },
   { name: 'trap toolkit', tags: ['tool'], weight: 3 },
@@ -541,7 +551,7 @@ export const weapons: Array<WeightedOption<WeaponOption>> = [
   { name: 'enchanted flute', tags: ['flute', 'instrument', 'fey-focus', 'tool'], weight: 3 },
   { name: 'memory scroll case', tags: ['scroll', 'book', 'instrument', 'tool'], weight: 3 },
   { name: 'storykeeper satchel', tags: ['book', 'instrument', 'tool'], weight: 3 },
-  { name: 'rune-carved lute', tags: ['instrument', 'tool', 'magic-focus'], weight: 3 },
+  { name: 'rune-carved lute', tags: ['instrument', 'tool', 'magic-focus', 'focus'], weight: 3 },
 ];
 
 export const poses: Array<WeightedOption<PoseOption>> = [
@@ -924,17 +934,21 @@ export const armorLanguages: ArmorLanguage[] = [
   { id: 'void_oracle_robes', label: 'Void Oracle Robes', armorCategory: ['cloth', 'none'], compatibleBuildTemplates: ['arcane_caster'], compatibleThemes: ['void_oracle', 'star_seer', 'ritualist'], promptFragments: ['starless embroidery', 'torn prophetic cloth strips', 'black-thread fasteners'], detailHints: ['starless embroidery', 'torn prophetic cloth strips', 'black-thread fasteners'] },
   { id: 'hunter_leather', label: 'Hunter Leather', armorCategory: ['light', 'medium', 'natural'], compatibleBuildTemplates: ['frontier_hunter', 'shadow_skirmisher', 'savage_berserker'], compatibleThemes: ['trail_warden', 'beast_slayer', 'bounty_hunter', 'relic_thief', 'swamp_tracker'], promptFragments: ['reinforced shoulder hide', 'trophy loops', 'survival stitching'], detailHints: ['reinforced shoulder hide', 'trophy loops', 'survival stitching'] },
   { id: 'fey_court_garb', label: 'Fey Court Garb', armorCategory: ['cloth', 'light'], compatibleBuildTemplates: ['fey_trickster', 'lorekeeper_bard'], compatibleThemes: ['fey_noble', 'moonlit_duelist', 'forest_sprite', 'wandering_bard'], promptFragments: ['impossible fabric folds', 'living floral accents', 'moonlit silk ribbons'], detailHints: ['impossible fabric folds', 'living floral accents', 'moonlit silk ribbons'] },
+  { id: 'monastic_temple_cloth', label: 'Monastic Temple Cloth', armorCategory: ['cloth', 'none'], compatibleBuildTemplates: ['wandering_martial_artist'], compatibleThemes: ['temple_guardian', 'silent_avenger', 'mountain_hermit', 'wandering_master', 'dragon_style_adept'], promptFragments: ['plain monastery cloth', 'worn wraps', 'prayer-bead fasteners'], detailHints: ['worn wraps', 'prayer-bead fasteners'] },
+  { id: 'plain_travel_cloth', label: 'Plain Travel Cloth', armorCategory: ['cloth', 'light'], compatibleBuildTemplates: ['skald_performer', 'lorekeeper_bard', 'arcane_caster'], compatibleThemes: ['lore_skald', 'wandering_storyteller', 'court_loremaster', 'battle_mage'], promptFragments: ['plain practical fabric', 'travel-worn seams'], detailHints: ['plain practical fabric', 'travel-worn seams'] },
+  { id: 'plain_armor_language', label: 'Plain Armor Description', armorCategory: ['none', 'cloth', 'light', 'medium', 'heavy', 'metal', 'natural', 'shield'], compatibleBuildTemplates: ['arcane_caster', 'holy_warrior', 'savage_berserker', 'shadow_skirmisher', 'fey_trickster', 'divine_scholar', 'battle_engineer', 'frontier_hunter', 'wandering_martial_artist', 'martial_veteran', 'lorekeeper_bard', 'skald_performer'], compatibleThemes: [], promptFragments: ['plain class-appropriate armor styling'], detailHints: ['plain practical armor finish'] },
 ];
 
 export const weaponLanguages: WeaponLanguage[] = [
-  { id: 'dragon_hunter_blade', label: 'Dragon Hunter Blade', baseWeaponTags: ['martial', 'greatsword', 'spear', 'handaxe', 'dual-blades'], compatibleBuildTemplates: ['martial_veteran', 'frontier_hunter', 'savage_berserker'], compatibleThemes: ['monster_slayer_veteran', 'arena_champion', 'beast_slayer', 'trail_warden'], promptFragments: ['heavy blade with scale marks', 'dragonbone grip', 'heat-blackened edge'], detailHints: ['scale marks', 'dragonbone grip', 'heat-blackened edge'] },
-  { id: 'reliquary_warhammer', label: 'Reliquary Warhammer', baseWeaponTags: ['warhammer', 'mace', 'holy-focus', 'shield', 'staff'], compatibleBuildTemplates: ['holy_warrior', 'divine_scholar'], compatibleThemes: ['grave_warden', 'sun_knight', 'battle_chaplain', 'divine_archivist'], promptFragments: ['sacred relic chamber inside the weapon', 'prayer strips', 'old temple metal'], detailHints: ['relic chamber', 'prayer strips', 'old temple metal'] },
-  { id: 'academy_spell_staff', label: 'Academy Spell Staff', baseWeaponTags: ['staff', 'wand', 'book', 'magic-focus', 'scroll'], compatibleBuildTemplates: ['arcane_caster', 'divine_scholar', 'lorekeeper_bard'], compatibleThemes: ['academy_mage', 'ritualist', 'star_seer', 'divine_archivist'], promptFragments: ['polished wood', 'measuring rings', 'academy seal'], detailHints: ['polished wood', 'measuring rings', 'academy seal'] },
-  { id: 'void_orb_focus', label: 'Void Orb Focus', baseWeaponTags: ['orb', 'magic-focus', 'wand', 'book'], compatibleBuildTemplates: ['arcane_caster'], compatibleThemes: ['void_oracle', 'star_seer', 'ritualist'], promptFragments: ['black crystal core', 'orbiting fragments', 'thread-wrapped handle'], detailHints: ['black crystal core', 'orbiting fragments', 'thread-wrapped handle'] },
-  { id: 'ranger_bone_bow', label: 'Ranger Bone Bow', baseWeaponTags: ['bow', 'shortbow', 'longbow', 'spear'], compatibleBuildTemplates: ['frontier_hunter', 'shadow_skirmisher'], compatibleThemes: ['trail_warden', 'monster_slayer_veteran', 'bounty_hunter', 'swamp_tracker'], promptFragments: ['horn-backed bow', 'bone charms', 'notched grip'], detailHints: ['horn-backed bow', 'bone charms', 'notched grip'] },
-  { id: 'fey_cane_sword', label: 'Fey Cane Sword', baseWeaponTags: ['rapier', 'dagger', 'fey-focus', 'instrument', 'flute'], compatibleBuildTemplates: ['fey_trickster', 'lorekeeper_bard', 'shadow_skirmisher'], compatibleThemes: ['fey_noble', 'moonlit_duelist', 'wandering_bard', 'relic_thief'], promptFragments: ['thorn engraving', 'moonlit metal', 'hidden blade line'], detailHints: ['thorn engraving', 'moonlit metal', 'hidden blade line'] },
-  { id: 'mechanical_tool_focus', label: 'Mechanical Tool Focus', baseWeaponTags: ['tool', 'mechanical-focus', 'mechanical-weapon', 'magic-focus'], compatibleBuildTemplates: ['battle_engineer'], compatibleThemes: ['clockwork_sapper', 'pirate_raider'], promptFragments: ['a practical arcane tool focus with brass calipers and sparking mechanisms'], detailHints: ['brass calibrator rings', 'sparking wrench head'] },
+  { id: 'dragon_hunter_blade', label: 'Dragon Hunter Blade', baseWeaponTags: ['sword', 'greatsword', 'blade'], compatibleBuildTemplates: ['martial_veteran', 'frontier_hunter', 'savage_berserker'], compatibleThemes: ['monster_slayer_veteran', 'arena_champion', 'beast_slayer', 'trail_warden'], promptFragments: ['heavy blade with scale marks', 'dragonbone grip', 'heat-blackened edge'], detailHints: ['scale marks', 'dragonbone grip', 'heat-blackened edge'] },
+  { id: 'reliquary_warhammer', label: 'Reliquary Warhammer', baseWeaponTags: ['warhammer', 'hammer', 'mace'], compatibleBuildTemplates: ['holy_warrior', 'divine_scholar'], compatibleThemes: ['grave_warden', 'sun_knight', 'battle_chaplain', 'divine_archivist'], promptFragments: ['sacred relic chamber inside the weapon', 'prayer strips', 'old temple metal'], detailHints: ['relic chamber', 'prayer strips', 'old temple metal'] },
+  { id: 'academy_spell_staff', label: 'Academy Spell Staff', baseWeaponTags: ['staff', 'wand', 'book', 'focus'], compatibleBuildTemplates: ['arcane_caster', 'divine_scholar', 'lorekeeper_bard'], compatibleThemes: ['academy_mage', 'ritualist', 'star_seer', 'divine_archivist'], promptFragments: ['polished wood', 'measuring rings', 'academy seal'], detailHints: ['polished wood', 'measuring rings', 'academy seal'] },
+  { id: 'void_orb_focus', label: 'Void Orb Focus', baseWeaponTags: ['orb', 'occult'], compatibleBuildTemplates: ['arcane_caster'], compatibleThemes: ['void_oracle', 'star_seer', 'ritualist'], promptFragments: ['black crystal core', 'orbiting fragments', 'thread-wrapped handle'], detailHints: ['black crystal core', 'orbiting fragments', 'thread-wrapped handle'] },
+  { id: 'ranger_bone_bow', label: 'Ranger Bone Bow', baseWeaponTags: ['bow', 'shortbow', 'longbow'], compatibleBuildTemplates: ['frontier_hunter', 'shadow_skirmisher'], compatibleThemes: ['trail_warden', 'monster_slayer_veteran', 'bounty_hunter', 'swamp_tracker'], promptFragments: ['horn-backed bow', 'bone charms', 'notched grip'], detailHints: ['horn-backed bow', 'bone charms', 'notched grip'] },
+  { id: 'fey_cane_sword', label: 'Fey Cane Sword', baseWeaponTags: ['rapier', 'sword', 'fey'], compatibleBuildTemplates: ['fey_trickster', 'lorekeeper_bard', 'shadow_skirmisher'], compatibleThemes: ['fey_noble', 'moonlit_duelist', 'wandering_bard', 'relic_thief'], promptFragments: ['thorn engraving', 'moonlit metal', 'hidden blade line'], detailHints: ['thorn engraving', 'moonlit metal', 'hidden blade line'] },
+  { id: 'mechanical_tool_focus', label: 'Mechanical Tool Focus', baseWeaponTags: ['tool', 'mechanical-focus', 'mechanical-weapon', 'mechanical', 'device'], compatibleBuildTemplates: ['battle_engineer'], compatibleThemes: ['clockwork_sapper', 'pirate_raider'], promptFragments: ['a practical arcane tool focus with brass calipers and sparking mechanisms'], detailHints: ['brass calibrator rings', 'sparking wrench head'] },
   { id: 'monastic_focus', label: 'Monastic Focus', baseWeaponTags: ['unarmed', 'staff', 'spear', 'simple'], compatibleBuildTemplates: ['wandering_martial_artist'], compatibleThemes: ['temple_guardian', 'silent_avenger', 'mountain_hermit', 'wandering_master', 'dragon_style_adept'], promptFragments: ['a disciplined monk focus of wraps, prayer beads, and simple weapons'], detailHints: ['worn hand wraps', 'smooth prayer beads'] },
+  { id: 'plain_weapon_language', label: 'Plain Weapon Description', baseWeaponTags: ['unarmed', 'staff', 'simple', 'light', 'heavy', 'oversized', 'martial', 'melee', 'ranged', 'bow', 'shortbow', 'longbow', 'shield', 'tool', 'magic-focus', 'holy-focus', 'mechanical-focus', 'mechanical-weapon', 'orb', 'wand', 'book', 'scroll', 'compass', 'map', 'instrument', 'flute', 'fey-focus', 'rapier', 'dual-blades', 'dagger', 'spear', 'mace', 'warhammer', 'handaxe', 'greatsword', 'greataxe', 'sword', 'blade', 'axe', 'hammer', 'focus', 'mechanical', 'holy', 'fey', 'occult', 'device'], compatibleBuildTemplates: ['arcane_caster', 'holy_warrior', 'savage_berserker', 'shadow_skirmisher', 'fey_trickster', 'divine_scholar', 'battle_engineer', 'frontier_hunter', 'wandering_martial_artist', 'martial_veteran', 'lorekeeper_bard', 'skald_performer'], compatibleThemes: [], promptFragments: ['plain class-appropriate weapon styling'], detailHints: ['plain practical weapon finish'] },
 ];
 
 function makeSilhouette(id: string, label: string, category: SilhouetteCategory, templates: string[], themes: string[], sizes: SizeCategory[], description: string, weight = 5): SilhouetteProfile {
@@ -1272,7 +1286,7 @@ export const buildTemplates: Array<WeightedOption<BuildTemplate>> = [
     preferredArchetypeTags: ['tools', 'scholar', 'arcane', 'pirate'],
     allowedArmor: ['reinforced artificer coat', 'mechanical bracers over a work coat', 'patched leather armor', 'half plate with campaign dents'],
     allowedWeapons: ['alchemist tools and sparking wrench', 'clockwork gauntlet focus', 'pistol-like arcane calibrator', 'ritual warhammer', 'oak spell staff'],
-    allowedPoses: ['tinkering with sparking tools at a workbench', 'casting through a humming mechanical device', 'ritual prep around carefully arranged instruments', 'weapon raised in a decisive challenge', 'tinkering with a clockwork gauntlet', 'calibrating a pistol-like arcane tool', 'tightening mechanical bracers before casting', 'measuring sparks over an alchemy kit', 'aiming a humming device like a focus'],
+    allowedPoses: ['ready stance on a cracked dungeon tile', 'tinkering with sparking tools at a workbench', 'casting through a humming mechanical device', 'ritual prep around carefully arranged instruments', 'weapon raised in a decisive challenge', 'tinkering with a clockwork gauntlet', 'calibrating a pistol-like arcane tool', 'tightening mechanical bracers before casting', 'measuring sparks over an alchemy kit', 'aiming a humming device like a focus'],
     allowedSilhouettes: ['gadget-laden workshop silhouette', 'compact and nimble', 'broad heroic triangle'],
     allowedMoods: ['clockwork workshop focus', 'arcane study wonder', 'salt-stained relic dive'],
     allowedLights: ['amber workbench lamp', 'mechanical blue-white glow', 'blue arcane glyph light'],

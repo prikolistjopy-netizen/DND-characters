@@ -66,7 +66,37 @@ const armorLanguageCounts = new Map();
 const weaponLanguageCounts = new Map();
 const visualDetailCounts = new Map();
 let companionActiveCount = 0;
+let legendaryCompanionCount = 0;
+let frontierCompanionGroupCount = 0;
+let frontierCompanionActiveCount = 0;
 let conflictCount = 0;
+const mismatchCounts = {
+  weaponLanguage: 0,
+  armorLanguage: 0,
+  silhouette: 0,
+  companion: 0,
+  visualMotif: 0,
+  pillar: 0,
+};
+const companionByClass = new Map();
+const companionByBuildTemplate = new Map();
+const companionClassTotals = new Map();
+const companionBuildTemplateTotals = new Map();
+const warnings = [];
+
+function classifyValidationIssue(issue) {
+  const message = issue.message;
+  if (message.includes('weapon language') || message.includes('blade weapon language') || message.includes('mechanical tool language') || message.includes('cane sword language')) mismatchCounts.weaponLanguage += 1;
+  if (message.includes('armor language') || message.includes('academy robes') || message.includes('hunter leather')) mismatchCounts.armorLanguage += 1;
+  if (message.includes('silhouette profile') || message.includes('companion silhouette') || message.includes('dragon_warden') || message.includes('falconer') || message.includes('beastmaster')) mismatchCounts.silhouette += 1;
+  if (message.includes('companion must') || message.includes('legendary companion') || message.includes('major/legendary companion')) mismatchCounts.companion += 1;
+  if (message.includes('visual motif')) mismatchCounts.visualMotif += 1;
+  if (message.includes('fantasy pillar')) mismatchCounts.pillar += 1;
+}
+
+function isFrontierCompanionGroup(seed) {
+  return ['ranger', 'druid'].includes(seed.primaryClass) || seed.buildTemplate.id === 'frontier_hunter' || ['trail_warden', 'monster_tracker', 'beast_slayer', 'forest_sprite'].includes(seed.visualTheme.id);
+}
 
 for (const theme of visualThemes) {
   const count = visualThemeVariants.filter((variant) => variant.visualThemeId === theme.id).length;
@@ -107,7 +137,16 @@ for (let index = 0; index < sampleSize; index += 1) {
   increment(companionCounts, seed.companion?.id ?? 'none');
   increment(armorLanguageCounts, seed.armorLanguage?.id ?? 'no-armor-language');
   increment(weaponLanguageCounts, seed.weaponLanguage?.id ?? 'no-weapon-language');
-  if (seed.companion) companionActiveCount += 1;
+  increment(companionClassTotals, seed.primaryClass);
+  increment(companionBuildTemplateTotals, seed.buildTemplate.id);
+  if (isFrontierCompanionGroup(seed)) frontierCompanionGroupCount += 1;
+  if (seed.companion) {
+    companionActiveCount += 1;
+    increment(companionByClass, seed.primaryClass);
+    increment(companionByBuildTemplate, seed.buildTemplate.id);
+    if (seed.companion.tier === 'legendary') legendaryCompanionCount += 1;
+    if (isFrontierCompanionGroup(seed)) frontierCompanionActiveCount += 1;
+  }
   for (const detail of seed.visualDetails ?? []) increment(visualDetailCounts, detail);
   increment(classScoreCounts, `${seed.primaryClass}:${seed.classAnchorScore}`);
   classScoreTotals.set(seed.primaryClass, (classScoreTotals.get(seed.primaryClass) ?? 0) + seed.classAnchorScore);
@@ -118,6 +157,7 @@ for (let index = 0; index < sampleSize; index += 1) {
   const validationIssues = validateGeneratedSeed(seed);
   if (validationIssues.length > 0) conflictCount += 1;
   for (const issue of validationIssues) {
+    classifyValidationIssue(issue);
     failures.push(`Generated validation issue: ${issue.message} :: ${summary}`);
   }
 
@@ -290,6 +330,23 @@ for (let index = 0; index < sampleSize; index += 1) {
   }
 }
 
+const companionActivationRate = companionActiveCount / sampleSize;
+const legendaryCompanionRate = legendaryCompanionCount / sampleSize;
+const frontierCompanionRate = frontierCompanionGroupCount === 0 ? 0 : frontierCompanionActiveCount / frontierCompanionGroupCount;
+if (companionActivationRate > 0.15) {
+  failures.push(`companion activation exceeded hard cap: ${companionActiveCount}/${sampleSize} (${(companionActivationRate * 100).toFixed(1)}%)`);
+} else if (companionActivationRate > 0.12) {
+  warnings.push(`companion activation above target warning band: ${companionActiveCount}/${sampleSize} (${(companionActivationRate * 100).toFixed(1)}%)`);
+} else if (companionActivationRate < 0.08) {
+  warnings.push(`companion activation below target band: ${companionActiveCount}/${sampleSize} (${(companionActivationRate * 100).toFixed(1)}%)`);
+}
+if (legendaryCompanionRate > 0.015) {
+  failures.push(`legendary companion activation exceeded 1.5% cap: ${legendaryCompanionCount}/${sampleSize} (${(legendaryCompanionRate * 100).toFixed(1)}%)`);
+}
+if (frontierCompanionRate > 0.18) {
+  failures.push(`ranger/druid/frontier companion activation exceeded 18% cap: ${frontierCompanionActiveCount}/${frontierCompanionGroupCount} (${(frontierCompanionRate * 100).toFixed(1)}%)`);
+}
+
 const scholarTotal = [...scholarThemeCounts.values()].reduce((sum, count) => sum + count, 0);
 if (scholarTotal > sampleSize * 0.28) {
   failures.push(`scholar themes dominated distribution: ${scholarTotal}/${sampleSize}`);
@@ -349,7 +406,25 @@ for (const [className, total] of [...classScoreTotals.entries()].sort((a, b) => 
 printStats('Scholar theme distribution', scholarThemeCounts);
 console.log('\nVisual library distribution');
 console.log(`Companion activation: ${companionActiveCount}/${sampleSize} (${((companionActiveCount / sampleSize) * 100).toFixed(1)}%)`);
+console.log(`Legendary companion activation: ${legendaryCompanionCount}/${sampleSize} (${((legendaryCompanionCount / sampleSize) * 100).toFixed(1)}%)`);
+console.log(`Ranger/druid/frontier companion activation: ${frontierCompanionActiveCount}/${frontierCompanionGroupCount} (${(frontierCompanionRate * 100).toFixed(1)}%)`);
 console.log(`Conflict rate: ${conflictCount}/${sampleSize} (${((conflictCount / sampleSize) * 100).toFixed(1)}%)`);
+console.log('Mismatch statistics');
+for (const [key, count] of Object.entries(mismatchCounts)) console.log(`${key}: ${count}`);
+if (warnings.length > 0) {
+  console.log('Warnings');
+  for (const warning of warnings) console.log(`warning: ${warning}`);
+}
+console.log('Companion activation by class');
+for (const [className, total] of [...companionClassTotals.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+  const active = companionByClass.get(className) ?? 0;
+  console.log(`${className}: ${active}/${total} (${((active / total) * 100).toFixed(1)}%)`);
+}
+console.log('Companion activation by build template');
+for (const [templateId, total] of [...companionBuildTemplateTotals.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+  const active = companionByBuildTemplate.get(templateId) ?? 0;
+  console.log(`${templateId}: ${active}/${total} (${((active / total) * 100).toFixed(1)}%)`);
+}
 printStats('Top silhouettes', silhouetteCounts);
 printStats('Top visual motifs', visualMotifCounts);
 printStats('Top companions', companionCounts);

@@ -93,6 +93,15 @@ function seedSummary(seed) {
   return `${seed.primaryClass} ${seed.race.name} score ${seed.classAnchorScore}/5 | ${seed.culturalOrigin.label} | ${seed.fantasyPillar?.id ?? 'no-pillar'} | ${seed.buildTemplate.id} | ${seed.visualTheme.id}/${seed.visualThemeVariant.id} | ${seed.silhouetteProfile?.id ?? 'no-silhouette'} | ${seed.visualMotif?.id ?? 'no-motif'} | ${seed.armorLanguage?.id ?? 'no-armor-language'} | ${seed.weaponLanguage?.id ?? 'no-weapon-language'} | companion ${seed.companion?.id ?? 'none'} | ${seed.weapon.name} | ${seed.fx.name}`;
 }
 
+function classifyValidationIssue(issue, mismatchCounts) {
+  const message = issue.message;
+  if (message.includes('weapon language') || message.includes('blade weapon language') || message.includes('mechanical tool language') || message.includes('cane sword language')) mismatchCounts.weaponLanguage += 1;
+  if (message.includes('armor language') || message.includes('academy robes') || message.includes('hunter leather')) mismatchCounts.armorLanguage += 1;
+  if (message.includes('silhouette profile') || message.includes('companion silhouette') || message.includes('dragon_warden') || message.includes('falconer') || message.includes('beastmaster')) mismatchCounts.silhouette += 1;
+  if (message.includes('companion must') || message.includes('legendary companion') || message.includes('major/legendary companion')) mismatchCounts.companion += 1;
+  if (message.includes('visual motif')) mismatchCounts.visualMotif += 1;
+}
+
 function analyze(label, useSmartPool) {
   resetSmartCandidatePoolMemory();
   const failures = [];
@@ -116,6 +125,18 @@ function analyze(label, useSmartPool) {
   const visualDetailCounts = new Map();
   let conflictCount = 0;
   let companionActiveCount = 0;
+  let legendaryCompanionCount = 0;
+  const companionByClass = new Map();
+  const companionByBuildTemplate = new Map();
+  const companionClassTotals = new Map();
+  const companionBuildTemplateTotals = new Map();
+  const mismatchCounts = {
+    weaponLanguage: 0,
+    armorLanguage: 0,
+    silhouette: 0,
+    companion: 0,
+    visualMotif: 0,
+  };
 
   for (let index = 0; index < sampleSize; index += 1) {
     const result = generateCharacterSeed({ useSmartPool });
@@ -123,6 +144,7 @@ function analyze(label, useSmartPool) {
     const issues = validateGeneratedSeed(seed);
     if (issues.length > 0) {
       conflictCount += 1;
+      for (const issue of issues) classifyValidationIssue(issue, mismatchCounts);
       failures.push(`${seedSummary(seed)} :: ${issues.map((issue) => issue.message).join('; ')}`);
     }
 
@@ -139,7 +161,14 @@ function analyze(label, useSmartPool) {
     increment(companionCounts, seed.companion?.id ?? 'none');
     increment(armorLanguageCounts, seed.armorLanguage?.id ?? 'no-armor-language');
     increment(weaponLanguageCounts, seed.weaponLanguage?.id ?? 'no-weapon-language');
-    if (seed.companion) companionActiveCount += 1;
+    increment(companionClassTotals, seed.primaryClass);
+    increment(companionBuildTemplateTotals, seed.buildTemplate.id);
+    if (seed.companion) {
+      companionActiveCount += 1;
+      increment(companionByClass, seed.primaryClass);
+      increment(companionByBuildTemplate, seed.buildTemplate.id);
+      if (seed.companion.tier === 'legendary') legendaryCompanionCount += 1;
+    }
     for (const detail of seed.visualDetails ?? []) increment(visualDetailCounts, detail);
     increment(combinationCounts, `${seed.primaryClass}+${seed.visualTheme.id}+${seed.narrativeMotif.id}`);
     if (scholarThemes.has(seed.visualTheme.id)) {
@@ -224,6 +253,12 @@ function analyze(label, useSmartPool) {
     weaponLanguageCounts,
     visualDetailCounts,
     companionActiveCount,
+    legendaryCompanionCount,
+    companionByClass,
+    companionByBuildTemplate,
+    companionClassTotals,
+    companionBuildTemplateTotals,
+    mismatchCounts,
     conflictCount,
     underusedDetailPools,
   };
@@ -246,7 +281,9 @@ for (const report of [baseline, smart]) {
   console.log(`Scholar theme concentration: ${report.scholarTotal} (${formatPercent((report.scholarTotal / sampleSize) * 100)})`);
   console.log(`Duplicate combination rate: ${formatPercent((report.duplicateCombinationCount / sampleSize) * 100)}`);
   console.log(`Companion activation: ${report.companionActiveCount} (${formatPercent((report.companionActiveCount / sampleSize) * 100)})`);
+  console.log(`Legendary companion rate: ${report.legendaryCompanionCount} (${formatPercent((report.legendaryCompanionCount / sampleSize) * 100)})`);
   console.log(`Conflict rate: ${formatPercent((report.conflictCount / sampleSize) * 100)}`);
+  console.log(`Mismatch counts: weapon ${report.mismatchCounts.weaponLanguage}, armor ${report.mismatchCounts.armorLanguage}, silhouette ${report.mismatchCounts.silhouette}, companion ${report.mismatchCounts.companion}, visual motif ${report.mismatchCounts.visualMotif}`);
 }
 console.log(`\nUnderused theme activation from baseline-underused set: baseline ${baselineUnderusedActivation}, smart ${smartUnderusedActivation}`);
 console.log(`Class identity delta smart-baseline: ${(smart.classScoreAverage - baseline.classScoreAverage).toFixed(3)}`);
@@ -287,6 +324,19 @@ for (const [theme, count] of smart.overusedThemes) console.log(`${String(count).
 console.log('Most underused themes');
 for (const [theme, count] of smart.underusedThemes) console.log(`${String(count).padStart(5, ' ')}  ${theme}`);
 console.log('\nVisual library distribution');
+console.log(`Companion activation: ${smart.companionActiveCount}/${sampleSize} (${formatPercent((smart.companionActiveCount / sampleSize) * 100)})`);
+console.log(`Legendary companion rate: ${smart.legendaryCompanionCount}/${sampleSize} (${formatPercent((smart.legendaryCompanionCount / sampleSize) * 100)})`);
+console.log(`Mismatch counts: weapon ${smart.mismatchCounts.weaponLanguage}, armor ${smart.mismatchCounts.armorLanguage}, silhouette ${smart.mismatchCounts.silhouette}, companion ${smart.mismatchCounts.companion}, visual motif ${smart.mismatchCounts.visualMotif}`);
+console.log('Companion activation by class');
+for (const [className, total] of [...smart.companionClassTotals.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+  const active = smart.companionByClass.get(className) ?? 0;
+  console.log(`${className}: ${active}/${total} (${formatPercent((active / total) * 100)})`);
+}
+console.log('Companion activation by build template');
+for (const [templateId, total] of [...smart.companionBuildTemplateTotals.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+  const active = smart.companionByBuildTemplate.get(templateId) ?? 0;
+  console.log(`${templateId}: ${active}/${total} (${formatPercent((active / total) * 100)})`);
+}
 console.log('Top silhouettes');
 for (const [item, count] of topEntries(smart.silhouetteCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
 console.log('Top visual motifs');

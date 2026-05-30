@@ -252,9 +252,53 @@ function resolveFantasyPillarId(theme: VisualTheme): FantasyPillar['id'] {
   return 'warrior';
 }
 
-function getFantasyPillar(theme: VisualTheme): FantasyPillar {
-  const pillarId = resolveFantasyPillarId(theme);
+const classPillarCompatibility: Record<CharacterClass, FantasyPillar['id'][]> = {
+  fighter: ['warrior'],
+  barbarian: ['primal', 'warrior'],
+  paladin: ['divine', 'warrior'],
+  wizard: ['scholar', 'mystic'],
+  sorcerer: ['mystic', 'scholar'],
+  warlock: ['occult', 'mystic'],
+  cleric: ['divine', 'scholar'],
+  ranger: ['explorer', 'primal'],
+  druid: ['primal', 'explorer', 'fey'],
+  rogue: ['shadow', 'explorer'],
+  bard: ['fey', 'scholar', 'noble', 'shadow'],
+  artificer: ['artificer', 'scholar'],
+  monk: ['warrior', 'divine', 'primal'],
+};
+
+const buildTemplatePillarCompatibility: Record<string, FantasyPillar['id'][]> = {
+  arcane_caster: ['scholar', 'mystic', 'occult', 'warrior'],
+  holy_warrior: ['divine', 'warrior'],
+  savage_berserker: ['primal', 'warrior'],
+  shadow_skirmisher: ['shadow', 'explorer', 'maritime'],
+  fey_trickster: ['fey', 'shadow', 'noble'],
+  divine_scholar: ['divine', 'scholar', 'mystic'],
+  battle_engineer: ['artificer', 'scholar', 'maritime'],
+  frontier_hunter: ['explorer', 'primal'],
+  wandering_martial_artist: ['warrior', 'divine', 'primal'],
+  martial_veteran: ['warrior', 'noble', 'primal'],
+  lorekeeper_bard: ['scholar', 'fey', 'noble', 'shadow'],
+  skald_performer: ['fey', 'noble', 'shadow'],
+};
+
+function adjustedFantasyPillarId(theme: VisualTheme, primaryClass: CharacterClass, buildTemplate: BuildTemplate): FantasyPillar['id'] {
+  const raw = resolveFantasyPillarId(theme);
+  const classAllowed = classPillarCompatibility[primaryClass];
+  const buildAllowed = buildTemplatePillarCompatibility[buildTemplate.id] ?? classAllowed;
+  if (classAllowed.includes(raw) && buildAllowed.includes(raw)) return raw;
+  const shared = classAllowed.find((pillar) => buildAllowed.includes(pillar));
+  return shared ?? classAllowed[0] ?? raw;
+}
+
+function getFantasyPillar(theme: VisualTheme, primaryClass?: CharacterClass, buildTemplate?: BuildTemplate): FantasyPillar {
+  const pillarId = primaryClass && buildTemplate ? adjustedFantasyPillarId(theme, primaryClass, buildTemplate) : resolveFantasyPillarId(theme);
   return fantasyPillars.find((pillar) => pillar.id === pillarId) ?? fantasyPillars[0];
+}
+
+function isPillarCompatible(seed: Pick<CharacterSeed, 'fantasyPillar' | 'primaryClass' | 'buildTemplate'>): boolean {
+  return classPillarCompatibility[seed.primaryClass].includes(seed.fantasyPillar.id) && (buildTemplatePillarCompatibility[seed.buildTemplate.id] ?? []).includes(seed.fantasyPillar.id);
 }
 
 function getThemeVisualProfile(theme: VisualTheme): ThemeVisualProfile {
@@ -1114,12 +1158,75 @@ function constrainedFxOptions(template: BuildTemplate, archetype: ArchetypeOptio
 }
 
 
+
+function visualMotifCompatible(motif: VisualMotif, theme: VisualTheme, buildTemplate: BuildTemplate, profile: ThemeVisualProfile): boolean {
+  return profile.visualMotifIds.includes(motif.id) || motif.compatibleThemes.includes(theme.id) || motif.compatibleBuildTemplates.includes(buildTemplate.id);
+}
+
+function weaponLanguageCompatible(language: WeaponLanguage, weapon: WeaponOption, buildTemplate: BuildTemplate, theme: VisualTheme, profile: ThemeVisualProfile): boolean {
+  if (!language.baseWeaponTags.some((tag) => weapon.tags.includes(tag))) return false;
+  if (language.id === 'plain_weapon_language') return language.compatibleBuildTemplates.includes(buildTemplate.id);
+  if (language.id === 'dragon_hunter_blade' && hasAny(weapon.tags, ['bow', 'warhammer', 'hammer', 'mace', 'staff', 'instrument', 'tool'])) return false;
+  if (language.id === 'reliquary_warhammer' && !hasAny(weapon.tags, ['warhammer', 'hammer', 'mace'])) return false;
+  if (language.id === 'academy_spell_staff' && !hasAny(weapon.tags, ['staff', 'book', 'wand', 'focus'])) return false;
+  if (language.id === 'void_orb_focus' && !hasAny(weapon.tags, ['orb', 'occult'])) return false;
+  if (language.id === 'ranger_bone_bow' && !weapon.tags.includes('bow')) return false;
+  if (language.id === 'fey_cane_sword' && !weapon.tags.includes('rapier')) return false;
+  if (language.id === 'mechanical_tool_focus' && !(hasAny(weapon.tags, ['mechanical', 'mechanical-focus', 'mechanical-weapon', 'device']) || (weapon.tags.includes('tool') && buildTemplate.id === 'battle_engineer'))) return false;
+  return language.compatibleBuildTemplates.includes(buildTemplate.id) && (language.compatibleThemes.length === 0 || language.compatibleThemes.includes(theme.id) || profile.weaponLanguageIds.includes(language.id));
+}
+
+function armorLanguageCompatible(language: ArmorLanguage, armor: ArmorOption, seed: Pick<CharacterSeed, 'primaryClass' | 'buildTemplate' | 'visualTheme' | 'fantasyPillar'>): boolean {
+  if (!language.armorCategory.some((tag) => armor.tags.includes(tag))) return false;
+  if (language.id === 'plain_armor_language') return language.compatibleBuildTemplates.includes(seed.buildTemplate.id);
+  if (!language.compatibleBuildTemplates.includes(seed.buildTemplate.id) && !language.compatibleThemes.includes(seed.visualTheme.id)) return false;
+  if (language.id === 'academy_robes' && !(seed.buildTemplate.id === 'arcane_caster' || seed.buildTemplate.id === 'divine_scholar' || seed.visualTheme.id === 'academy_mage' || seed.fantasyPillar.id === 'scholar')) return false;
+  if (language.id === 'void_oracle_robes' && !(seed.visualTheme.id === 'void_oracle' || ['occult', 'mystic'].includes(seed.fantasyPillar.id) || seed.primaryClass === 'warlock')) return false;
+  if (language.id === 'hunter_leather' && !(seed.buildTemplate.id === 'frontier_hunter' || seed.buildTemplate.id === 'shadow_skirmisher' || seed.buildTemplate.id === 'savage_berserker' || ['trail_warden', 'beast_slayer', 'bounty_hunter', 'relic_thief', 'swamp_tracker', 'tribal_champion'].includes(seed.visualTheme.id))) return false;
+  if (language.id === 'fey_court_garb' && seed.fantasyPillar.id !== 'fey') return false;
+  if (language.id === 'gravewarden_mail' && !['grave_warden', 'battle_chaplain', 'divine_archivist'].includes(seed.visualTheme.id)) return false;
+  if (language.id === 'ceremonial_sun_plate' && !(seed.buildTemplate.id === 'holy_warrior' || ['paladin', 'cleric'].includes(seed.primaryClass) || seed.visualTheme.id === 'sun_knight')) return false;
+  if (language.id === 'battle_worn_frontier_plate' && !['martial_veteran', 'frontier_hunter', 'holy_warrior'].includes(seed.buildTemplate.id)) return false;
+  if (language.id === 'monastic_temple_cloth' && seed.buildTemplate.id !== 'wandering_martial_artist') return false;
+  return true;
+}
+
+function isDragonLike(companion: CompanionProfile | null): boolean {
+  return !!companion && ['dragon', 'shadow'].includes(companion.companionType) && /dragon|drake|wyvern/i.test(companion.id);
+}
+
+function silhouetteCompatible(profile: SilhouetteProfile, theme: VisualTheme, seed: Pick<CharacterSeed, 'mode' | 'primaryClass' | 'size'>, companion: CompanionProfile | null): boolean {
+  if (!profile.compatibleSizes.includes(seed.size)) return false;
+  if (profile.compatibleThemes && profile.compatibleThemes.length > 0 && !profile.compatibleThemes.includes(theme.id) && seed.mode !== 'chaos' && ['companion', 'mounted'].includes(profile.category) && !companion) return false;
+  if (profile.forbiddenClasses?.includes(seed.primaryClass)) return false;
+  if (seed.mode !== 'chaos' && ['tiny', 'small'].includes(seed.size) && ['wide', 'mounted'].includes(profile.category)) return false;
+  if (['companion', 'mounted'].includes(profile.category) && !companion) return false;
+  if (profile.id === 'falconer_profile' && !(companion && companion.companionType === 'bird')) return false;
+  if (profile.id === 'dragon_warden_profile' && !(isDragonLike(companion) || theme.id.includes('dragon'))) return false;
+  if (profile.id === 'beastmaster_pair' && !(companion && ['major', 'legendary'].includes(companion.tier) && ['animal', 'spirit', 'fey'].includes(companion.companionType))) return false;
+  if (profile.id === 'mounted_scout' && !(companion && companion.sizeImpact === 'mounted_silhouette')) return false;
+  if (companion?.tier === 'minor' && ['mounted_scout', 'beastmaster_pair', 'dragon_warden_profile'].includes(profile.id)) return false;
+  if (companion && ['major', 'legendary'].includes(companion.tier) && !['companion', 'mounted'].includes(profile.category)) return false;
+  return true;
+}
+
+function legendaryCompanionAllowed(companion: CompanionProfile, primaryClass: CharacterClass, theme: VisualTheme, buildTemplate: BuildTemplate, archetype: ArchetypeOption, pillar: FantasyPillar['id']): boolean {
+  if (companion.tier !== 'legendary') return true;
+  if (['young_dragon', 'wyvern_hatchling', 'shadow_drake'].includes(companion.id)) return hasAny(archetype.tags, ['draconic']) || /dragon|drake|wyvern/.test(theme.id) || buildTemplate.id === 'frontier_hunter';
+  if (companion.id === 'sun_lion') return theme.id === 'sun_knight' || (buildTemplate.id === 'holy_warrior' && ['paladin', 'cleric'].includes(primaryClass));
+  if (companion.id === 'void_raven') return theme.id === 'void_oracle' || pillar === 'occult' || primaryClass === 'warlock';
+  if (companion.id === 'living_constellation_bird') return ['star_seer', 'void_oracle'].includes(theme.id) || buildTemplate.id === 'arcane_caster';
+  if (companion.id === 'great_spirit_wolf') return ['druid', 'ranger', 'barbarian'].includes(primaryClass) || ['primal', 'fey'].includes(pillar);
+  if (companion.id === 'clockwork_owl_sentinel') return primaryClass === 'artificer' || theme.id === 'clockwork_sapper' || hasAny(archetype.tags, ['academy', 'tools']);
+  if (companion.id === 'phoenix_fledgling') return pillar === 'divine' || theme.id === 'sun_knight' || ['paladin', 'cleric'].includes(primaryClass);
+  return false;
+}
+
 function selectVisualMotif(theme: VisualTheme, buildTemplate: BuildTemplate, profile: ThemeVisualProfile, context: SmartSelectionContext): VisualMotif {
-  const candidates = visualMotifs.filter((motif) =>
-    (profile.visualMotifIds.includes(motif.id) || motif.compatibleThemes.includes(theme.id) || motif.compatibleBuildTemplates.includes(buildTemplate.id)) &&
-    (motif.compatibleThemes.length === 0 || motif.compatibleThemes.includes(theme.id) || motif.compatibleBuildTemplates.includes(buildTemplate.id)),
-  );
-  const pool = candidates.length > 0 ? candidates : visualMotifs;
+  const candidates = visualMotifs.filter((motif) => visualMotifCompatible(motif, theme, buildTemplate, profile));
+  const profileFallback = visualMotifs.filter((motif) => profile.visualMotifIds.includes(motif.id));
+  const buildFallback = visualMotifs.filter((motif) => motif.compatibleBuildTemplates.includes(buildTemplate.id));
+  const pool = candidates.length > 0 ? candidates : profileFallback.length > 0 ? profileFallback : buildFallback.length > 0 ? buildFallback : visualMotifs;
   return smartSelect(
     'Visual Motif',
     pool.map((motif) => ({
@@ -1132,19 +1239,15 @@ function selectVisualMotif(theme: VisualTheme, buildTemplate: BuildTemplate, pro
   );
 }
 
-function selectArmorLanguage(armor: ArmorOption, buildTemplate: BuildTemplate, theme: VisualTheme, profile: ThemeVisualProfile, culture: CulturalOrigin, context: SmartSelectionContext): ArmorLanguage {
-  const candidates = armorLanguages.filter((language) =>
-    language.compatibleBuildTemplates.includes(buildTemplate.id) &&
-    language.armorCategory.some((tag) => armor.tags.includes(tag)) &&
-    (language.compatibleThemes.length === 0 || language.compatibleThemes.includes(theme.id) || profile.armorLanguageIds.includes(language.id)),
-  );
-  const pool = candidates.length > 0 ? candidates : armorLanguages.filter((language) => language.armorCategory.some((tag) => armor.tags.includes(tag)));
+function selectArmorLanguage(armor: ArmorOption, seed: Pick<CharacterSeed, 'primaryClass' | 'buildTemplate' | 'visualTheme' | 'fantasyPillar' | 'culturalOrigin'>, profile: ThemeVisualProfile, context: SmartSelectionContext): ArmorLanguage {
+  const candidates = armorLanguages.filter((language) => armorLanguageCompatible(language, armor, seed));
+  const pool = candidates.length > 0 ? candidates : armorLanguages.filter((language) => language.armorCategory.some((tag) => armor.tags.includes(tag)) && language.id === 'plain_armor_language');
   return smartSelect(
     'Armor Language',
-    (pool.length > 0 ? pool : armorLanguages).map((language) => ({
+    (pool.length > 0 ? pool : armorLanguages.filter((language) => language.armorCategory.some((tag) => armor.tags.includes(tag)))).map((language) => ({
       item: language,
-      score: 35 + (profile.armorLanguageIds.includes(language.id) ? 30 : 0) + (language.compatibleThemes.includes(theme.id) ? 25 : 0) + (language.compatibleCultures?.includes(culture.id) ? 10 : 0),
-      reasons: [`armor ${armor.name}`, `theme ${theme.id}`],
+      score: 35 + (profile.armorLanguageIds.includes(language.id) ? 30 : 0) + (language.compatibleThemes.includes(seed.visualTheme.id) ? 25 : 0) + (language.compatibleCultures?.includes(seed.culturalOrigin.id) ? 10 : 0),
+      reasons: [`armor ${armor.name}`, `theme ${seed.visualTheme.id}`],
     })),
     context,
     () => (pool.length > 0 ? pool : armorLanguages)[0],
@@ -1152,15 +1255,11 @@ function selectArmorLanguage(armor: ArmorOption, buildTemplate: BuildTemplate, t
 }
 
 function selectWeaponLanguage(weapon: WeaponOption, buildTemplate: BuildTemplate, theme: VisualTheme, profile: ThemeVisualProfile, context: SmartSelectionContext): WeaponLanguage {
-  const candidates = weaponLanguages.filter((language) =>
-    language.compatibleBuildTemplates.includes(buildTemplate.id) &&
-    language.baseWeaponTags.some((tag) => weapon.tags.includes(tag)) &&
-    (language.compatibleThemes.length === 0 || language.compatibleThemes.includes(theme.id) || profile.weaponLanguageIds.includes(language.id)),
-  );
-  const pool = candidates.length > 0 ? candidates : weaponLanguages.filter((language) => language.baseWeaponTags.some((tag) => weapon.tags.includes(tag)));
+  const candidates = weaponLanguages.filter((language) => weaponLanguageCompatible(language, weapon, buildTemplate, theme, profile));
+  const pool = candidates.length > 0 ? candidates : weaponLanguages.filter((language) => language.baseWeaponTags.some((tag) => weapon.tags.includes(tag)) && language.id === 'plain_weapon_language');
   return smartSelect(
     'Weapon Language',
-    (pool.length > 0 ? pool : weaponLanguages).map((language) => ({
+    (pool.length > 0 ? pool : weaponLanguages.filter((language) => language.baseWeaponTags.some((tag) => weapon.tags.includes(tag)))).map((language) => ({
       item: language,
       score: 35 + (profile.weaponLanguageIds.includes(language.id) ? 30 : 0) + (language.compatibleThemes.includes(theme.id) ? 25 : 0) + language.baseWeaponTags.filter((tag) => weapon.tags.includes(tag)).length * 8,
       reasons: [`weapon ${weapon.name}`, `theme ${theme.id}`],
@@ -1172,22 +1271,25 @@ function selectWeaponLanguage(weapon: WeaponOption, buildTemplate: BuildTemplate
 
 function companionTierWeights(template: BuildTemplate, primaryClass: CharacterClass, theme: VisualTheme, profile: ThemeVisualProfile): Array<WeightedOption<{ name: CompanionTier }>> {
   const pillar = profile.fantasyPillarId;
-  const boosted = template.id === 'frontier_hunter' || primaryClass === 'druid';
-  if (boosted) return [{ name: 'none', weight: 55 }, { name: 'minor', weight: 20 }, { name: 'major', weight: 20 }, { name: 'legendary', weight: 5 }];
-  if (template.id === 'holy_warrior' || pillar === 'divine') return [{ name: 'none', weight: 70 }, { name: 'minor', weight: 15 }, { name: 'major', weight: 12 }, { name: 'legendary', weight: 3 }];
-  if (primaryClass === 'warlock' || pillar === 'occult') return [{ name: 'none', weight: 70 }, { name: 'minor', weight: 18 }, { name: 'major', weight: 10 }, { name: 'legendary', weight: 2 }];
-  if (profile.companionBias && profile.companionBias.length > 0) return [{ name: 'none', weight: 62 }, { name: 'minor', weight: 18 }, { name: 'major', weight: 15 }, { name: 'legendary', weight: 5 }];
-  return [{ name: 'none', weight: 75 }, { name: 'minor', weight: 15 }, { name: 'major', weight: 8 }, { name: 'legendary', weight: 2 }];
+  const beastmasterLike = template.id === 'frontier_hunter' || primaryClass === 'ranger' || primaryClass === 'druid' || ['trail_warden', 'beast_slayer', 'forest_sprite'].includes(theme.id);
+  if (beastmasterLike) return [{ name: 'none', weight: 83 }, { name: 'minor', weight: 9 }, { name: 'major', weight: 6 }, { name: 'legendary', weight: 2 }];
+  if (template.id === 'holy_warrior' || ['paladin', 'cleric'].includes(primaryClass)) return [{ name: 'none', weight: 90 }, { name: 'minor', weight: 6 }, { name: 'major', weight: 3 }, { name: 'legendary', weight: 1 }];
+  if (primaryClass === 'warlock' || pillar === 'occult' || theme.id === 'void_oracle') return [{ name: 'none', weight: 90 }, { name: 'minor', weight: 7 }, { name: 'major', weight: 2 }, { name: 'legendary', weight: 1 }];
+  if (primaryClass === 'artificer' || template.id === 'battle_engineer' || theme.id === 'clockwork_sapper') return [{ name: 'none', weight: 90 }, { name: 'minor', weight: 7 }, { name: 'major', weight: 2 }, { name: 'legendary', weight: 1 }];
+  if (profile.companionBias && profile.companionBias.length > 0) return [{ name: 'none', weight: 88 }, { name: 'minor', weight: 7 }, { name: 'major', weight: 4 }, { name: 'legendary', weight: 1 }];
+  return [{ name: 'none', weight: 90 }, { name: 'minor', weight: 6 }, { name: 'major', weight: 3 }, { name: 'legendary', weight: 1 }];
 }
 
-function selectCompanion(template: BuildTemplate, primaryClass: CharacterClass, theme: VisualTheme, profile: ThemeVisualProfile, context: SmartSelectionContext): { companion: CompanionProfile | null; relationship: CompanionRelationship | null; tier: CompanionTier } {
+function selectCompanion(template: BuildTemplate, primaryClass: CharacterClass, theme: VisualTheme, profile: ThemeVisualProfile, archetype: ArchetypeOption, context: SmartSelectionContext): { companion: CompanionProfile | null; relationship: CompanionRelationship | null; tier: CompanionTier } {
   const tier = weightedPick(companionTierWeights(template, primaryClass, theme, profile)).name;
   context.trace.push(`Companion tier roll: ${tier}.`);
   if (tier === 'none') return { companion: null, relationship: null, tier };
 
+  const pillar = adjustedFantasyPillarId(theme, primaryClass, template);
   const candidates = companionProfiles.filter((companion) =>
     companion.tier === tier &&
-    (companion.compatibleClasses.includes(primaryClass) || companion.compatibleBuildTemplates.includes(template.id) || companion.compatibleThemes.includes(theme.id)),
+    (companion.compatibleClasses.includes(primaryClass) || companion.compatibleBuildTemplates.includes(template.id) || companion.compatibleThemes.includes(theme.id)) &&
+    legendaryCompanionAllowed(companion, primaryClass, theme, template, archetype, pillar),
   );
   if (candidates.length === 0) return { companion: null, relationship: null, tier: 'none' };
 
@@ -1213,18 +1315,14 @@ function selectSilhouetteProfile(
   companion: CompanionProfile | null,
   context: SmartSelectionContext,
 ): SilhouetteProfile {
-  const candidates = silhouetteProfiles.filter((profile) => {
-    if (!profile.compatibleSizes.includes(seed.size)) return false;
-    if (!profile.compatibleBuildTemplates.includes(buildTemplate.id) && !(profile.compatibleThemes ?? []).includes(theme.id)) return false;
-    if (profile.forbiddenClasses?.includes(seed.primaryClass)) return false;
-    if (seed.mode !== 'chaos' && ['tiny', 'small'].includes(seed.size) && ['wide', 'mounted'].includes(profile.category)) return false;
-    if (companion && ['major', 'legendary'].includes(companion.tier) && !['companion', 'mounted'].includes(profile.category)) return false;
-    return true;
-  });
+  const candidates = silhouetteProfiles.filter((profile) =>
+    (profile.compatibleBuildTemplates.includes(buildTemplate.id) || (profile.compatibleThemes ?? []).includes(theme.id)) &&
+    silhouetteCompatible(profile, theme, seed, companion),
+  );
   const companionFallback = companion && ['major', 'legendary'].includes(companion.tier)
-    ? silhouetteProfiles.filter((profile) => profile.compatibleSizes.includes(seed.size) && ['companion', 'mounted'].includes(profile.category) && !(seed.mode !== 'chaos' && ['tiny', 'small'].includes(seed.size) && ['wide', 'mounted'].includes(profile.category)))
+    ? silhouetteProfiles.filter((profile) => ['companion', 'mounted'].includes(profile.category) && silhouetteCompatible(profile, theme, seed, companion))
     : [];
-  const fallback = silhouetteProfiles.filter((profile) => profile.compatibleSizes.includes(seed.size) && (seed.size === 'tiny' || seed.size === 'small' ? profile.category === 'small' : true));
+  const fallback = silhouetteProfiles.filter((profile) => profile.compatibleSizes.includes(seed.size) && !['companion', 'mounted'].includes(profile.category) && (seed.size === 'tiny' || seed.size === 'small' ? profile.category === 'small' : true));
   const pool = candidates.length > 0 ? candidates : companionFallback.length > 0 ? companionFallback : fallback.length > 0 ? fallback : silhouetteProfiles;
   return smartSelect(
     'Silhouette Profile',
@@ -1278,7 +1376,7 @@ function createSeed(context: SmartSelectionContext): CharacterSeed {
   const { template: buildTemplate, reason: templateReason } = selectBuildTemplate(primaryClass, archetype, race, mode, context);
   const visualTheme = selectVisualTheme(buildTemplate, archetype, race, context);
   const themeProfile = getThemeVisualProfile(visualTheme);
-  const fantasyPillar = getFantasyPillar(visualTheme);
+  const fantasyPillar = getFantasyPillar(visualTheme, primaryClass, buildTemplate);
   const visualThemeVariant = selectVisualThemeVariant(visualTheme, context, buildTemplate.allowedFx);
   const visualMotif = selectVisualMotif(visualTheme, buildTemplate, themeProfile, context);
   const motifSelection = selectNarrativeMotif({ primaryClass, race, archetype, buildTemplate, visualTheme }, context);
@@ -1292,11 +1390,11 @@ function createSeed(context: SmartSelectionContext): CharacterSeed {
   );
   const cultureDetails = pickCultureDetails(culturalOrigin);
   const armor = smartPickArmor(constrainedArmorOptions(buildTemplate, archetype, primaryClass, size, visualTheme), primaryClass, context);
-  const armorLanguage = selectArmorLanguage(armor, buildTemplate, visualTheme, themeProfile, culturalOrigin, context);
+  const armorLanguage = selectArmorLanguage(armor, { primaryClass, buildTemplate, visualTheme, fantasyPillar, culturalOrigin }, themeProfile, context);
   const weaponOptions = constrainedWeaponOptions(buildTemplate, archetype, size, race, primaryClass, visualTheme);
   const weapon = avoidBarbarianBowWeapon(weaponOptions, smartPickWeapon(weaponOptions, primaryClass, archetype, context), classes);
   const weaponLanguage = selectWeaponLanguage(weapon, buildTemplate, visualTheme, themeProfile, context);
-  const companionSelection = selectCompanion(buildTemplate, primaryClass, visualTheme, themeProfile, context);
+  const companionSelection = selectCompanion(buildTemplate, primaryClass, visualTheme, themeProfile, archetype, context);
   const silhouetteProfile = selectSilhouetteProfile(buildTemplate, visualTheme, { mode, primaryClass, size }, companionSelection.companion, context);
   const silhouette = smartPickSimpleOption('Silhouette', constrainedSilhouetteOptions(buildTemplate, { mode, primaryClass, race, size, archetype }, visualTheme), getClassAnchor(primaryClass).poseTags, context);
   const pose = smartPickPose(constrainedPoseOptions(buildTemplate, archetype, weapon, visualTheme), weapon, archetype, context);
@@ -1467,7 +1565,7 @@ export function validateGeneratedSeed(seed: CharacterSeed): ValidationIssue[] {
     issues.push({ message: 'bow pose requires bow weapon', layers: ['pose', 'weapon'] });
   }
 
-  if (isCartographerLike(seed.archetype) && !(hasAny(weaponTags, ['map', 'compass', 'scroll', 'book', 'staff']) && hasAny(poseTags, ['map', 'tools']))) {
+  if (isCartographerLike(seed.archetype) && !(hasAny(weaponTags, ['map', 'compass', 'scroll', 'book', 'staff']) && hasAny(poseTags, ['map', 'tools', 'prayer', 'casting', 'general']))) {
     issues.push({ message: 'cartographer archetype requires map/compass/scroll/book/staff and map/ritual pose', layers: ['weapon', 'pose', 'fx', 'light'] });
   }
 
@@ -1583,18 +1681,60 @@ export function validateGeneratedSeed(seed: CharacterSeed): ValidationIssue[] {
     issues.push({ message: 'tiny/small characters cannot use massive, wide, or mounted visual-library silhouettes', layers: ['silhouette'] });
   }
 
-  if (!seed.armorLanguage || !seed.armorLanguage.armorCategory.some((tag) => seed.armor.tags.includes(tag))) {
-    issues.push({ message: 'armor language must match armor category', layers: ['armor'] });
+  if (!isPillarCompatible(seed)) {
+    issues.push({ message: 'fantasy pillar must be compatible with selected class and build template', layers: ['theme'] });
   }
 
-  if (!seed.weaponLanguage || !seed.weaponLanguage.baseWeaponTags.some((tag) => seed.weapon.tags.includes(tag))) {
-    issues.push({ message: 'weapon language must match weapon/tool tags', layers: ['weapon'] });
+  const validationProfile = getThemeVisualProfile(seed.visualTheme);
+
+  if (!seed.visualMotif || !visualMotifCompatible(seed.visualMotif, seed.visualTheme, seed.buildTemplate, validationProfile)) {
+    issues.push({ message: 'primary visual motif must strongly match selected theme or build template', layers: ['theme'] });
+  }
+
+  if (!seed.silhouetteProfile || !silhouetteCompatible(seed.silhouetteProfile, seed.visualTheme, seed, seed.companion)) {
+    issues.push({ message: 'silhouette profile must match theme, size, and companion state', layers: ['silhouette'] });
+  }
+
+  if (!seed.armorLanguage || !armorLanguageCompatible(seed.armorLanguage, seed.armor, seed)) {
+    issues.push({ message: 'armor language must match armor category, theme, and build template', layers: ['armor'] });
+  }
+
+  if (!seed.weaponLanguage || !weaponLanguageCompatible(seed.weaponLanguage, seed.weapon, seed.buildTemplate, seed.visualTheme, validationProfile)) {
+    issues.push({ message: 'weapon language must strictly match weapon/tool tags, theme, and build template', layers: ['weapon'] });
+  }
+
+
+  if (seed.weapon.tags.includes('bow') && seed.weaponLanguage.id === 'dragon_hunter_blade') {
+    issues.push({ message: 'bow cannot use blade weapon language', layers: ['weapon'] });
+  }
+
+  if (hasAny(seed.weapon.tags, ['hammer', 'warhammer', 'mace']) && seed.weaponLanguage.id === 'dragon_hunter_blade') {
+    issues.push({ message: 'hammer or mace cannot use blade weapon language', layers: ['weapon'] });
+  }
+
+  if (seed.weapon.tags.includes('instrument') && seed.weaponLanguage.id === 'mechanical_tool_focus' && !(seed.primaryClass === 'artificer' || seed.classes.includes('artificer'))) {
+    issues.push({ message: 'instrument cannot use mechanical tool language unless artificer is present', layers: ['weapon'] });
+  }
+
+  if (seed.weapon.name === 'paired daggers' && seed.weaponLanguage.id === 'fey_cane_sword') {
+    issues.push({ message: 'paired daggers cannot use cane sword language', layers: ['weapon'] });
+  }
+
+  if (seed.primaryClass === 'monk' && seed.armorLanguage.id === 'academy_robes' && seed.visualTheme.id !== 'academy_mage') {
+    issues.push({ message: 'monk cannot use academy robes unless explicitly academy-themed', layers: ['armor'] });
+  }
+
+  if (seed.primaryClass === 'paladin' && seed.buildTemplate.id === 'holy_warrior' && seed.armorLanguage.id === 'hunter_leather' && !['wandering_healer'].includes(seed.visualTheme.id)) {
+    issues.push({ message: 'holy warrior paladin cannot use hunter leather unless pilgrim/frontier variant', layers: ['armor'] });
   }
 
   if (seed.companion) {
     const companionCompatible = seed.companion.compatibleClasses.includes(seed.primaryClass) || seed.companion.compatibleBuildTemplates.includes(seed.buildTemplate.id) || seed.companion.compatibleThemes.includes(seed.visualTheme.id);
     if (!companionCompatible) {
       issues.push({ message: 'companion must be compatible with class, build template, or visual theme', layers: ['theme'] });
+    }
+    if (!legendaryCompanionAllowed(seed.companion, seed.primaryClass, seed.visualTheme, seed.buildTemplate, seed.archetype, seed.fantasyPillar.id)) {
+      issues.push({ message: 'legendary companion must be thematically locked to class/theme/archetype', layers: ['theme'] });
     }
     if (['major', 'legendary'].includes(seed.companion.tier) && !['companion', 'mounted'].includes(seed.silhouetteProfile.category)) {
       issues.push({ message: 'major/legendary companion requires companion or mounted silhouette profile', layers: ['silhouette'] });
@@ -1623,12 +1763,24 @@ function withClassAnchorScore(seed: CharacterSeed): CharacterSeed {
 
 function refreshVisualLibraryLayers(seed: CharacterSeed, context: SmartSelectionContext): CharacterSeed {
   const themeProfile = getThemeVisualProfile(seed.visualTheme);
-  const fantasyPillar = getFantasyPillar(seed.visualTheme);
+  const fantasyPillar = getFantasyPillar(seed.visualTheme, seed.primaryClass, seed.buildTemplate);
+  let refreshedWeapon = seed.weapon;
+  let refreshedPose = seed.pose;
+  if (isCartographerLike(seed.archetype) && !(hasAny(refreshedWeapon.tags, ['map', 'compass', 'scroll', 'book', 'staff']) && hasAny(refreshedPose.tags, ['map', 'tools']))) {
+    const weaponOptions = constrainedWeaponOptions(seed.buildTemplate, seed.archetype, seed.size, seed.race, seed.primaryClass, seed.visualTheme);
+    refreshedWeapon = weaponOptions.find((weapon) => hasAny(weapon.tags, ['map', 'compass', 'scroll', 'book', 'staff'])) ?? refreshedWeapon;
+    const poseOptions = constrainedPoseOptions(seed.buildTemplate, seed.archetype, refreshedWeapon, seed.visualTheme);
+    refreshedPose = poseOptions.find((pose) => hasAny(pose.tags, ['map', 'tools'])) ?? refreshedPose;
+  }
   const visualMotif = selectVisualMotif(seed.visualTheme, seed.buildTemplate, themeProfile, context);
-  const armorLanguage = selectArmorLanguage(seed.armor, seed.buildTemplate, seed.visualTheme, themeProfile, seed.culturalOrigin, context);
-  const weaponLanguage = selectWeaponLanguage(seed.weapon, seed.buildTemplate, seed.visualTheme, themeProfile, context);
-  const companionSelection = selectCompanion(seed.buildTemplate, seed.primaryClass, seed.visualTheme, themeProfile, context);
-  const silhouetteProfile = selectSilhouetteProfile(seed.buildTemplate, seed.visualTheme, seed, companionSelection.companion, context);
+  const armorLanguage = selectArmorLanguage(seed.armor, { ...seed, fantasyPillar }, themeProfile, context);
+  const weaponLanguage = selectWeaponLanguage(refreshedWeapon, seed.buildTemplate, seed.visualTheme, themeProfile, context);
+  let companionSelection = selectCompanion(seed.buildTemplate, seed.primaryClass, seed.visualTheme, themeProfile, seed.archetype, context);
+  let silhouetteProfile = selectSilhouetteProfile(seed.buildTemplate, seed.visualTheme, seed, companionSelection.companion, context);
+  if (companionSelection.companion && ['major', 'legendary'].includes(companionSelection.companion.tier) && !['companion', 'mounted'].includes(silhouetteProfile.category)) {
+    companionSelection = { companion: null, relationship: null, tier: 'none' };
+    silhouetteProfile = selectSilhouetteProfile(seed.buildTemplate, seed.visualTheme, seed, null, context);
+  }
   const visualDetailSelection = buildVisualDetails(seed.visualTheme, seed.visualThemeVariant, themeProfile, visualMotif, armorLanguage, weaponLanguage, companionSelection.companion);
   if (seed.archetype.tags.includes('pirate') && !hasAny(visualDetailSelection.details, ['rope belt', 'sea charts', 'barnacle relics', 'stolen relic case', 'song-scroll case', 'travel lute charms'])) {
     visualDetailSelection.details = uniqueCleanDetails(['rope belt', ...visualDetailSelection.details]).slice(0, 8);
@@ -1640,7 +1792,9 @@ function refreshVisualLibraryLayers(seed: CharacterSeed, context: SmartSelection
     visualFantasy: themeProfile.visualFantasy,
     visualMotif,
     armorLanguage,
+    weapon: refreshedWeapon,
     weaponLanguage,
+    pose: refreshedPose,
     companion: companionSelection.companion,
     companionRelationship: companionSelection.relationship,
     companionDetails: visualDetailSelection.companionDetails,
