@@ -67,7 +67,7 @@ import {
   type VisualMotif,
   type WeaponLanguage,
   type WeightedOption,
-} from '../data/seedData';
+} from '../data';
 
 type Mode = (typeof modeWeights)[number]['name'];
 export type DiversityMode = 'off' | 'soft' | 'strict';
@@ -184,6 +184,7 @@ export type GenerationResult = {
   seedOutput: string;
   promptDraft: string;
   imagePrompt: string;
+  fullGenerationText: string;
   trace: string[];
 };
 
@@ -2863,6 +2864,20 @@ function formatImagePrompt(seed: CharacterSeed): string {
 }
 
 
+
+export function formatFullGenerationOutput(seedOutput: string, imagePrompt: string, options: { promptDraft?: string; includePromptDraft?: boolean } = {}): string {
+  return [
+    '=== D&D CHARACTER SEED ===',
+    '',
+    seedOutput.trim(),
+    '',
+    '=== IMAGE PROMPT ===',
+    '',
+    imagePrompt.trim(),
+    ...(options.includePromptDraft && options.promptDraft ? ['', '=== PROMPT DRAFT ===', '', options.promptDraft.trim()] : []),
+  ].join('\n');
+}
+
 function visualCore(seed: CharacterSeed): string {
   return [seed.buildTemplate.id, seed.visualTheme.id, seed.pose.name, seed.weapon.name, seed.light.name, seed.fx.name].join('|');
 }
@@ -2945,16 +2960,13 @@ export function generateCharacterSeed(options: GenerationOptions = {}): Generati
   let seed = createSeed(context);
   let similarityStatus: SimilarityReport = { score: 0, tooSimilar: false, duplicateVisualCore: false, similarSummary: 'none' };
 
-  trace.push(`Selected mode: ${seed.mode}.`);
-  trace.push(`Selected class: primary ${seed.primaryClass}; classes ${seed.classes.join(' / ')}.`);
-  trace.push(`Selected archetype: ${seed.archetype.name} (${seed.archetype.tags.join(', ')}).`);
-  trace.push(`Selected buildTemplate: ${seed.buildTemplate.id}.`);
-  trace.push(`Template selection reason: ${seed.templateReason}.`);
-  trace.push(`Selected visualTheme: ${seed.visualTheme.id}.`);
-  trace.push(`Selected visualThemeVariant: ${seed.visualThemeVariant.id}.`);
-  trace.push(`Selected narrativeMotif: ${seed.narrativeMotif.id}.`);
-  trace.push(`Selected narrativeVariant: ${seed.narrativeVariant.id}.`);
-  trace.push(`Selected culture: ${seed.culturalOrigin.label} (${seed.cultureDetails.join(', ')}).`);
+  trace.push(`[Stage selectModeAndClass] mode ${seed.mode}; primary ${seed.primaryClass}; classes ${seed.classes.join(' / ')}.`);
+  trace.push(`[Stage selectRaceAndAppearance] race ${seed.race.name}; size ${seed.size}; appearance ${seed.appearanceProfile.id}.`);
+  trace.push(`[Stage selectArchetype] ${seed.archetype.name} (${seed.archetype.tags.join(', ')}).`);
+  trace.push(`[Stage selectBuildTemplate] ${seed.buildTemplate.id}; reason ${seed.templateReason}.`);
+  trace.push(`[Stage selectVisualTheme] theme ${seed.visualTheme.id}; variant ${seed.visualThemeVariant.id}.`);
+  trace.push(`[Stage selectNarrativeMotif] motif ${seed.narrativeMotif.id}; variant ${seed.narrativeVariant.id}.`);
+  trace.push(`[Stage selectCulture] ${seed.culturalOrigin.label} (${seed.cultureDetails.join(', ')}).`);
   trace.push(`Selected appearance profile: ${seed.appearanceProfile.id} (${seed.appearanceProfile.promptFragment}).`);
   trace.push(`Composition mode: ${seed.compositionMode}; environment detail level: ${seed.environmentDetailLevel}; style preset: ${seed.stylePreset}.`);
   trace.push(`Identity priority: class ${identityInfluence.classIdentity}%, build template ${identityInfluence.buildTemplate}%, visual theme ${identityInfluence.visualTheme}%, narrative motif ${identityInfluence.narrativeMotif}%, theme variant ${identityInfluence.themeVariant}%, motif variant ${identityInfluence.motifVariant}%, culture ${identityInfluence.culture}%.`);
@@ -2995,11 +3007,20 @@ export function generateCharacterSeed(options: GenerationOptions = {}): Generati
   trace.push(`Final Class Anchor Score: ${resolvedSeed.classAnchorScore}/5.`);
   trace.push(`Final motif compatibility filters: template ${resolvedSeed.buildTemplate.id}, theme ${resolvedSeed.visualTheme.id}, class ${resolvedSeed.primaryClass}, race ${resolvedSeed.race.name}, tags ${resolvedSeed.archetype.tags.join(', ')}.`);
 
+  const seedOutput = formatSeed(resolvedSeed);
+  const promptDraft = formatPrompt(resolvedSeed);
+  const imagePrompt = formatImagePrompt(resolvedSeed);
+  const fullGenerationText = formatFullGenerationOutput(seedOutput, imagePrompt);
+  trace.push('[Stage composePromptDraft] Prompt Draft composed.');
+  trace.push('[Stage composeImagePrompt] Image Prompt composed.');
+  trace.push('[Stage composeFullGenerationText] Seed Output + Image Prompt composed for one-click copy.');
+
   return {
     seed: resolvedSeed,
-    seedOutput: formatSeed(resolvedSeed),
-    promptDraft: formatPrompt(resolvedSeed),
-    imagePrompt: formatImagePrompt(resolvedSeed),
+    seedOutput,
+    promptDraft,
+    imagePrompt,
+    fullGenerationText,
     trace,
   };
 }

@@ -153,6 +153,12 @@ let imagePromptQualityRulesCount = 0;
 let imagePromptNegativePromptCount = 0;
 let imagePromptScenePropTotal = 0;
 let imagePromptCharacterBoundTotal = 0;
+let fullGenerationMissingCount = 0;
+let fullGenerationMissingSeedHeaderCount = 0;
+let fullGenerationMissingImageHeaderCount = 0;
+let fullGenerationImageMismatchCount = 0;
+let fullGenerationContainsTraceCount = 0;
+let fullGenerationOldPromptCount = 0;
 let oldPromptTemplateAsImagePromptCount = 0;
 let imagePromptMissingCompositionPhraseCount = 0;
 let imagePromptMissingRaceAppearanceCount = 0;
@@ -379,6 +385,13 @@ for (let index = 0; index < sampleSize; index += 1) {
   if (!result.promptDraft.includes('no readable text') || result.promptDraft.includes('no text in image')) {
     failures.push(`prompt must use no readable text guidance :: ${summary}`);
   }
+  const fullGenerationText = result.fullGenerationText ?? '';
+  if (!fullGenerationText) fullGenerationMissingCount += 1;
+  if (!fullGenerationText.includes('=== D&D CHARACTER SEED ===')) fullGenerationMissingSeedHeaderCount += 1;
+  if (!fullGenerationText.includes('=== IMAGE PROMPT ===')) fullGenerationMissingImageHeaderCount += 1;
+  if (!fullGenerationText.includes(result.imagePrompt ?? '')) fullGenerationImageMismatchCount += 1;
+  if (/Debug \/ Generation Trace|Generation Trace|Final validation status/i.test(fullGenerationText)) fullGenerationContainsTraceCount += 1;
+  if (oldPromptTemplate(fullGenerationText)) fullGenerationOldPromptCount += 1;
   const imagePrompt = result.imagePrompt ?? '';
   const imageWords = wordCount(imagePrompt);
   imagePromptWordTotal += imageWords;
@@ -735,6 +748,12 @@ if (dreamWalkerCount > 0 && dreamWalkerIconicCount / dreamWalkerCount > 0.20) fa
 if (imagePromptOver450Count > 0) failures.push(`image prompts over 450 words: ${imagePromptOver450Count}/${sampleSize}`);
 if (imagePromptNoReadableTextCount !== sampleSize) failures.push(`image prompt no readable text phrase missing: ${sampleSize - imagePromptNoReadableTextCount}/${sampleSize}`);
 if (imagePromptNoTextPhraseCount !== 0) failures.push(`image prompt forbidden no text phrase count: ${imagePromptNoTextPhraseCount}`);
+if (fullGenerationMissingCount !== 0) failures.push(`fullGenerationText missing count: ${fullGenerationMissingCount}`);
+if (fullGenerationMissingSeedHeaderCount !== 0) failures.push(`fullGenerationText missing seed header count: ${fullGenerationMissingSeedHeaderCount}`);
+if (fullGenerationMissingImageHeaderCount !== 0) failures.push(`fullGenerationText missing image prompt header count: ${fullGenerationMissingImageHeaderCount}`);
+if (fullGenerationImageMismatchCount !== 0) failures.push(`fullGenerationText image prompt mismatch count: ${fullGenerationImageMismatchCount}`);
+if (fullGenerationContainsTraceCount !== 0) failures.push(`fullGenerationText should not contain debug trace: ${fullGenerationContainsTraceCount}`);
+if (fullGenerationOldPromptCount !== 0) failures.push(`fullGenerationText old prompt template count: ${fullGenerationOldPromptCount}`);
 if (oldPromptTemplateAsImagePromptCount !== 0) failures.push(`old prompt template as image prompt count: ${oldPromptTemplateAsImagePromptCount}`);
 if (imagePromptMissingCompositionPhraseCount !== 0) failures.push(`image prompts missing composition phrase: ${imagePromptMissingCompositionPhraseCount}`);
 if (imagePromptMissingRaceAppearanceCount !== 0) failures.push(`image prompts missing race appearance phrase: ${imagePromptMissingRaceAppearanceCount}`);
@@ -856,6 +875,11 @@ console.log(`Image Prompts with negative prompt: ${imagePromptNegativePromptCoun
 console.log(`Average scene props in Image Prompt: ${(imagePromptScenePropTotal / sampleSize).toFixed(2)}`);
 console.log(`Average character-bound details in Image Prompt: ${(imagePromptCharacterBoundTotal / sampleSize).toFixed(2)}`);
 console.log(`Old prompt template as Image Prompt: ${oldPromptTemplateAsImagePromptCount}`);
+console.log(`Full Generation Output missing: ${fullGenerationMissingCount}`);
+console.log(`Full Generation Output missing seed header: ${fullGenerationMissingSeedHeaderCount}`);
+console.log(`Full Generation Output missing image prompt header: ${fullGenerationMissingImageHeaderCount}`);
+console.log(`Full Generation Output image prompt mismatch: ${fullGenerationImageMismatchCount}`);
+console.log(`Full Generation Output contains debug trace: ${fullGenerationContainsTraceCount}`);
 console.log(`Image Prompt missing composition phrase: ${imagePromptMissingCompositionPhraseCount}`);
 console.log(`Image Prompt missing Race appearance: ${imagePromptMissingRaceAppearanceCount}`);
 console.log(`Image Prompt missing Class and build fantasy: ${imagePromptMissingClassReadabilityCount}`);

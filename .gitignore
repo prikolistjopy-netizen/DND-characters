@@ -8,3 +8,5 @@ vite.config.d.ts
 .debug-check-build
 
 .identity-analysis-build
+
+.validate-data-build

@@ -144,6 +144,7 @@ h2 {
 }
 
 .seed-card pre,
+.full-generation-card pre,
 .prompt-card p,
 .trace-card ol {
   margin: 0;
@@ -151,7 +152,8 @@ h2 {
   line-height: 1.65;
 }
 
-.seed-card pre {
+.seed-card pre,
+.full-generation-card pre {
   overflow-x: auto;
   border-radius: 18px;
   padding: 1rem;
@@ -162,6 +164,22 @@ h2 {
 .prompt-card p {
   color: #ead8c4;
   font-size: 1.02rem;
+}
+
+
+.full-generation-card {
+  grid-column: 1 / -1;
+  border-color: rgba(255, 217, 138, 0.42);
+  background: linear-gradient(180deg, rgba(255, 217, 138, 0.11), rgba(255, 255, 255, 0.04));
+}
+
+.full-generation-card .card-header {
+  align-items: flex-start;
+}
+
+.full-generation-card .prompt-hint {
+  margin: 0.35rem 0 0;
+  color: #ead8c4;
 }
 
 .image-prompt-card {

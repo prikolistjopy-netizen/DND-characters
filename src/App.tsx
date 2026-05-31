@@ -9,7 +9,7 @@ function App() {
   async function copyToClipboard(value: string, label: string) {
     try {
       await navigator.clipboard.writeText(value);
-      setCopyStatus(`${label} copied to clipboard.`);
+      setCopyStatus(label === 'Full generation' ? 'Full generation copied' : `${label} copied to clipboard.`);
     } catch {
       setCopyStatus(`Could not copy ${label.toLowerCase()}; select the text manually.`);
     }
@@ -35,6 +35,20 @@ function App() {
       </section>
 
       <section className="content-grid" aria-live="polite">
+
+        <article className="card full-generation-card">
+          <div className="card-header">
+            <div>
+              <h2>Full Generation Output</h2>
+              <p className="prompt-hint">Copy this if you want to paste both the seed and the final image prompt into an image model or another chat.</p>
+            </div>
+            <button type="button" onClick={() => copyToClipboard(generation.fullGenerationText, 'Full generation')}>
+              Copy Full Generation
+            </button>
+          </div>
+          <pre>{generation.fullGenerationText}</pre>
+        </article>
+
         <article className="card seed-card">
           <div className="card-header">
             <h2>Seed Output</h2>

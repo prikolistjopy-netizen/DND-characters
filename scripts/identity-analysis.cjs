@@ -324,6 +324,12 @@ function analyze(label, useSmartPool) {
   let imagePromptNegativePromptCount = 0;
   let imagePromptScenePropTotal = 0;
   let imagePromptCharacterBoundTotal = 0;
+  let fullGenerationMissingCount = 0;
+  let fullGenerationMissingSeedHeaderCount = 0;
+  let fullGenerationMissingImageHeaderCount = 0;
+  let fullGenerationImageMismatchCount = 0;
+  let fullGenerationContainsTraceCount = 0;
+  let fullGenerationOldPromptCount = 0;
   let oldPromptTemplateAsImagePromptCount = 0;
   let imagePromptMissingCompositionPhraseCount = 0;
   let imagePromptMissingRaceAppearanceCount = 0;
@@ -383,6 +389,13 @@ function analyze(label, useSmartPool) {
     for (const prop of seed.sceneProps ?? []) increment(scenePropTop, prop);
     const sceneLimit = seed.compositionMode === 'cinematic_splash_art' ? 3 : seed.environmentDetailLevel === 'minimal' || seed.compositionMode === 'character_card' ? 0 : 1;
     if ((seed.sceneProps?.length ?? 0) > sceneLimit) excessiveClutterCount += 1;
+    const fullGenerationText = result.fullGenerationText ?? '';
+    if (!fullGenerationText) fullGenerationMissingCount += 1;
+    if (!fullGenerationText.includes('=== D&D CHARACTER SEED ===')) fullGenerationMissingSeedHeaderCount += 1;
+    if (!fullGenerationText.includes('=== IMAGE PROMPT ===')) fullGenerationMissingImageHeaderCount += 1;
+    if (!fullGenerationText.includes(result.imagePrompt ?? '')) fullGenerationImageMismatchCount += 1;
+    if (/Debug \/ Generation Trace|Generation Trace|Final validation status/i.test(fullGenerationText)) fullGenerationContainsTraceCount += 1;
+    if (oldPromptTemplate(fullGenerationText)) fullGenerationOldPromptCount += 1;
     const imagePrompt = result.imagePrompt ?? '';
     const imageWords = wordCount(imagePrompt);
     imagePromptWordTotal += imageWords;
@@ -636,6 +649,12 @@ function analyze(label, useSmartPool) {
     imagePromptNegativePromptCount,
     imagePromptScenePropAverage: imagePromptScenePropTotal / sampleSize,
     imagePromptCharacterBoundAverage: imagePromptCharacterBoundTotal / sampleSize,
+    fullGenerationMissingCount,
+    fullGenerationMissingSeedHeaderCount,
+    fullGenerationMissingImageHeaderCount,
+    fullGenerationImageMismatchCount,
+    fullGenerationContainsTraceCount,
+    fullGenerationOldPromptCount,
     oldPromptTemplateAsImagePromptCount,
     imagePromptMissingCompositionPhraseCount,
     imagePromptMissingRaceAppearanceCount,
@@ -767,6 +786,11 @@ console.log(`Image Prompts with negative prompt: ${smart.imagePromptNegativeProm
 console.log(`Average scene props in Image Prompt: ${smart.imagePromptScenePropAverage.toFixed(2)}`);
 console.log(`Average character-bound details in Image Prompt: ${smart.imagePromptCharacterBoundAverage.toFixed(2)}`);
 console.log(`Old prompt template as Image Prompt: ${smart.oldPromptTemplateAsImagePromptCount}`);
+console.log(`Full Generation Output missing: ${smart.fullGenerationMissingCount}`);
+console.log(`Full Generation Output missing seed header: ${smart.fullGenerationMissingSeedHeaderCount}`);
+console.log(`Full Generation Output missing image prompt header: ${smart.fullGenerationMissingImageHeaderCount}`);
+console.log(`Full Generation Output image prompt mismatch: ${smart.fullGenerationImageMismatchCount}`);
+console.log(`Full Generation Output contains debug trace: ${smart.fullGenerationContainsTraceCount}`);
 console.log(`Image Prompt missing composition phrase: ${smart.imagePromptMissingCompositionPhraseCount}`);
 console.log(`Image Prompt missing Race appearance: ${smart.imagePromptMissingRaceAppearanceCount}`);
 console.log(`Image Prompt missing Class and build fantasy: ${smart.imagePromptMissingClassReadabilityCount}`);
