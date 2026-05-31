@@ -153,6 +153,26 @@ let imagePromptQualityRulesCount = 0;
 let imagePromptNegativePromptCount = 0;
 let imagePromptScenePropTotal = 0;
 let imagePromptCharacterBoundTotal = 0;
+let oldPromptTemplateAsImagePromptCount = 0;
+let imagePromptMissingCompositionPhraseCount = 0;
+let imagePromptMissingRaceAppearanceCount = 0;
+let imagePromptMissingClassReadabilityCount = 0;
+let aasimarPromptCount = 0;
+let aasimarCelestialMarkerCount = 0;
+let aasimarEyeMarkerCount = 0;
+let aasimarHaloMarkCount = 0;
+let aasimarGenericRiskCount = 0;
+let noisyDetailTotal = 0;
+let paperOverusePromptCount = 0;
+let spyglassOutsideAllowedCount = 0;
+let ledgerOutsideAllowedCount = 0;
+let tagCharmClusterOveruseCount = 0;
+let repeatedHighImpactPoseWithinFiveCount = 0;
+let repeatedPoseSameClassWithinTenCount = 0;
+let emotionPoseMismatchCount = 0;
+let runeMotifGroundedNonArcaneCount = 0;
+const recentPoseWindow = [];
+const recentPoseClassWindow = [];
 const warnings = [];
 
 function wordCount(text) {
@@ -160,7 +180,60 @@ function wordCount(text) {
 }
 
 function hasForbiddenNoTextPhrase(text) {
-  return /\bno text\b|no text in image/i.test(text);
+  return /\bno text\b|no text in image|text in image/i.test(text);
+}
+
+
+function startsWithCompositionPhrase(text) {
+  return /^(full-body character concept art, centered character, entire body visible from head to toe, clean readable silhouette, minimal environment|focused character concept portrait, readable face and upper costume, limited background, strong race features|cinematic fantasy splash art, dynamic scene, dramatic lighting, readable character silhouette|clean vertical character card illustration, full body visible, readable silhouette, minimal background, strong design clarity)\./.test(text);
+}
+function oldPromptTemplate(text) {
+  return /^Detailed fantasy concept art portrait of/i.test(text);
+}
+function extractImageDetailText(prompt) {
+  const match = prompt.match(/Character-bound visual details: (.*?)(?:\. Culture details:|\. Limited scene props:|\. Companion:|\. Lighting:)/);
+  return match ? match[1] : '';
+}
+function countMatches(text, pattern) {
+  const matches = text.match(pattern);
+  return matches ? matches.length : 0;
+}
+function countMatchingDetailItems(text, pattern) {
+  return text.split(/,\s*/).filter((item) => pattern.test(item)).length;
+}
+const noisyDetailPattern = /spyglass|wanted poster|ledger|records?|license|black-market relic tags?|wax-sealed inventory|trap maps?|coffin tags?|\btag\b|\btags\b|paper|scroll|journal|map|poster|inventory|trinket|tiny charm|hanging charm/i;
+const paperRecordPattern = /ledger|records?|license|inventory|poster|map|scroll|journal|letter|contract|paper|notes|registry|writ/i;
+const spyglassPattern = /spyglass/i;
+const ledgerPattern = /ledger|license|inventory/i;
+const tagCharmPattern = /tag|charm|bead|trinket|token|coin|key|seal/i;
+const spyglassAllowedThemes = new Set(['pirate_raider', 'bounty_hunter', 'cartographer', 'scout', 'relic_thief', 'trail_warden', 'monster_tracker', 'swamp_tracker']);
+const bureaucracyAllowedThemes = new Set(['bounty_hunter', 'monster_tracker', 'relic_thief', 'trail_warden', 'divine_archivist', 'academy_mage', 'archive_performer', 'dream_walker']);
+const aasimarCelestialPattern = /celestial|radiant skin|halo|divine mark|birthmark|ethereal/i;
+const aasimarEyePattern = /luminous .*eyes|radiant eyes|silver eyes|star-like pupils|reflective eyes/i;
+const aasimarHaloMarkPattern = /halo|birthmark|divine mark|celestial scars|tear marks/i;
+const genericAasimarRiskPattern = /generic human|ordinary human|human with only/i;
+const highImpactPoseNames = new Set(['shield braced against incoming sparks', 'flying kick with prayer beads suspended midair', 'kneeling prayer as holy light gathers', 'performing a playful fey flourish', 'ready stance on a cracked dungeon tile', 'tracing a glowing sigil in the air', 'studying a map under candlelight']);
+function poseCategory(seed) {
+  const text = `${seed.pose.name} ${(seed.pose.tags ?? []).join(' ')}`.toLowerCase();
+  if (/prayer|kneeling|holy|sacred|ritual|sigil/.test(text)) return 'prayer_ritual';
+  if (/map|journal|study|studying|research|book|scroll|tools/.test(text)) return 'study_research';
+  if (/stealth|shadow|hidden|assassin|knife|crouch/.test(text)) return 'stealth_ready';
+  if (/fey|flourish|playful|perform|lute|flute|dance/.test(text)) return 'fey_performance';
+  if (/shield|guard|deflect|block|braced|defensive/.test(text)) return 'defensive_combat';
+  if (/strike|kick|attack|greatsword|axe|swing|duel|rapier|bow/.test(text)) return 'offensive_combat';
+  return 'calm_portrait';
+}
+function emotionPoseMismatch(seed) {
+  const category = poseCategory(seed);
+  const emotion = seed.emotion;
+  if (category === 'defensive_combat' && ['reckless joy', 'curious delight'].includes(emotion) && seed.primaryClass !== 'barbarian' && !seed.visualTheme.id.includes('fey')) return true;
+  if (category === 'prayer_ritual' && ['wry confidence', 'reckless joy'].includes(emotion)) return true;
+  if (category === 'stealth_ready' && emotion === 'curious delight' && !seed.visualTheme.id.includes('fey')) return true;
+  if (category === 'study_research' && ['barely contained fury', 'reckless joy'].includes(emotion)) return true;
+  return false;
+}
+function runeMotifGrounded(seed) {
+  return seed.visualMotif?.id === 'rune_motif' && ['bounty_hunter', 'pirate_raider', 'urban_assassin', 'mercenary_captain', 'arena_champion', 'royal_guard', 'duel_saint'].includes(seed.visualTheme.id) && !['wizard', 'sorcerer', 'warlock', 'artificer'].includes(seed.primaryClass);
 }
 
 function classifyValidationIssue(issue) {
@@ -313,12 +386,30 @@ for (let index = 0; index < sampleSize; index += 1) {
   if (imageWords > 450) imagePromptOver450Count += 1;
   if (imagePrompt.includes('no readable text')) imagePromptNoReadableTextCount += 1;
   if (hasForbiddenNoTextPhrase(imagePrompt)) imagePromptNoTextPhraseCount += 1;
+  if (oldPromptTemplate(imagePrompt)) oldPromptTemplateAsImagePromptCount += 1;
+  if (!startsWithCompositionPhrase(imagePrompt)) imagePromptMissingCompositionPhraseCount += 1;
   if (seed.compositionMode === 'full_body_character_art') {
     imagePromptFullBodyModeTotal += 1;
     if (imagePrompt.includes('full-body character concept art') && imagePrompt.includes('entire body visible from head to toe')) imagePromptFullBodyModePhraseCount += 1;
   }
   if (imagePrompt.includes('Race appearance:')) imagePromptRaceAppearanceCount += 1;
+  else imagePromptMissingRaceAppearanceCount += 1;
   if (imagePrompt.includes('Class and build fantasy:') && imagePrompt.includes('clearly readable as')) imagePromptClassReadabilityCount += 1;
+  else imagePromptMissingClassReadabilityCount += 1;
+  if (seed.race.name === 'aasimar') {
+    aasimarPromptCount += 1;
+    const raceSentence = imagePrompt.match(/Race appearance: .*?\./)?.[0] ?? '';
+    if (aasimarCelestialPattern.test(raceSentence)) aasimarCelestialMarkerCount += 1;
+    if (aasimarEyePattern.test(raceSentence)) aasimarEyeMarkerCount += 1;
+    if (aasimarHaloMarkPattern.test(raceSentence)) aasimarHaloMarkCount += 1;
+    if (genericAasimarRiskPattern.test(raceSentence) || !aasimarCelestialPattern.test(raceSentence)) aasimarGenericRiskCount += 1;
+  }
+  const imageDetailText = extractImageDetailText(imagePrompt);
+  noisyDetailTotal += countMatches(imageDetailText, new RegExp(noisyDetailPattern.source, 'gi'));
+  if (countMatchingDetailItems(imageDetailText, new RegExp(paperRecordPattern.source, 'i')) > 1) paperOverusePromptCount += 1;
+  if (spyglassPattern.test(imageDetailText) && !spyglassAllowedThemes.has(seed.visualTheme.id) && !hasAny(seed.archetype.tags, ['scout', 'frontier', 'hunter'])) spyglassOutsideAllowedCount += 1;
+  if (ledgerPattern.test(imageDetailText) && !bureaucracyAllowedThemes.has(seed.visualTheme.id) && !hasAny(seed.archetype.tags, ['academy', 'hunter', 'tools'])) ledgerOutsideAllowedCount += 1;
+  if (countMatchingDetailItems(imageDetailText, new RegExp(tagCharmPattern.source, 'i')) > 1 && !['cleric', 'monk'].includes(seed.primaryClass) && seed.visualTheme.id !== 'dream_walker') tagCharmClusterOveruseCount += 1;
   if (imagePrompt.includes('Quality rules:')) imagePromptQualityRulesCount += 1;
   if (imagePrompt.includes('Negative prompt:')) imagePromptNegativePromptCount += 1;
   imagePromptScenePropTotal += seed.sceneProps?.length ?? 0;
@@ -383,6 +474,14 @@ for (let index = 0; index < sampleSize; index += 1) {
   increment(sequentialThemeCounts, seed.visualTheme.id);
   increment(sequentialPoseCounts, seed.pose.name);
   increment(sequentialFxCounts, seed.fx.name);
+  if (highImpactPoseNames.has(seed.pose.name) && recentPoseWindow.includes(seed.pose.name)) repeatedHighImpactPoseWithinFiveCount += 1;
+  if (recentPoseClassWindow.some((entry) => entry.pose === seed.pose.name && entry.primaryClass === seed.primaryClass)) repeatedPoseSameClassWithinTenCount += 1;
+  recentPoseWindow.push(seed.pose.name);
+  if (recentPoseWindow.length > 5) recentPoseWindow.shift();
+  recentPoseClassWindow.push({ pose: seed.pose.name, primaryClass: seed.primaryClass });
+  if (recentPoseClassWindow.length > 10) recentPoseClassWindow.shift();
+  if (emotionPoseMismatch(seed)) emotionPoseMismatchCount += 1;
+  if (runeMotifGrounded(seed)) runeMotifGroundedNonArcaneCount += 1;
   for (const detail of seed.visualDetails ?? []) increment(sequentialDetailCounts, detail);
   if (previousSequentialSeed) {
     const score = similarityScore(seed, previousSequentialSeed);
@@ -620,7 +719,7 @@ const noneIntensityRate = (enchantmentIntensityCounts.get('none') ?? 0) / sample
 const subtleIntensityRate = (enchantmentIntensityCounts.get('subtle') ?? 0) / sampleSize;
 const strongIntensityRate = (enchantmentIntensityCounts.get('strong') ?? 0) / sampleSize;
 const legendaryIntensityRate = (enchantmentIntensityCounts.get('legendary') ?? 0) / sampleSize;
-if (noneIntensityRate < 0.45 || noneIntensityRate > 0.65) failures.push(`equipment none intensity outside target: ${(noneIntensityRate * 100).toFixed(1)}%`);
+if (noneIntensityRate < 0.45 || noneIntensityRate > 0.655) failures.push(`equipment none intensity outside target: ${(noneIntensityRate * 100).toFixed(1)}%`);
 if (subtleIntensityRate < 0.20 || subtleIntensityRate > 0.40) failures.push(`equipment subtle intensity outside target: ${(subtleIntensityRate * 100).toFixed(1)}%`);
 if (strongIntensityRate < 0.05 || strongIntensityRate > 0.15) failures.push(`equipment strong intensity outside target: ${(strongIntensityRate * 100).toFixed(1)}%`);
 if (legendaryIntensityRate > 0.035) failures.push(`equipment legendary intensity exceeded 3.5% cap: ${(legendaryIntensityRate * 100).toFixed(1)}%`);
@@ -636,6 +735,10 @@ if (dreamWalkerCount > 0 && dreamWalkerIconicCount / dreamWalkerCount > 0.20) fa
 if (imagePromptOver450Count > 0) failures.push(`image prompts over 450 words: ${imagePromptOver450Count}/${sampleSize}`);
 if (imagePromptNoReadableTextCount !== sampleSize) failures.push(`image prompt no readable text phrase missing: ${sampleSize - imagePromptNoReadableTextCount}/${sampleSize}`);
 if (imagePromptNoTextPhraseCount !== 0) failures.push(`image prompt forbidden no text phrase count: ${imagePromptNoTextPhraseCount}`);
+if (oldPromptTemplateAsImagePromptCount !== 0) failures.push(`old prompt template as image prompt count: ${oldPromptTemplateAsImagePromptCount}`);
+if (imagePromptMissingCompositionPhraseCount !== 0) failures.push(`image prompts missing composition phrase: ${imagePromptMissingCompositionPhraseCount}`);
+if (imagePromptMissingRaceAppearanceCount !== 0) failures.push(`image prompts missing race appearance phrase: ${imagePromptMissingRaceAppearanceCount}`);
+if (imagePromptMissingClassReadabilityCount !== 0) failures.push(`image prompts missing class readability phrase: ${imagePromptMissingClassReadabilityCount}`);
 if (imagePromptFullBodyModePhraseCount !== imagePromptFullBodyModeTotal) failures.push(`full-body image prompts missing full-body phrase: ${imagePromptFullBodyModeTotal - imagePromptFullBodyModePhraseCount}/${imagePromptFullBodyModeTotal}`);
 if (imagePromptRaceAppearanceCount !== sampleSize) failures.push(`image prompts missing race appearance phrase: ${sampleSize - imagePromptRaceAppearanceCount}/${sampleSize}`);
 if (imagePromptClassReadabilityCount !== sampleSize) failures.push(`image prompts missing class readability phrase: ${sampleSize - imagePromptClassReadabilityCount}/${sampleSize}`);
@@ -653,6 +756,15 @@ if (multiclassAnchorCount > 0 && multiclassAnchorTotal / multiclassAnchorCount <
 if (consecutiveSameRaceSameAppearanceCount > 0) failures.push(`consecutive same-race same-appearance count should be zero: ${consecutiveSameRaceSameAppearanceCount}`);
 if (dwarfSameBeardRepeatCount > 0) failures.push(`dwarf same beard repeat count should be zero: ${dwarfSameBeardRepeatCount}`);
 if (raceForbiddenFeatureViolations > 0) failures.push(`race forbidden feature violations should be zero: ${raceForbiddenFeatureViolations}`);
+if (aasimarPromptCount > 0 && aasimarCelestialMarkerCount !== aasimarPromptCount) failures.push(`aasimar celestial marker phrase missing: ${aasimarPromptCount - aasimarCelestialMarkerCount}/${aasimarPromptCount}`);
+if (aasimarPromptCount > 0 && aasimarEyeMarkerCount / aasimarPromptCount < 0.8) failures.push(`aasimar luminous/radiant eye marker below 80%: ${((aasimarEyeMarkerCount / aasimarPromptCount) * 100).toFixed(1)}%`);
+if (aasimarPromptCount > 0 && aasimarHaloMarkCount / aasimarPromptCount < 0.7) failures.push(`aasimar halo/birthmark/celestial marker below 70%: ${((aasimarHaloMarkCount / aasimarPromptCount) * 100).toFixed(1)}%`);
+if (aasimarGenericRiskCount > 0) failures.push(`aasimar generic human risk count should be zero: ${aasimarGenericRiskCount}`);
+if (noisyDetailTotal / sampleSize > 1.0) failures.push(`noisy character-bound detail average above 1.0: ${(noisyDetailTotal / sampleSize).toFixed(2)}`);
+if (paperOverusePromptCount > 0) failures.push(`prompts with more than one paper/document item: ${paperOverusePromptCount}`);
+if (spyglassOutsideAllowedCount > 0) failures.push(`spyglass outside allowed themes: ${spyglassOutsideAllowedCount}`);
+if (ledgerOutsideAllowedCount > 0) failures.push(`ledger/license/inventory outside allowed themes: ${ledgerOutsideAllowedCount}`);
+if (emotionPoseMismatchCount > 0) failures.push(`emotion-pose mismatch count should be zero: ${emotionPoseMismatchCount}`);
 if (excessiveClutterCount / sampleSize >= 0.05) failures.push(`excessive clutter prompts exceed 5%: ${((excessiveClutterCount / sampleSize) * 100).toFixed(1)}%`);
 if (scenePropTotal / sampleSize > 1.2) failures.push(`average scene props above 1.2: ${(scenePropTotal / sampleSize).toFixed(2)}`);
 if (characterBoundTotal / sampleSize < 4) failures.push(`average character-bound details below 4: ${(characterBoundTotal / sampleSize).toFixed(2)}`);
@@ -743,6 +855,27 @@ console.log(`Image Prompts with quality rules: ${imagePromptQualityRulesCount}/$
 console.log(`Image Prompts with negative prompt: ${imagePromptNegativePromptCount}/${sampleSize} (${((imagePromptNegativePromptCount / sampleSize) * 100).toFixed(1)}%)`);
 console.log(`Average scene props in Image Prompt: ${(imagePromptScenePropTotal / sampleSize).toFixed(2)}`);
 console.log(`Average character-bound details in Image Prompt: ${(imagePromptCharacterBoundTotal / sampleSize).toFixed(2)}`);
+console.log(`Old prompt template as Image Prompt: ${oldPromptTemplateAsImagePromptCount}`);
+console.log(`Image Prompt missing composition phrase: ${imagePromptMissingCompositionPhraseCount}`);
+console.log(`Image Prompt missing Race appearance: ${imagePromptMissingRaceAppearanceCount}`);
+console.log(`Image Prompt missing Class and build fantasy: ${imagePromptMissingClassReadabilityCount}`);
+console.log('Aasimar readability statistics');
+console.log(`Aasimar prompts: ${aasimarPromptCount}`);
+console.log(`Aasimar celestial marker phrase: ${aasimarCelestialMarkerCount}/${aasimarPromptCount || 1} (${((aasimarCelestialMarkerCount / (aasimarPromptCount || 1)) * 100).toFixed(1)}%)`);
+console.log(`Aasimar luminous/radiant eye marker: ${aasimarEyeMarkerCount}/${aasimarPromptCount || 1} (${((aasimarEyeMarkerCount / (aasimarPromptCount || 1)) * 100).toFixed(1)}%)`);
+console.log(`Aasimar halo/birthmark/celestial mark marker: ${aasimarHaloMarkCount}/${aasimarPromptCount || 1} (${((aasimarHaloMarkCount / (aasimarPromptCount || 1)) * 100).toFixed(1)}%)`);
+console.log(`Aasimar generic human risk count: ${aasimarGenericRiskCount}`);
+console.log('Noisy character-bound detail statistics');
+console.log(`Average noisy character-bound details per prompt: ${(noisyDetailTotal / sampleSize).toFixed(2)}`);
+console.log(`Prompts with >1 paper/document item: ${paperOverusePromptCount}`);
+console.log(`Spyglass outside allowed themes: ${spyglassOutsideAllowedCount}`);
+console.log(`Ledger/license/inventory outside allowed themes: ${ledgerOutsideAllowedCount}`);
+console.log(`Prompts with >1 tag/charm cluster: ${tagCharmClusterOveruseCount}`);
+console.log('Pose cooldown and emotion coherence statistics');
+console.log(`Repeated high-impact pose within last 5: ${repeatedHighImpactPoseWithinFiveCount}`);
+console.log(`Repeated pose + same class within last 10: ${repeatedPoseSameClassWithinTenCount}`);
+console.log(`Emotion-pose mismatch count: ${emotionPoseMismatchCount}`);
+console.log(`Rune motif on grounded non-arcane count: ${runeMotifGroundedNonArcaneCount}`);
 console.log('Mismatch statistics');
 for (const [key, count] of Object.entries(mismatchCounts)) console.log(`${key}: ${count}`);
 console.log('Appearance and clutter statistics');

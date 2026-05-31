@@ -52,6 +52,7 @@ function App() {
               Copy Image Prompt
             </button>
           </div>
+          <p className="prompt-hint">Use Image Prompt for image generation. Prompt Draft is for reading the seed.</p>
           <p>{generation.imagePrompt}</p>
         </article>
 
