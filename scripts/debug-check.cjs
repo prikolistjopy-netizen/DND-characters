@@ -33,9 +33,10 @@ run(
 writeFileSync(path.join(outDir, 'package.json'), JSON.stringify({ type: 'commonjs' }));
 
 const { generateCharacterSeed, validateGeneratedSeed, resetSmartCandidatePoolMemory } = require(path.join(outDir, 'lib/generator.js'));
-const { visualThemes, visualThemeVariants, narrativeMotifs, narrativeVariants, culturalOrigins, themeContentProfiles, raceAppearanceRules, curatedMulticlassProfiles } = require(path.join(outDir, 'data/seedData.js'));
+const { visualThemes, visualThemeVariants, narrativeMotifs, narrativeVariants, culturalOrigins, themeContentProfiles, raceAppearanceRules, curatedMulticlassProfiles, dreamWalkerCompatibilityAliases, dreamWalkerRejectedCompatibilityTags } = require(path.join(outDir, 'data/seedData.js'));
 const raceRulesById = new Map(raceAppearanceRules.map((rule) => [rule.raceId, rule]));
 const curatedProfileIds = new Set(curatedMulticlassProfiles.map((profile) => profile.id));
+const dreamWalkerIconicPattern = /sleeping spirit|living dream butterflies|fractured reality|dream serpent|miniature moonlit door/i;
 
 const failures = [];
 
@@ -111,6 +112,21 @@ const characterBoundCounts = new Map();
 const repeatedScenePropCounts = new Map();
 const modeCounts = new Map();
 const curatedProfileCounts = new Map();
+const dreamWalkerVariantCounts = new Map();
+const dreamWalkerSilhouetteCounts = new Map();
+const dreamWalkerArmorCounts = new Map();
+const dreamWalkerWeaponCounts = new Map();
+const dreamWalkerWeaponLanguageCounts = new Map();
+const dreamWalkerFinishCounts = new Map();
+const dreamWalkerEnchantmentCounts = new Map();
+const dreamWalkerPoseCounts = new Map();
+const dreamWalkerMoodCounts = new Map();
+const dreamWalkerLightCounts = new Map();
+const dreamWalkerFxCounts = new Map();
+const dreamWalkerDetailCounts = new Map();
+let dreamWalkerCount = 0;
+let dreamWalkerScenePropTotal = 0;
+let dreamWalkerIconicCount = 0;
 let scenePropTotal = 0;
 let characterBoundTotal = 0;
 let excessiveClutterCount = 0;
@@ -297,6 +313,28 @@ for (let index = 0; index < sampleSize; index += 1) {
   increment(companionCounts, seed.companion?.id ?? 'none');
   increment(armorLanguageCounts, seed.armorLanguage?.id ?? 'no-armor-language');
   increment(weaponLanguageCounts, seed.weaponLanguage?.id ?? 'no-weapon-language');
+  if (seed.visualTheme.id === 'dream_walker') {
+    dreamWalkerCount += 1;
+    dreamWalkerScenePropTotal += seed.sceneProps?.length ?? 0;
+    increment(dreamWalkerVariantCounts, seed.visualThemeVariant?.id ?? 'no-variant');
+    increment(dreamWalkerSilhouetteCounts, seed.silhouetteProfile?.id ?? seed.silhouette.name);
+    increment(dreamWalkerArmorCounts, seed.armor.name);
+    increment(dreamWalkerWeaponCounts, seed.weapon.name);
+    increment(dreamWalkerWeaponLanguageCounts, seed.weaponLanguage?.id ?? 'no-weapon-language');
+    increment(dreamWalkerFinishCounts, seed.equipmentFinish?.id ?? 'no-finish');
+    increment(dreamWalkerEnchantmentCounts, seed.equipmentEnchantment?.id ?? 'no-enchantment');
+    increment(dreamWalkerPoseCounts, seed.pose.name);
+    increment(dreamWalkerMoodCounts, seed.mood.name);
+    increment(dreamWalkerLightCounts, seed.light.name);
+    increment(dreamWalkerFxCounts, seed.fx.name);
+    for (const detail of seed.characterBoundDetails ?? seed.visualDetails ?? []) {
+      increment(dreamWalkerDetailCounts, detail);
+      if (dreamWalkerIconicPattern.test(detail)) dreamWalkerIconicCount += 1;
+    }
+    if (!result.promptDraft.includes('no readable text') || /(?:^|[^un])\b(?:readable|legible) (?:dream journal|journal|notes|map|scroll)/i.test(result.promptDraft)) {
+      failures.push(`dream_walker prompt must keep journals/notes unreadable :: ${summary}`);
+    }
+  }
   if (seed.weaponLanguage?.id === 'plain_weapon_language') {
     increment(plainWeaponFallbackSources, seed.weapon.name);
     for (const tag of seed.weapon.tags) increment(plainWeaponFallbackTags, tag);
@@ -553,6 +591,10 @@ const plainArmorRate = (armorLanguageCounts.get('plain_armor_language') ?? 0) / 
 if (plainWeaponRate >= 0.20) failures.push(`plain weapon language fallback too high: ${(plainWeaponRate * 100).toFixed(1)}%`);
 if (plainArmorRate >= 0.20) failures.push(`plain armor language fallback too high: ${(plainArmorRate * 100).toFixed(1)}%`);
 if (equipmentContradictionCount > 0) failures.push(`equipment contradiction count should be zero: ${equipmentContradictionCount}`);
+const dreamWalkerRate = dreamWalkerCount / sampleSize;
+if (dreamWalkerRate > 0.10) failures.push(`dream_walker activation dominated distribution: ${(dreamWalkerRate * 100).toFixed(1)}%`);
+if (dreamWalkerCount > 0 && dreamWalkerScenePropTotal / dreamWalkerCount > 1.2) failures.push(`dream_walker scene prop average too high: ${(dreamWalkerScenePropTotal / dreamWalkerCount).toFixed(2)}`);
+if (dreamWalkerCount > 0 && dreamWalkerIconicCount / dreamWalkerCount > 0.20) failures.push(`dream_walker iconic/legendary detail rate too high: ${((dreamWalkerIconicCount / dreamWalkerCount) * 100).toFixed(1)}%`);
 if (consecutiveVisualCoreDuplicateCount > 0) failures.push(`consecutive visual core duplicate count should be zero: ${consecutiveVisualCoreDuplicateCount}`);
 const ordinaryRate = (modeCounts.get('ordinary class') ?? 0) / sampleSize;
 const curatedRate = (modeCounts.get('curated multiclass') ?? 0) / sampleSize;
@@ -695,6 +737,24 @@ printStats('Scene prop count buckets', scenePropCounts);
 printStats('Top repeated scene props', repeatedScenePropCounts);
 printStats('Appearance distribution by race/profile', appearanceDistribution);
 printStats('Curated multiclass distribution', curatedProfileCounts);
+console.log('Dream Walker-specific statistics');
+console.log(`Dream Walker activation: ${dreamWalkerCount}/${sampleSize} (${((dreamWalkerCount / sampleSize) * 100).toFixed(1)}%)`);
+console.log(`Dream Walker scene prop average: ${(dreamWalkerScenePropTotal / Math.max(1, dreamWalkerCount)).toFixed(2)}`);
+console.log(`Dream Walker iconic/legendary detail rate: ${dreamWalkerIconicCount}/${Math.max(1, dreamWalkerCount)} (${((dreamWalkerIconicCount / Math.max(1, dreamWalkerCount)) * 100).toFixed(1)}%)`);
+console.log(`Dream Walker remapped compatibility tags: ${Object.entries(dreamWalkerCompatibilityAliases).map(([tag, mapped]) => `${tag}->${mapped.join('|')}`).join(', ')}`);
+console.log(`Dream Walker rejected/ignored unknown tags: ${dreamWalkerRejectedCompatibilityTags.length > 0 ? dreamWalkerRejectedCompatibilityTags.join(', ') : 'none'}`);
+printStats('Dream Walker theme variants', dreamWalkerVariantCounts);
+printStats('Dream Walker silhouettes', dreamWalkerSilhouetteCounts);
+printStats('Dream Walker armor/clothing', dreamWalkerArmorCounts);
+printStats('Dream Walker weapon/tools', dreamWalkerWeaponCounts);
+printStats('Dream Walker weapon languages', dreamWalkerWeaponLanguageCounts);
+printStats('Dream Walker equipment finishes', dreamWalkerFinishCounts);
+printStats('Dream Walker enchantments', dreamWalkerEnchantmentCounts);
+printStats('Dream Walker poses', dreamWalkerPoseCounts);
+printStats('Dream Walker moods', dreamWalkerMoodCounts);
+printStats('Dream Walker lights', dreamWalkerLightCounts);
+printStats('Dream Walker FX', dreamWalkerFxCounts);
+printStats('Dream Walker character-bound details', dreamWalkerDetailCounts);
 printStats('Top equipment finishes', equipmentFinishCounts);
 printStats('Top equipment enchantments', equipmentEnchantmentCounts);
 printStats('Top visual details', visualDetailCounts);

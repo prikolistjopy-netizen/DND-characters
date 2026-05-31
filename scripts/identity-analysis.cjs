@@ -5,6 +5,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const outDir = path.join(root, '.identity-analysis-build');
 const sampleSize = 10000;
+const dreamWalkerIconicPattern = /sleeping spirit|living dream butterflies|fractured reality|dream serpent|miniature moonlit door/i;
 const scholarThemes = new Set(['divine_archivist', 'academy_mage', 'archive_performer']);
 const layerOrder = ['Class Identity', 'Build Template', 'Visual Theme', 'Narrative Motif', 'Theme Variant', 'Narrative Variant', 'Culture'];
 
@@ -35,7 +36,7 @@ run(
 writeFileSync(path.join(outDir, 'package.json'), JSON.stringify({ type: 'commonjs' }));
 
 const { generateCharacterSeed, resetSmartCandidatePoolMemory, validateGeneratedSeed } = require(path.join(outDir, 'lib/generator.js'));
-const { visualThemes, silhouetteProfiles, visualMotifs, armorLanguages, weaponLanguages, themeContentProfiles } = require(path.join(outDir, 'data/seedData.js'));
+const { visualThemes, silhouetteProfiles, visualMotifs, armorLanguages, weaponLanguages, themeContentProfiles, dreamWalkerCompatibilityAliases, dreamWalkerRejectedCompatibilityTags } = require(path.join(outDir, 'data/seedData.js'));
 
 function increment(map, key, amount = 1) {
   map.set(key, (map.get(key) ?? 0) + amount);
@@ -223,6 +224,21 @@ function analyze(label, useSmartPool) {
   const scenePropTop = new Map();
   const modeCounts = new Map();
   const curatedProfileCounts = new Map();
+  const dreamWalkerVariantCounts = new Map();
+  const dreamWalkerSilhouetteCounts = new Map();
+  const dreamWalkerArmorCounts = new Map();
+  const dreamWalkerWeaponCounts = new Map();
+  const dreamWalkerWeaponLanguageCounts = new Map();
+  const dreamWalkerFinishCounts = new Map();
+  const dreamWalkerEnchantmentCounts = new Map();
+  const dreamWalkerPoseCounts = new Map();
+  const dreamWalkerMoodCounts = new Map();
+  const dreamWalkerLightCounts = new Map();
+  const dreamWalkerFxCounts = new Map();
+  const dreamWalkerDetailCounts = new Map();
+  let dreamWalkerCount = 0;
+  let dreamWalkerScenePropTotal = 0;
+  let dreamWalkerIconicCount = 0;
   let scenePropTotal = 0;
   let characterBoundTotal = 0;
   let excessiveClutterCount = 0;
@@ -300,6 +316,25 @@ function analyze(label, useSmartPool) {
     increment(companionCounts, seed.companion?.id ?? 'none');
     increment(armorLanguageCounts, seed.armorLanguage?.id ?? 'no-armor-language');
     increment(weaponLanguageCounts, seed.weaponLanguage?.id ?? 'no-weapon-language');
+    if (seed.visualTheme.id === 'dream_walker') {
+      dreamWalkerCount += 1;
+      dreamWalkerScenePropTotal += seed.sceneProps?.length ?? 0;
+      increment(dreamWalkerVariantCounts, seed.visualThemeVariant?.id ?? 'no-variant');
+      increment(dreamWalkerSilhouetteCounts, seed.silhouetteProfile?.id ?? seed.silhouette.name);
+      increment(dreamWalkerArmorCounts, seed.armor.name);
+      increment(dreamWalkerWeaponCounts, seed.weapon.name);
+      increment(dreamWalkerWeaponLanguageCounts, seed.weaponLanguage?.id ?? 'no-weapon-language');
+      increment(dreamWalkerFinishCounts, seed.equipmentFinish?.id ?? 'no-finish');
+      increment(dreamWalkerEnchantmentCounts, seed.equipmentEnchantment?.id ?? 'no-enchantment');
+      increment(dreamWalkerPoseCounts, seed.pose.name);
+      increment(dreamWalkerMoodCounts, seed.mood.name);
+      increment(dreamWalkerLightCounts, seed.light.name);
+      increment(dreamWalkerFxCounts, seed.fx.name);
+      for (const detail of seed.characterBoundDetails ?? seed.visualDetails ?? []) {
+        increment(dreamWalkerDetailCounts, detail);
+        if (dreamWalkerIconicPattern.test(detail)) dreamWalkerIconicCount += 1;
+      }
+    }
     if (seed.weaponLanguage?.id === 'plain_weapon_language') {
       increment(plainWeaponFallbackSources, seed.weapon.name);
       for (const tag of seed.weapon.tags ?? []) increment(plainWeaponFallbackTags, tag);
@@ -440,6 +475,21 @@ function analyze(label, useSmartPool) {
     plainWeaponFallbackBuildTemplates,
     plainWeaponFallbackThemes,
     plainWeaponFallbackClasses,
+    dreamWalkerCount,
+    dreamWalkerScenePropAverage: dreamWalkerScenePropTotal / Math.max(1, dreamWalkerCount),
+    dreamWalkerIconicRate: dreamWalkerIconicCount / Math.max(1, dreamWalkerCount),
+    dreamWalkerVariantCounts,
+    dreamWalkerSilhouetteCounts,
+    dreamWalkerArmorCounts,
+    dreamWalkerWeaponCounts,
+    dreamWalkerWeaponLanguageCounts,
+    dreamWalkerFinishCounts,
+    dreamWalkerEnchantmentCounts,
+    dreamWalkerPoseCounts,
+    dreamWalkerMoodCounts,
+    dreamWalkerLightCounts,
+    dreamWalkerFxCounts,
+    dreamWalkerDetailCounts,
     appearanceDistribution,
     compositionModeCounts,
     environmentLevelCounts,
@@ -580,6 +630,16 @@ console.log('Top scene props');
 for (const [item, count] of topEntries(smart.scenePropTop, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
 console.log('Curated multiclass distribution');
 for (const [item, count] of topEntries(smart.curatedProfileCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Dream Walker-specific statistics');
+console.log(`Dream Walker activation: ${smart.dreamWalkerCount}/${sampleSize} (${formatPercent((smart.dreamWalkerCount / sampleSize) * 100)})`);
+console.log(`Dream Walker scene prop average: ${smart.dreamWalkerScenePropAverage.toFixed(2)}`);
+console.log(`Dream Walker iconic/legendary detail rate: ${formatPercent(smart.dreamWalkerIconicRate * 100)}`);
+console.log(`Dream Walker remapped compatibility tags: ${Object.entries(dreamWalkerCompatibilityAliases).map(([tag, mapped]) => `${tag}->${mapped.join('|')}`).join(', ')}`);
+console.log(`Dream Walker rejected/ignored unknown tags: ${dreamWalkerRejectedCompatibilityTags.length > 0 ? dreamWalkerRejectedCompatibilityTags.join(', ') : 'none'}`);
+for (const [title, map] of [['Dream Walker theme variants', smart.dreamWalkerVariantCounts], ['Dream Walker silhouettes', smart.dreamWalkerSilhouetteCounts], ['Dream Walker armor/clothing', smart.dreamWalkerArmorCounts], ['Dream Walker weapon/tools', smart.dreamWalkerWeaponCounts], ['Dream Walker weapon languages', smart.dreamWalkerWeaponLanguageCounts], ['Dream Walker equipment finishes', smart.dreamWalkerFinishCounts], ['Dream Walker enchantments', smart.dreamWalkerEnchantmentCounts], ['Dream Walker poses', smart.dreamWalkerPoseCounts], ['Dream Walker moods', smart.dreamWalkerMoodCounts], ['Dream Walker lights', smart.dreamWalkerLightCounts], ['Dream Walker FX', smart.dreamWalkerFxCounts], ['Dream Walker character-bound details', smart.dreamWalkerDetailCounts]]) {
+  console.log(title);
+  for (const [item, count] of topEntries(map, 10)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+}
 console.log('Equipment finish distribution');
 for (const [item, count] of topEntries(smart.equipmentFinishCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
 console.log('Enchantment intensity distribution');

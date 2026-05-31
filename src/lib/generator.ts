@@ -896,7 +896,7 @@ function selectVisualTheme(template: BuildTemplate, archetype: ArchetypeOption, 
   const forcedByArchetype = candidates.filter((theme) => {
     if (archetype.tags.includes('void')) return theme.id === 'void_oracle';
     if (archetype.tags.includes('pirate')) return theme.id === 'pirate_raider' || theme.id === 'lore_skald' || theme.id === 'relic_thief' || theme.id === 'wandering_storyteller';
-    if (archetype.tags.includes('cartographer')) return ['relic_thief', 'academy_mage', 'ritualist', 'divine_archivist'].includes(theme.id);
+    if (archetype.tags.includes('cartographer')) return ['relic_thief', 'academy_mage', 'ritualist', 'divine_archivist', 'dream_walker'].includes(theme.id);
     if (archetype.name === 'exiled temple guardian') return ['temple_guardian', 'battle_chaplain', 'grave_warden'].includes(theme.id);
     return false;
   });
@@ -1342,7 +1342,7 @@ function weaponLanguageCompatible(language: WeaponLanguage, weapon: WeaponOption
   const isStaffOnly = weapon.tags.includes('staff') && !hasAny(weapon.tags, ['book', 'spellbook', 'grimoire']);
   const isMapTool = hasAny(weapon.tags, ['scroll', 'map', 'compass', 'case']) && !hasAny(weapon.tags, ['sword', 'blade', 'hammer', 'warhammer', 'mace', 'bow']);
   const isOrbOnly = weapon.tags.includes('orb') && !weapon.tags.includes('staff');
-  if (isBookOnly && /staff|spear|blade|bow|hammer|maul|axe|lute|flute|calibrator|wrench|gauntlet|orb|crystal|focus/i.test(language.id)) return false;
+  if (isBookOnly && language.id !== 'dream_journal_focus' && /staff|spear|blade|bow|hammer|maul|axe|lute|flute|calibrator|wrench|gauntlet|orb|crystal|focus/i.test(language.id)) return false;
   if (isStaffOnly && /book|grimoire|map|scroll|compass|lute|dagger|blade|bow|hammer|axe|calibrator|wrench|gauntlet/i.test(language.id)) return false;
   if (isMapTool && /blade|sword|dagger|bow|hammer|maul|axe|staff|lute|flute/i.test(language.id)) return false;
   if (isMapTool && /spellbook|grimoire|living_spellbook|weathered_spellbook|holy_book|prayer_book/i.test(language.id) && !/scroll|map|compass|case|songbook/.test(language.id)) return false;
@@ -1588,7 +1588,7 @@ function selectWeaponLanguage(weapon: WeaponOption, buildTemplate: BuildTemplate
 function companionTierWeights(template: BuildTemplate, primaryClass: CharacterClass, theme: VisualTheme, profile: ThemeVisualProfile): Array<WeightedOption<{ name: CompanionTier }>> {
   const pillar = profile.fantasyPillarId;
   const beastmasterLike = template.id === 'frontier_hunter' || primaryClass === 'ranger' || primaryClass === 'druid' || ['trail_warden', 'beast_slayer', 'forest_sprite'].includes(theme.id);
-  if (beastmasterLike) return [{ name: 'none', weight: 83 }, { name: 'minor', weight: 9 }, { name: 'major', weight: 6 }, { name: 'legendary', weight: 2 }];
+  if (beastmasterLike) return [{ name: 'none', weight: 84 }, { name: 'minor', weight: 9 }, { name: 'major', weight: 5 }, { name: 'legendary', weight: 2 }];
   if (template.id === 'holy_warrior' || ['paladin', 'cleric'].includes(primaryClass)) return [{ name: 'none', weight: 90 }, { name: 'minor', weight: 6 }, { name: 'major', weight: 3 }, { name: 'legendary', weight: 1 }];
   if (primaryClass === 'warlock' || pillar === 'occult' || theme.id === 'void_oracle') return [{ name: 'none', weight: 90 }, { name: 'minor', weight: 7 }, { name: 'major', weight: 2 }, { name: 'legendary', weight: 1 }];
   if (primaryClass === 'artificer' || template.id === 'battle_engineer' || theme.id === 'clockwork_sapper') return [{ name: 'none', weight: 90 }, { name: 'minor', weight: 7 }, { name: 'major', weight: 2 }, { name: 'legendary', weight: 1 }];
@@ -2138,7 +2138,7 @@ export function validateGeneratedSeed(seed: CharacterSeed): ValidationIssue[] {
   const staffOnlyWeapon = seed.weapon.tags.includes('staff') && !hasAny(seed.weapon.tags, ['book', 'spellbook', 'grimoire']);
   const mapToolWeapon = hasAny(seed.weapon.tags, ['scroll', 'map', 'compass', 'case']) && !hasAny(seed.weapon.tags, ['sword', 'blade', 'hammer', 'warhammer', 'mace', 'bow']);
   const orbOnlyWeapon = seed.weapon.tags.includes('orb') && !seed.weapon.tags.includes('staff');
-  if (bookOnlyWeapon && /staff|spear|blade|bow|hammer|maul|axe|lute|flute|calibrator|wrench|gauntlet|orb|crystal|focus/i.test(languageId)) {
+  if (bookOnlyWeapon && languageId !== 'dream_journal_focus' && /staff|spear|blade|bow|hammer|maul|axe|lute|flute|calibrator|wrench|gauntlet|orb|crystal|focus/i.test(languageId)) {
     issues.push({ message: 'book or spellbook cannot use staff, martial, instrument, or mechanical weapon language', layers: ['weapon'] });
   }
   if (staffOnlyWeapon && /book|grimoire|map|scroll|compass|lute|dagger|blade|bow|hammer|axe|calibrator|wrench|gauntlet|orb|crystal|lens_focus|relic_focus|glass_focus/i.test(languageId)) {
