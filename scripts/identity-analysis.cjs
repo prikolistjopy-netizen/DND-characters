@@ -81,6 +81,51 @@ function identityBudget(seed) {
   return { normalized, dominantLayer };
 }
 
+function detailOverlap(a, b) {
+  const bSet = new Set(b ?? []);
+  return (a ?? []).filter((item) => bSet.has(item)).length;
+}
+
+function visualCore(seed) {
+  return [
+    seed.buildTemplate.id,
+    seed.visualTheme.id,
+    seed.pose.name,
+    seed.weapon.name,
+    seed.light.name,
+    seed.fx.name,
+  ].join(' | ');
+}
+
+function similarityScore(seed, previous) {
+  let score = 0;
+  const matches = [
+    [seed.buildTemplate.id, previous.buildTemplate.id, 15],
+    [seed.visualTheme.id, previous.visualTheme.id, 18],
+    [seed.visualThemeVariant.id, previous.visualThemeVariant.id, 8],
+    [seed.silhouetteProfile?.id, previous.silhouetteProfile?.id, 12],
+    [seed.armor.name, previous.armor.name, 10],
+    [seed.armorLanguage?.id, previous.armorLanguage?.id, 8],
+    [seed.weapon.name, previous.weapon.name, 12],
+    [seed.weaponLanguage?.id, previous.weaponLanguage?.id, 8],
+    [seed.pose.name, previous.pose.name, 14],
+    [seed.mood.name, previous.mood.name, 8],
+    [seed.light.name, previous.light.name, 10],
+    [seed.fx.name, previous.fx.name, 10],
+    [seed.visualMotif?.id, previous.visualMotif?.id, 8],
+    [seed.equipmentFinish?.id, previous.equipmentFinish?.id, 5],
+    [seed.equipmentEnchantment?.id, previous.equipmentEnchantment?.id, 5],
+    [seed.race.id, previous.race.id, 5],
+    [seed.culturalOrigin.id, previous.culturalOrigin.id, 5],
+    [seed.narrativeMotif.id, previous.narrativeMotif.id, 6],
+    [seed.narrativeVariant.id, previous.narrativeVariant.id, 4],
+  ];
+  for (const [a, b, weight] of matches) if (a && a === b) score += weight;
+  score += detailOverlap(seed.storyDetails, previous.storyDetails) * 2;
+  score += detailOverlap(seed.cultureDetails, previous.cultureDetails) * 2;
+  return score;
+}
+
 function detailDensity(seed) {
   const visual = seed.visualDetails.length;
   const story = seed.storyDetails.length;
@@ -148,10 +193,25 @@ function analyze(label, useSmartPool) {
   const equipmentEnchantmentCounts = new Map();
   const enchantmentIntensityCounts = new Map();
   const visualDetailCounts = new Map();
+  const plainWeaponFallbackSources = new Map();
+  const plainWeaponFallbackTags = new Map();
+  const plainWeaponFallbackBuildTemplates = new Map();
+  const plainWeaponFallbackThemes = new Map();
+  const plainWeaponFallbackClasses = new Map();
+  const sequentialThemeCounts = new Map();
+  const sequentialPoseCounts = new Map();
+  const sequentialFxCounts = new Map();
+  const sequentialDetailCounts = new Map();
   let conflictCount = 0;
   let equipmentContradictionCount = 0;
   let companionActiveCount = 0;
   let legendaryCompanionCount = 0;
+  let previousSequentialSeed = null;
+  let sequentialSimilarityTotal = 0;
+  let sequentialSimilarityMax = 0;
+  let sequentialComparisonCount = 0;
+  let consecutiveVisualCoreDuplicateCount = 0;
+  let tooSimilarSequentialCount = 0;
   const companionByClass = new Map();
   const companionByBuildTemplate = new Map();
   const companionClassTotals = new Map();
@@ -187,6 +247,13 @@ function analyze(label, useSmartPool) {
     increment(companionCounts, seed.companion?.id ?? 'none');
     increment(armorLanguageCounts, seed.armorLanguage?.id ?? 'no-armor-language');
     increment(weaponLanguageCounts, seed.weaponLanguage?.id ?? 'no-weapon-language');
+    if (seed.weaponLanguage?.id === 'plain_weapon_language') {
+      increment(plainWeaponFallbackSources, seed.weapon.name);
+      for (const tag of seed.weapon.tags ?? []) increment(plainWeaponFallbackTags, tag);
+      increment(plainWeaponFallbackBuildTemplates, seed.buildTemplate.id);
+      increment(plainWeaponFallbackThemes, seed.visualTheme.id);
+      increment(plainWeaponFallbackClasses, seed.primaryClass);
+    }
     increment(equipmentFinishCounts, seed.equipmentFinish?.id ?? 'no-equipment-finish');
     increment(equipmentEnchantmentCounts, seed.equipmentEnchantment?.id ?? 'no-equipment-enchantment');
     increment(enchantmentIntensityCounts, seed.enchantmentIntensity ?? 'no-intensity');
@@ -199,7 +266,22 @@ function analyze(label, useSmartPool) {
       increment(companionByBuildTemplate, seed.buildTemplate.id);
       if (seed.companion.tier === 'legendary') legendaryCompanionCount += 1;
     }
-    for (const detail of seed.visualDetails ?? []) increment(visualDetailCounts, detail);
+    for (const detail of seed.visualDetails ?? []) {
+      increment(visualDetailCounts, detail);
+      increment(sequentialDetailCounts, detail);
+    }
+    increment(sequentialThemeCounts, seed.visualTheme.id);
+    increment(sequentialPoseCounts, seed.pose.name);
+    increment(sequentialFxCounts, seed.fx.name);
+    if (previousSequentialSeed) {
+      const score = similarityScore(seed, previousSequentialSeed);
+      sequentialSimilarityTotal += score;
+      sequentialSimilarityMax = Math.max(sequentialSimilarityMax, score);
+      sequentialComparisonCount += 1;
+      if (score >= 65) tooSimilarSequentialCount += 1;
+      if (visualCore(seed) === visualCore(previousSequentialSeed)) consecutiveVisualCoreDuplicateCount += 1;
+    }
+    previousSequentialSeed = seed;
     increment(combinationCounts, `${seed.primaryClass}+${seed.visualTheme.id}+${seed.narrativeMotif.id}`);
     if (scholarThemes.has(seed.visualTheme.id)) {
       increment(scholarTriggers, `archetype:${seed.archetype.name}`);
@@ -295,6 +377,20 @@ function analyze(label, useSmartPool) {
     mismatchCounts,
     conflictCount,
     underusedDetailPools,
+    plainWeaponFallbackSources,
+    plainWeaponFallbackTags,
+    plainWeaponFallbackBuildTemplates,
+    plainWeaponFallbackThemes,
+    plainWeaponFallbackClasses,
+    sequentialThemeCounts,
+    sequentialPoseCounts,
+    sequentialFxCounts,
+    sequentialDetailCounts,
+    sequentialSimilarityAverage: sequentialComparisonCount > 0 ? sequentialSimilarityTotal / sequentialComparisonCount : 0,
+    sequentialSimilarityMax,
+    tooSimilarSequentialCount,
+    consecutiveVisualCoreDuplicateCount,
+    consecutiveVisualCoreDuplicateRate: sequentialComparisonCount > 0 ? consecutiveVisualCoreDuplicateCount / sequentialComparisonCount : 0,
   };
 }
 
@@ -320,7 +416,9 @@ for (const report of [baseline, smart]) {
   console.log(`Mismatch counts: weapon ${report.mismatchCounts.weaponLanguage}, armor ${report.mismatchCounts.armorLanguage}, silhouette ${report.mismatchCounts.silhouette}, companion ${report.mismatchCounts.companion}, visual motif ${report.mismatchCounts.visualMotif}`);
   console.log(`Fallback language usage: armor ${report.armorLanguageCounts.get('plain_armor_language') ?? 0} (${formatPercent(((report.armorLanguageCounts.get('plain_armor_language') ?? 0) / sampleSize) * 100)}), weapon ${report.weaponLanguageCounts.get('plain_weapon_language') ?? 0} (${formatPercent(((report.weaponLanguageCounts.get('plain_weapon_language') ?? 0) / sampleSize) * 100)})`);
   console.log(`Equipment contradiction count: ${report.equipmentContradictionCount}`);
+  console.log(`Recent similarity: avg ${report.sequentialSimilarityAverage.toFixed(1)}, max ${report.sequentialSimilarityMax}, too-similar ${report.tooSimilarSequentialCount}, visual-core duplicates ${report.consecutiveVisualCoreDuplicateCount} (${formatPercent(report.consecutiveVisualCoreDuplicateRate * 100)})`);
 }
+
 console.log(`\nUnderused theme activation from baseline-underused set: baseline ${baselineUnderusedActivation}, smart ${smartUnderusedActivation}`);
 console.log(`Class identity delta smart-baseline: ${(smart.classScoreAverage - baseline.classScoreAverage).toFixed(3)}`);
 console.log(`Theme entropy delta smart-baseline: ${(smart.themeEntropy.normalized - baseline.themeEntropy.normalized).toFixed(3)}`);
@@ -365,6 +463,25 @@ console.log(`Legendary companion rate: ${smart.legendaryCompanionCount}/${sample
 console.log(`Mismatch counts: weapon ${smart.mismatchCounts.weaponLanguage}, armor ${smart.mismatchCounts.armorLanguage}, silhouette ${smart.mismatchCounts.silhouette}, companion ${smart.mismatchCounts.companion}, visual motif ${smart.mismatchCounts.visualMotif}`);
 console.log(`Fallback language usage: armor ${smart.armorLanguageCounts.get('plain_armor_language') ?? 0}/${sampleSize} (${formatPercent(((smart.armorLanguageCounts.get('plain_armor_language') ?? 0) / sampleSize) * 100)}), weapon ${smart.weaponLanguageCounts.get('plain_weapon_language') ?? 0}/${sampleSize} (${formatPercent(((smart.weaponLanguageCounts.get('plain_weapon_language') ?? 0) / sampleSize) * 100)})`);
 console.log(`Equipment contradiction count: ${smart.equipmentContradictionCount}`);
+console.log(`Recent similarity: avg ${smart.sequentialSimilarityAverage.toFixed(1)}, max ${smart.sequentialSimilarityMax}, too-similar ${smart.tooSimilarSequentialCount}, visual-core duplicates ${smart.consecutiveVisualCoreDuplicateCount} (${formatPercent(smart.consecutiveVisualCoreDuplicateRate * 100)})`);
+console.log('Top 20 plain weapon fallback sources');
+for (const [item, count] of topEntries(smart.plainWeaponFallbackSources, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Plain weapon fallback by tag');
+for (const [item, count] of topEntries(smart.plainWeaponFallbackTags, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Plain weapon fallback by build template');
+for (const [item, count] of topEntries(smart.plainWeaponFallbackBuildTemplates, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Plain weapon fallback by visual theme');
+for (const [item, count] of topEntries(smart.plainWeaponFallbackThemes, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Plain weapon fallback by class');
+for (const [item, count] of topEntries(smart.plainWeaponFallbackClasses, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top repeated sequential visual themes');
+for (const [item, count] of topEntries(smart.sequentialThemeCounts, 10)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top repeated sequential poses');
+for (const [item, count] of topEntries(smart.sequentialPoseCounts, 10)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top repeated sequential FX');
+for (const [item, count] of topEntries(smart.sequentialFxCounts, 10)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top repeated sequential visual details');
+for (const [item, count] of topEntries(smart.sequentialDetailCounts, 10)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
 console.log('Equipment finish distribution');
 for (const [item, count] of topEntries(smart.equipmentFinishCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
 console.log('Enchantment intensity distribution');

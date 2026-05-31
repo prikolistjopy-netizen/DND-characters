@@ -32,7 +32,7 @@ run(
 );
 writeFileSync(path.join(outDir, 'package.json'), JSON.stringify({ type: 'commonjs' }));
 
-const { generateCharacterSeed, validateGeneratedSeed } = require(path.join(outDir, 'lib/generator.js'));
+const { generateCharacterSeed, validateGeneratedSeed, resetSmartCandidatePoolMemory } = require(path.join(outDir, 'lib/generator.js'));
 const { visualThemes, visualThemeVariants, narrativeMotifs, narrativeVariants, culturalOrigins, themeContentProfiles } = require(path.join(outDir, 'data/seedData.js'));
 
 const failures = [];
@@ -68,6 +68,20 @@ const equipmentFinishCounts = new Map();
 const equipmentEnchantmentCounts = new Map();
 const enchantmentIntensityCounts = new Map();
 const visualDetailCounts = new Map();
+const plainWeaponFallbackSources = new Map();
+const plainWeaponFallbackTags = new Map();
+const plainWeaponFallbackBuildTemplates = new Map();
+const plainWeaponFallbackThemes = new Map();
+const plainWeaponFallbackClasses = new Map();
+const sequentialThemeCounts = new Map();
+const sequentialPoseCounts = new Map();
+const sequentialFxCounts = new Map();
+const sequentialDetailCounts = new Map();
+let sequentialSimilarityTotal = 0;
+let sequentialSimilarityMax = 0;
+let sequentialComparisonCount = 0;
+let consecutiveVisualCoreDuplicateCount = 0;
+let tooSimilarSequentialCount = 0;
 let equipmentContradictionCount = 0;
 let companionActiveCount = 0;
 let legendaryCompanionCount = 0;
@@ -140,6 +154,42 @@ for (const motif of narrativeMotifs) {
 const voidFx = ['black-violet motes', 'void glow', 'purple void energy', 'drifting void ash', 'black-violet sparks', 'gravity distortions', 'fragmented stars'];
 const feyFx = ['petals and whimsical particles', 'green witchfire', 'soft fey glow', 'drifting petals', 'glowing pollen', 'moonlit butterflies', 'floating blossoms'];
 
+function detailOverlap(a, b) {
+  const set = new Set(a ?? []);
+  return (b ?? []).filter((item) => set.has(item)).length;
+}
+function visualCore(seed) {
+  return [seed.buildTemplate.id, seed.visualTheme.id, seed.pose.name, seed.weapon.name, seed.light.name, seed.fx.name].join('|');
+}
+function similarityScore(seed, previous) {
+  let score = 0;
+  if (seed.buildTemplate.id === previous.buildTemplate.id) score += 15;
+  if (seed.visualTheme.id === previous.visualTheme.id) score += 18;
+  if (seed.visualThemeVariant.id === previous.visualThemeVariant.id) score += 8;
+  if (seed.silhouetteProfile.id === previous.silhouetteProfile.id) score += 12;
+  if (seed.armor.name === previous.armor.name) score += 10;
+  if (seed.armorLanguage.id === previous.armorLanguage.id) score += 8;
+  if (seed.weapon.name === previous.weapon.name) score += 12;
+  if (seed.weaponLanguage.id === previous.weaponLanguage.id) score += 8;
+  if (seed.pose.name === previous.pose.name) score += 14;
+  if (seed.mood.name === previous.mood.name) score += 8;
+  if (seed.light.name === previous.light.name) score += 10;
+  if (seed.fx.name === previous.fx.name) score += 10;
+  if (seed.visualMotif.id === previous.visualMotif.id) score += 8;
+  if (seed.equipmentFinish.id === previous.equipmentFinish.id) score += 5;
+  if (seed.equipmentEnchantment.id === previous.equipmentEnchantment.id) score += 5;
+  if (seed.race.name === previous.race.name) score += 5;
+  if (seed.culturalOrigin.id === previous.culturalOrigin.id) score += 5;
+  if (seed.narrativeMotif.id === previous.narrativeMotif.id) score += 6;
+  if (seed.narrativeVariant.id === previous.narrativeVariant.id) score += 4;
+  if (seed.emotion === previous.emotion) score += 3;
+  score += detailOverlap(seed.storyDetails, previous.storyDetails) * 2;
+  score += detailOverlap(seed.cultureDetails, previous.cultureDetails) * 2;
+  return score;
+}
+resetSmartCandidatePoolMemory();
+let previousSequentialSeed = null;
+
 for (let index = 0; index < sampleSize; index += 1) {
   const result = generateCharacterSeed();
   const { seed } = result;
@@ -162,6 +212,26 @@ for (let index = 0; index < sampleSize; index += 1) {
   increment(companionCounts, seed.companion?.id ?? 'none');
   increment(armorLanguageCounts, seed.armorLanguage?.id ?? 'no-armor-language');
   increment(weaponLanguageCounts, seed.weaponLanguage?.id ?? 'no-weapon-language');
+  if (seed.weaponLanguage?.id === 'plain_weapon_language') {
+    increment(plainWeaponFallbackSources, seed.weapon.name);
+    for (const tag of seed.weapon.tags) increment(plainWeaponFallbackTags, tag);
+    increment(plainWeaponFallbackBuildTemplates, seed.buildTemplate.id);
+    increment(plainWeaponFallbackThemes, seed.visualTheme.id);
+    increment(plainWeaponFallbackClasses, seed.primaryClass);
+  }
+  increment(sequentialThemeCounts, seed.visualTheme.id);
+  increment(sequentialPoseCounts, seed.pose.name);
+  increment(sequentialFxCounts, seed.fx.name);
+  for (const detail of seed.visualDetails ?? []) increment(sequentialDetailCounts, detail);
+  if (previousSequentialSeed) {
+    const score = similarityScore(seed, previousSequentialSeed);
+    sequentialSimilarityTotal += score;
+    sequentialSimilarityMax = Math.max(sequentialSimilarityMax, score);
+    sequentialComparisonCount += 1;
+    if (score >= 65) tooSimilarSequentialCount += 1;
+    if (visualCore(seed) === visualCore(previousSequentialSeed)) consecutiveVisualCoreDuplicateCount += 1;
+  }
+  previousSequentialSeed = seed;
   increment(equipmentFinishCounts, seed.equipmentFinish?.id ?? 'no-equipment-finish');
   increment(equipmentEnchantmentCounts, seed.equipmentEnchantment?.id ?? 'no-equipment-enchantment');
   increment(enchantmentIntensityCounts, seed.enchantmentIntensity ?? 'no-intensity');
@@ -391,6 +461,7 @@ const plainArmorRate = (armorLanguageCounts.get('plain_armor_language') ?? 0) / 
 if (plainWeaponRate >= 0.20) failures.push(`plain weapon language fallback too high: ${(plainWeaponRate * 100).toFixed(1)}%`);
 if (plainArmorRate >= 0.20) failures.push(`plain armor language fallback too high: ${(plainArmorRate * 100).toFixed(1)}%`);
 if (equipmentContradictionCount > 0) failures.push(`equipment contradiction count should be zero: ${equipmentContradictionCount}`);
+if (consecutiveVisualCoreDuplicateCount > 0) failures.push(`consecutive visual core duplicate count should be zero: ${consecutiveVisualCoreDuplicateCount}`);
 
 const scholarTotal = [...scholarThemeCounts.values()].reduce((sum, count) => sum + count, 0);
 if (scholarTotal > sampleSize * 0.28) {
@@ -459,6 +530,11 @@ console.log(`Plain weapon language fallback: ${weaponLanguageCounts.get('plain_w
 console.log(`Equipment contradiction count: ${equipmentContradictionCount}`);
 console.log('Enchantment intensity distribution');
 for (const [key, count] of topEntries(enchantmentIntensityCounts, 10)) console.log(`${key}: ${count}/${sampleSize} (${((count / sampleSize) * 100).toFixed(1)}%)`);
+console.log(`Recent similarity average: ${(sequentialSimilarityTotal / Math.max(1, sequentialComparisonCount)).toFixed(1)}`);
+console.log(`Recent similarity max: ${sequentialSimilarityMax}`);
+console.log(`Too-similar sequential count: ${tooSimilarSequentialCount}`);
+console.log(`Consecutive visual core duplicate count: ${consecutiveVisualCoreDuplicateCount}`);
+console.log(`Consecutive visual core duplicate rate: ${((consecutiveVisualCoreDuplicateCount / Math.max(1, sequentialComparisonCount)) * 100).toFixed(1)}%`);
 console.log('Mismatch statistics');
 for (const [key, count] of Object.entries(mismatchCounts)) console.log(`${key}: ${count}`);
 if (warnings.length > 0) {
@@ -480,6 +556,15 @@ printStats('Top visual motifs', visualMotifCounts);
 printStats('Top companions', companionCounts);
 printStats('Top armor languages', armorLanguageCounts);
 printStats('Top weapon languages', weaponLanguageCounts);
+printStats('Top 20 plain weapon fallback sources', plainWeaponFallbackSources);
+printStats('Plain weapon fallback by tag', plainWeaponFallbackTags);
+printStats('Plain weapon fallback by buildTemplate', plainWeaponFallbackBuildTemplates);
+printStats('Plain weapon fallback by visualTheme', plainWeaponFallbackThemes);
+printStats('Plain weapon fallback by class', plainWeaponFallbackClasses);
+printStats('Top repeated sequential visual themes', sequentialThemeCounts);
+printStats('Top repeated sequential poses', sequentialPoseCounts);
+printStats('Top repeated sequential FX', sequentialFxCounts);
+printStats('Top repeated sequential visual details', sequentialDetailCounts);
 printStats('Top equipment finishes', equipmentFinishCounts);
 printStats('Top equipment enchantments', equipmentEnchantmentCounts);
 printStats('Top visual details', visualDetailCounts);

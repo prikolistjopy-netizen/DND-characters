@@ -66,6 +66,7 @@ import {
 } from '../data/seedData';
 
 type Mode = (typeof modeWeights)[number]['name'];
+export type DiversityMode = 'off' | 'soft' | 'strict';
 type RegenerableLayer = 'template' | 'theme' | 'themeVariant' | 'motif' | 'narrativeVariant' | 'culture' | 'armor' | 'weapon' | 'silhouette' | 'pose' | 'mood' | 'light' | 'fx';
 
 type TemplateSelection = {
@@ -108,6 +109,7 @@ type SmartSelectionContext = {
 
 export type GenerationOptions = {
   useSmartPool?: boolean;
+  diversityMode?: DiversityMode;
 };
 
 export type CharacterSeed = {
@@ -161,6 +163,13 @@ export type GenerationResult = {
   trace: string[];
 };
 
+type SimilarityReport = {
+  score: number;
+  tooSimilar: boolean;
+  duplicateVisualCore: boolean;
+  similarSummary: string;
+};
+
 export type ValidationIssue = {
   message: string;
   layers: RegenerableLayer[];
@@ -170,6 +179,7 @@ const smallRaceNames = ['gnome', 'halfling', 'fairy'];
 const casterClasses: CharacterClass[] = ['wizard', 'sorcerer'];
 const hardArmorTags = ['light', 'medium', 'heavy', 'metal'];
 const scholarThemeIds = new Set(['divine_archivist', 'academy_mage', 'archive_performer']);
+const recentSeedMemory: CharacterSeed[] = [];
 const fallbackTemplateByClass: Record<CharacterClass, string> = {
   artificer: 'battle_engineer',
   barbarian: 'savage_berserker',
@@ -429,6 +439,7 @@ const smartRecentPicks = new Map<SmartSelectionLayer, string[]>();
 
 export function resetSmartCandidatePoolMemory(): void {
   smartRecentPicks.clear();
+  recentSeedMemory.length = 0;
 }
 
 function getCandidateId(item: unknown): string {
@@ -1184,12 +1195,33 @@ function visualMotifCompatible(motif: VisualMotif, theme: VisualTheme, buildTemp
 function weaponLanguageCompatible(language: WeaponLanguage, weapon: WeaponOption, buildTemplate: BuildTemplate, theme: VisualTheme, profile: ThemeVisualProfile): boolean {
   if (!language.baseWeaponTags.some((tag) => weapon.tags.includes(tag))) return false;
   if (language.id === 'plain_weapon_language') return language.compatibleBuildTemplates.includes(buildTemplate.id);
+  const isBookOnly = hasAny(weapon.tags, ['book', 'spellbook', 'grimoire']) && !weapon.tags.includes('staff');
+  const isStaffOnly = weapon.tags.includes('staff') && !hasAny(weapon.tags, ['book', 'spellbook', 'grimoire']);
+  const isMapTool = hasAny(weapon.tags, ['scroll', 'map', 'compass', 'case']) && !hasAny(weapon.tags, ['sword', 'blade', 'hammer', 'warhammer', 'mace', 'bow']);
+  const isOrbOnly = weapon.tags.includes('orb') && !weapon.tags.includes('staff');
+  if (isBookOnly && /staff|spear|blade|bow|hammer|maul|axe|lute|flute|calibrator|wrench|gauntlet|orb|crystal|focus/i.test(language.id)) return false;
+  if (isStaffOnly && /book|grimoire|map|scroll|compass|lute|dagger|blade|bow|hammer|axe|calibrator|wrench|gauntlet/i.test(language.id)) return false;
+  if (isMapTool && /blade|sword|dagger|bow|hammer|maul|axe|staff|lute|flute/i.test(language.id)) return false;
+  if (isMapTool && /spellbook|grimoire|living_spellbook|weathered_spellbook|holy_book|prayer_book/i.test(language.id) && !/scroll|map|compass|case|songbook/.test(language.id)) return false;
+  if (isOrbOnly && /staff|book|grimoire|map|scroll|blade|sword|bow|hammer|axe/i.test(language.id)) return false;
+  if (weapon.tags.includes('staff') && /orb|crystal|lens_focus|relic_focus|glass_focus/.test(language.id) && !/staff/.test(language.id)) return false;
+
+  const focusOnlyLanguages = ['fey_crystal_focus_language', 'thorn_focus_language', 'holy_relic_focus', 'mechanical_lens_focus', 'storm_glass_focus', 'starseer_crystal_focus', 'void_orb_focus'];
+  if (focusOnlyLanguages.includes(language.id) && hasAny(weapon.tags, ['rapier', 'sword', 'blade', 'dagger', 'dual-blades', 'bow', 'shortbow', 'longbow', 'hammer', 'warhammer', 'mace', 'maul', 'axe', 'greataxe', 'greatsword', 'spear', 'shield', 'melee', 'martial'])) return false;
+  if (language.id === 'siege_maul' && !hasAny(weapon.tags, ['maul', 'hammer'])) return false;
+  if (['battle_lute_language', 'skald_war_lute'].includes(language.id) && !weapon.tags.includes('lute')) return false;
+  if (language.id === 'enchanted_flute_language' && !hasAny(weapon.tags, ['flute', 'fey-focus'])) return false;
+  if (language.id === 'storykeeper_songbook' && !hasAny(weapon.tags, ['book', 'spellbook', 'scroll', 'case'])) return false;
+  if (weapon.tags.includes('instrument') && /mechanical|calibrator|wrench|gauntlet|engineer/i.test(language.id) && buildTemplate.id !== 'battle_engineer') return false;
   if (language.id === 'dragon_hunter_blade' && hasAny(weapon.tags, ['bow', 'warhammer', 'hammer', 'mace', 'staff', 'instrument', 'tool'])) return false;
   if (language.id === 'reliquary_warhammer' && !hasAny(weapon.tags, ['warhammer', 'hammer', 'mace'])) return false;
-  if (language.id === 'academy_spell_staff' && !hasAny(weapon.tags, ['staff', 'book', 'wand', 'focus'])) return false;
+  if (language.id === 'academy_spell_staff' && !hasAny(weapon.tags, ['staff', 'wand'])) return false;
+  if (language.id === 'academy_spellbook_language' && !hasAny(weapon.tags, ['book', 'spellbook', 'grimoire'])) return false;
   if (language.id === 'void_orb_focus' && !hasAny(weapon.tags, ['orb', 'occult'])) return false;
   if (language.id === 'ranger_bone_bow' && !weapon.tags.includes('bow')) return false;
   if (language.id === 'fey_cane_sword' && !weapon.tags.includes('rapier')) return false;
+  if (['holy_symbol_staff', 'pilgrim_staff_language', 'gravewarden_staff'].includes(language.id) && !weapon.tags.includes('staff')) return false;
+  if (['holy_book_reliquary', 'holy_book_language', 'ritual_prayer_book'].includes(language.id) && !hasAny(weapon.tags, ['book', 'spellbook', 'grimoire'])) return false;
   if (language.id === 'mechanical_tool_focus' && !(hasAny(weapon.tags, ['mechanical', 'mechanical-focus', 'mechanical-weapon', 'device']) || (weapon.tags.includes('tool') && buildTemplate.id === 'battle_engineer'))) return false;
   return language.compatibleBuildTemplates.includes(buildTemplate.id) && (language.compatibleThemes.length === 0 || language.compatibleThemes.includes(theme.id) || profile.weaponLanguageIds.includes(language.id));
 }
@@ -1259,6 +1291,13 @@ function equipmentEnchantmentCompatible(enchantment: EquipmentEnchantment, seed:
   if (enchantment.forbiddenThemes?.includes(seed.visualTheme.id)) return false;
   if (enchantment.forbiddenPillars?.includes(seed.fantasyPillar.id)) return false;
   if (enchantmentContradictsFx(enchantment, seed.fx)) return false;
+  const isMapOrBook = hasAny(seed.weapon.tags, ['book', 'spellbook', 'grimoire', 'scroll', 'map', 'compass', 'case']);
+  const isInstrument = seed.weapon.tags.includes('instrument');
+  const isOrb = seed.weapon.tags.includes('orb');
+  const family = enchantmentFamily(enchantment);
+  if (isMapOrBook && ['battle', 'storm', 'mechanical'].includes(family) && !(seed.mode === 'chaos' || seed.visualTheme.id === 'storm_sailor')) return false;
+  if (isInstrument && family === 'mechanical' && seed.buildTemplate.id !== 'battle_engineer') return false;
+  if (isOrb && family === 'battle') return false;
   if (!enchantment.compatibleBuildTemplates.includes(seed.buildTemplate.id) && !enchantment.compatibleThemes.includes(seed.visualTheme.id) && !enchantment.compatiblePillars.includes(seed.fantasyPillar.id)) return false;
   if (enchantment.compatibleWeaponTags && !enchantment.compatibleWeaponTags.some((tag) => seed.weapon.tags.includes(tag))) {
     if (!enchantment.compatibleArmorCategories || !enchantment.compatibleArmorCategories.some((tag) => seed.armor.tags.includes(tag))) return false;
@@ -1268,7 +1307,6 @@ function equipmentEnchantmentCompatible(enchantment: EquipmentEnchantment, seed:
   }
   if (enchantment.compatibleVisualMotifs && !enchantment.compatibleVisualMotifs.includes(seed.visualMotif.id)) return false;
   if (enchantment.intensity === 'legendary' && !(enchantment.compatibleThemes.includes(seed.visualTheme.id) || seed.mode === 'chaos')) return false;
-  const family = enchantmentFamily(enchantment);
   if (family === 'void' && !(seed.visualTheme.id === 'void_oracle' || ['occult', 'mystic'].includes(seed.fantasyPillar.id) || seed.mode === 'chaos')) return false;
   if (family === 'holy' && !(seed.buildTemplate.id === 'holy_warrior' || seed.fantasyPillar.id === 'divine' || seed.mode === 'chaos')) return false;
   if (family === 'fey' && !(seed.fantasyPillar.id === 'fey' || seed.mode === 'chaos')) return false;
@@ -1396,7 +1434,7 @@ function selectWeaponLanguage(weapon: WeaponOption, buildTemplate: BuildTemplate
     'Weapon Language',
     (pool.length > 0 ? pool : weaponLanguages.filter((language) => language.baseWeaponTags.some((tag) => weapon.tags.includes(tag)))).map((language) => ({
       item: language,
-      score: 35 + (profile.weaponLanguageIds.includes(language.id) ? 30 : 0) + (language.compatibleThemes.includes(theme.id) ? 25 : 0) + language.baseWeaponTags.filter((tag) => weapon.tags.includes(tag)).length * 8,
+      score: 35 + (profile.weaponLanguageIds.includes(language.id) ? 30 : 0) + (language.compatibleThemes.includes(theme.id) ? 25 : 0) + language.baseWeaponTags.filter((tag) => weapon.tags.includes(tag)).length * 8 + (language.id !== 'plain_weapon_language' ? 20 : -80),
       reasons: [`weapon ${weapon.name}`, `theme ${theme.id}`],
     })),
     context,
@@ -1856,6 +1894,45 @@ export function validateGeneratedSeed(seed: CharacterSeed): ValidationIssue[] {
   }
 
 
+  const languageId = seed.weaponLanguage.id;
+  const bookOnlyWeapon = hasAny(seed.weapon.tags, ['book', 'spellbook', 'grimoire']) && !seed.weapon.tags.includes('staff');
+  const staffOnlyWeapon = seed.weapon.tags.includes('staff') && !hasAny(seed.weapon.tags, ['book', 'spellbook', 'grimoire']);
+  const mapToolWeapon = hasAny(seed.weapon.tags, ['scroll', 'map', 'compass', 'case']) && !hasAny(seed.weapon.tags, ['sword', 'blade', 'hammer', 'warhammer', 'mace', 'bow']);
+  const orbOnlyWeapon = seed.weapon.tags.includes('orb') && !seed.weapon.tags.includes('staff');
+  if (bookOnlyWeapon && /staff|spear|blade|bow|hammer|maul|axe|lute|flute|calibrator|wrench|gauntlet|orb|crystal|focus/i.test(languageId)) {
+    issues.push({ message: 'book or spellbook cannot use staff, martial, instrument, or mechanical weapon language', layers: ['weapon'] });
+  }
+  if (staffOnlyWeapon && /book|grimoire|map|scroll|compass|lute|dagger|blade|bow|hammer|axe|calibrator|wrench|gauntlet|orb|crystal|lens_focus|relic_focus|glass_focus/i.test(languageId)) {
+    issues.push({ message: 'staff cannot use book, map, martial, instrument, or mechanical weapon language', layers: ['weapon'] });
+  }
+  if (mapToolWeapon && /blade|sword|dagger|bow|hammer|maul|axe|staff|lute|flute/i.test(languageId)) {
+    issues.push({ message: 'scroll, map, compass, or case cannot use martial-only weapon language', layers: ['weapon'] });
+  }
+  if (orbOnlyWeapon && /staff|book|grimoire|map|scroll|blade|sword|bow|hammer|axe/i.test(languageId)) {
+    issues.push({ message: 'orb or crystal focus cannot use staff, book, map, or martial weapon language', layers: ['weapon'] });
+  }
+
+  const focusOnlyLanguageIds = ['fey_crystal_focus_language', 'thorn_focus_language', 'holy_relic_focus', 'mechanical_lens_focus', 'storm_glass_focus', 'starseer_crystal_focus', 'void_orb_focus'];
+  if (focusOnlyLanguageIds.includes(languageId) && hasAny(seed.weapon.tags, ['rapier', 'sword', 'blade', 'dagger', 'dual-blades', 'bow', 'shortbow', 'longbow', 'hammer', 'warhammer', 'mace', 'maul', 'axe', 'greataxe', 'greatsword', 'spear', 'shield', 'melee', 'martial'])) {
+    issues.push({ message: 'martial weapon cannot use focus-only weapon language', layers: ['weapon'] });
+  }
+  if (languageId === 'siege_maul' && !hasAny(seed.weapon.tags, ['maul', 'hammer'])) {
+    issues.push({ message: 'siege maul language requires maul or hammer base weapon tags', layers: ['weapon'] });
+  }
+  if (['battle_lute_language', 'skald_war_lute'].includes(languageId) && !seed.weapon.tags.includes('lute')) {
+    issues.push({ message: 'lute language requires lute base weapon tag', layers: ['weapon'] });
+  }
+  if (languageId === 'enchanted_flute_language' && !hasAny(seed.weapon.tags, ['flute', 'fey-focus'])) {
+    issues.push({ message: 'flute language requires flute or fey-focus base weapon tag', layers: ['weapon'] });
+  }
+  if (languageId === 'storykeeper_songbook' && !hasAny(seed.weapon.tags, ['book', 'spellbook', 'scroll', 'case'])) {
+    issues.push({ message: 'songbook language requires book, scroll, or case base weapon tag', layers: ['weapon'] });
+  }
+  const enchantFamilyForValidation = enchantmentFamily(seed.equipmentEnchantment);
+  if (mapToolWeapon && ['battle', 'storm', 'mechanical'].includes(enchantFamilyForValidation) && !(seed.mode === 'chaos' || seed.visualTheme.id === 'storm_sailor')) {
+    issues.push({ message: 'book, scroll, map, or compass cannot use martial-only equipment enchantment', layers: ['weapon', 'fx'] });
+  }
+
   if (seed.weapon.tags.includes('bow') && seed.weaponLanguage.id === 'dragon_hunter_blade') {
     issues.push({ message: 'bow cannot use blade weapon language', layers: ['weapon'] });
   }
@@ -2208,11 +2285,80 @@ function formatPrompt(seed: CharacterSeed): string {
   ].join(' ');
 }
 
+
+function visualCore(seed: CharacterSeed): string {
+  return [seed.buildTemplate.id, seed.visualTheme.id, seed.pose.name, seed.weapon.name, seed.light.name, seed.fx.name].join('|');
+}
+
+function seedSummary(seed: CharacterSeed): string {
+  return `${seed.primaryClass}/${seed.visualTheme.id}/${seed.visualThemeVariant.id}/${seed.weapon.name}/${seed.pose.name}/${seed.light.name}/${seed.fx.name}`;
+}
+
+function detailOverlap(a: string[], b: string[]): number {
+  const set = new Set(a);
+  return b.filter((item) => set.has(item)).length;
+}
+
+function similarityScore(seed: CharacterSeed, previous: CharacterSeed): number {
+  let score = 0;
+  if (seed.buildTemplate.id === previous.buildTemplate.id) score += 15;
+  if (seed.visualTheme.id === previous.visualTheme.id) score += 18;
+  if (seed.visualThemeVariant.id === previous.visualThemeVariant.id) score += 8;
+  if (seed.silhouetteProfile.id === previous.silhouetteProfile.id) score += 12;
+  if (seed.armor.name === previous.armor.name) score += 10;
+  if (seed.armorLanguage.id === previous.armorLanguage.id) score += 8;
+  if (seed.weapon.name === previous.weapon.name) score += 12;
+  if (seed.weaponLanguage.id === previous.weaponLanguage.id) score += 8;
+  if (seed.pose.name === previous.pose.name) score += 14;
+  if (seed.mood.name === previous.mood.name) score += 8;
+  if (seed.light.name === previous.light.name) score += 10;
+  if (seed.fx.name === previous.fx.name) score += 10;
+  if (seed.visualMotif.id === previous.visualMotif.id) score += 8;
+  if (seed.equipmentFinish.id === previous.equipmentFinish.id) score += 5;
+  if (seed.equipmentEnchantment.id === previous.equipmentEnchantment.id) score += 5;
+  if (seed.race.name === previous.race.name) score += 5;
+  if (seed.culturalOrigin.id === previous.culturalOrigin.id) score += 5;
+  if (seed.narrativeMotif.id === previous.narrativeMotif.id) score += 6;
+  if (seed.narrativeVariant.id === previous.narrativeVariant.id) score += 4;
+  if (seed.emotion === previous.emotion) score += 3;
+  score += detailOverlap(seed.storyDetails, previous.storyDetails) * 2;
+  score += detailOverlap(seed.cultureDetails, previous.cultureDetails) * 2;
+  return score;
+}
+
+function analyzeRecentSimilarity(seed: CharacterSeed, threshold: number): SimilarityReport {
+  let bestScore = 0;
+  let bestSeed: CharacterSeed | null = null;
+  let duplicateVisualCore = false;
+  for (const previous of recentSeedMemory.slice(-20)) {
+    const score = similarityScore(seed, previous);
+    if (score > bestScore) { bestScore = score; bestSeed = previous; }
+    const sameCore = visualCore(seed) === visualCore(previous);
+    const sameTemplateThemeWeaponPoseLightFx = seed.buildTemplate.id === previous.buildTemplate.id && seed.visualTheme.id === previous.visualTheme.id && seed.weapon.name === previous.weapon.name && seed.pose.name === previous.pose.name && seed.light.name === previous.light.name && seed.fx.name === previous.fx.name;
+    const sameTemplateThemeArmorWeaponDetails = seed.buildTemplate.id === previous.buildTemplate.id && seed.visualTheme.id === previous.visualTheme.id && seed.armor.name === previous.armor.name && seed.weapon.name === previous.weapon.name && detailOverlap(seed.visualDetails, previous.visualDetails) >= 2;
+    if (sameCore || sameTemplateThemeWeaponPoseLightFx || sameTemplateThemeArmorWeaponDetails) duplicateVisualCore = true;
+  }
+  return { score: bestScore, tooSimilar: bestScore >= threshold || duplicateVisualCore, duplicateVisualCore, similarSummary: bestSeed ? seedSummary(bestSeed) : 'none' };
+}
+
+function rememberSeed(seed: CharacterSeed): void {
+  recentSeedMemory.push(seed);
+  if (recentSeedMemory.length > 20) recentSeedMemory.splice(0, recentSeedMemory.length - 20);
+}
+
+function diversityThreshold(mode: DiversityMode, seedMode: Mode): number {
+  if (mode === 'strict') return seedMode === 'chaos' ? 80 : 55;
+  if (mode === 'soft') return seedMode === 'chaos' ? 80 : 65;
+  return Number.POSITIVE_INFINITY;
+}
+
 export function generateCharacterSeed(options: GenerationOptions = {}): GenerationResult {
   const useSmartPool = options.useSmartPool ?? true;
-  const trace: string[] = [`Starting v8 smart candidate pool generation (${useSmartPool ? 'smart pool' : 'baseline weighted'} mode).`];
+  const diversityMode = options.diversityMode ?? 'soft';
+  const trace: string[] = [`Starting v8 smart candidate pool generation (${useSmartPool ? 'smart pool' : 'baseline weighted'} mode; diversity ${diversityMode}).`];
   const context: SmartSelectionContext = { useSmartPool, trace };
-  const seed = createSeed(context);
+  let seed = createSeed(context);
+  let similarityStatus: SimilarityReport = { score: 0, tooSimilar: false, duplicateVisualCore: false, similarSummary: 'none' };
 
   trace.push(`Selected mode: ${seed.mode}.`);
   trace.push(`Selected class: primary ${seed.primaryClass}; classes ${seed.classes.join(' / ')}.`);
@@ -2229,7 +2375,20 @@ export function generateCharacterSeed(options: GenerationOptions = {}): Generati
   trace.push(`Motif selection reason: ${seed.motifReason}.`);
   trace.push(`Motif compatibility filters: template ${seed.buildTemplate.id}, theme ${seed.visualTheme.id}, class ${seed.primaryClass}, race ${seed.race.name}, tags ${seed.archetype.tags.join(', ')}.`);
 
-  const resolvedSeed = refreshVisualLibraryLayers(withClassAnchorScore(resolveSeedConflicts(seed, trace, context)), context);
+  let resolvedSeed = refreshVisualLibraryLayers(withClassAnchorScore(resolveSeedConflicts(seed, trace, context)), context);
+  if (diversityMode !== 'off') {
+    const threshold = diversityThreshold(diversityMode, resolvedSeed.mode);
+    for (let attempt = 0; attempt <= 60; attempt += 1) {
+      similarityStatus = analyzeRecentSimilarity(resolvedSeed, threshold);
+      if (!similarityStatus.tooSimilar) break;
+      trace.push(`Recent similarity guard reroll ${attempt + 1}: score ${similarityStatus.score}, duplicate visual core ${similarityStatus.duplicateVisualCore}, most similar ${similarityStatus.similarSummary}.`);
+      seed = createSeed(context);
+      resolvedSeed = refreshVisualLibraryLayers(withClassAnchorScore(resolveSeedConflicts(seed, trace, context)), context);
+    }
+  }
+  similarityStatus = analyzeRecentSimilarity(resolvedSeed, diversityThreshold(diversityMode, resolvedSeed.mode));
+  trace.push(`Recent similarity score: ${similarityStatus.score}; most similar previous seed: ${similarityStatus.similarSummary}; duplicate visual core: ${similarityStatus.duplicateVisualCore}; final status: ${similarityStatus.tooSimilar ? 'accepted after retry budget' : 'distinct'}.`);
+  rememberSeed(resolvedSeed);
   trace.push(`Final fantasy pillar: ${resolvedSeed.fantasyPillar.label}.`);
   trace.push(`Final selected visualTheme: ${resolvedSeed.visualTheme.id}.`);
   trace.push(`Final selected visualThemeVariant: ${resolvedSeed.visualThemeVariant.id}.`);
