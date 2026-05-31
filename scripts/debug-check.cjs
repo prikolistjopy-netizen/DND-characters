@@ -140,7 +140,28 @@ let tripleMulticlassCount = 0;
 let forbiddenMulticlassCount = 0;
 let multiclassAnchorTotal = 0;
 let multiclassAnchorCount = 0;
+let imagePromptWordTotal = 0;
+let imagePromptWordMax = 0;
+let imagePromptOver450Count = 0;
+let imagePromptNoReadableTextCount = 0;
+let imagePromptNoTextPhraseCount = 0;
+let imagePromptFullBodyModePhraseCount = 0;
+let imagePromptFullBodyModeTotal = 0;
+let imagePromptRaceAppearanceCount = 0;
+let imagePromptClassReadabilityCount = 0;
+let imagePromptQualityRulesCount = 0;
+let imagePromptNegativePromptCount = 0;
+let imagePromptScenePropTotal = 0;
+let imagePromptCharacterBoundTotal = 0;
 const warnings = [];
+
+function wordCount(text) {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function hasForbiddenNoTextPhrase(text) {
+  return /\bno text\b|no text in image/i.test(text);
+}
 
 function classifyValidationIssue(issue) {
   const message = issue.message;
@@ -285,6 +306,23 @@ for (let index = 0; index < sampleSize; index += 1) {
   if (!result.promptDraft.includes('no readable text') || result.promptDraft.includes('no text in image')) {
     failures.push(`prompt must use no readable text guidance :: ${summary}`);
   }
+  const imagePrompt = result.imagePrompt ?? '';
+  const imageWords = wordCount(imagePrompt);
+  imagePromptWordTotal += imageWords;
+  imagePromptWordMax = Math.max(imagePromptWordMax, imageWords);
+  if (imageWords > 450) imagePromptOver450Count += 1;
+  if (imagePrompt.includes('no readable text')) imagePromptNoReadableTextCount += 1;
+  if (hasForbiddenNoTextPhrase(imagePrompt)) imagePromptNoTextPhraseCount += 1;
+  if (seed.compositionMode === 'full_body_character_art') {
+    imagePromptFullBodyModeTotal += 1;
+    if (imagePrompt.includes('full-body character concept art') && imagePrompt.includes('entire body visible from head to toe')) imagePromptFullBodyModePhraseCount += 1;
+  }
+  if (imagePrompt.includes('Race appearance:')) imagePromptRaceAppearanceCount += 1;
+  if (imagePrompt.includes('Class and build fantasy:') && imagePrompt.includes('clearly readable as')) imagePromptClassReadabilityCount += 1;
+  if (imagePrompt.includes('Quality rules:')) imagePromptQualityRulesCount += 1;
+  if (imagePrompt.includes('Negative prompt:')) imagePromptNegativePromptCount += 1;
+  imagePromptScenePropTotal += seed.sceneProps?.length ?? 0;
+  imagePromptCharacterBoundTotal += seed.characterBoundDetails?.length ?? 0;
   if ((seed.characterBoundDetails?.length ?? 0) < (seed.sceneProps?.length ?? 0) && seed.compositionMode !== 'cinematic_splash_art') {
     failures.push(`character-bound details should dominate scene props :: ${summary}`);
   }
@@ -595,6 +633,14 @@ const dreamWalkerRate = dreamWalkerCount / sampleSize;
 if (dreamWalkerRate > 0.10) failures.push(`dream_walker activation dominated distribution: ${(dreamWalkerRate * 100).toFixed(1)}%`);
 if (dreamWalkerCount > 0 && dreamWalkerScenePropTotal / dreamWalkerCount > 1.2) failures.push(`dream_walker scene prop average too high: ${(dreamWalkerScenePropTotal / dreamWalkerCount).toFixed(2)}`);
 if (dreamWalkerCount > 0 && dreamWalkerIconicCount / dreamWalkerCount > 0.20) failures.push(`dream_walker iconic/legendary detail rate too high: ${((dreamWalkerIconicCount / dreamWalkerCount) * 100).toFixed(1)}%`);
+if (imagePromptOver450Count > 0) failures.push(`image prompts over 450 words: ${imagePromptOver450Count}/${sampleSize}`);
+if (imagePromptNoReadableTextCount !== sampleSize) failures.push(`image prompt no readable text phrase missing: ${sampleSize - imagePromptNoReadableTextCount}/${sampleSize}`);
+if (imagePromptNoTextPhraseCount !== 0) failures.push(`image prompt forbidden no text phrase count: ${imagePromptNoTextPhraseCount}`);
+if (imagePromptFullBodyModePhraseCount !== imagePromptFullBodyModeTotal) failures.push(`full-body image prompts missing full-body phrase: ${imagePromptFullBodyModeTotal - imagePromptFullBodyModePhraseCount}/${imagePromptFullBodyModeTotal}`);
+if (imagePromptRaceAppearanceCount !== sampleSize) failures.push(`image prompts missing race appearance phrase: ${sampleSize - imagePromptRaceAppearanceCount}/${sampleSize}`);
+if (imagePromptClassReadabilityCount !== sampleSize) failures.push(`image prompts missing class readability phrase: ${sampleSize - imagePromptClassReadabilityCount}/${sampleSize}`);
+if (imagePromptQualityRulesCount !== sampleSize) failures.push(`image prompts missing quality rules: ${sampleSize - imagePromptQualityRulesCount}/${sampleSize}`);
+if (imagePromptNegativePromptCount !== sampleSize) failures.push(`image prompts missing negative prompt: ${sampleSize - imagePromptNegativePromptCount}/${sampleSize}`);
 if (consecutiveVisualCoreDuplicateCount > 0) failures.push(`consecutive visual core duplicate count should be zero: ${consecutiveVisualCoreDuplicateCount}`);
 const ordinaryRate = (modeCounts.get('ordinary class') ?? 0) / sampleSize;
 const curatedRate = (modeCounts.get('curated multiclass') ?? 0) / sampleSize;
@@ -684,6 +730,19 @@ console.log(`Recent similarity max: ${sequentialSimilarityMax}`);
 console.log(`Too-similar sequential count: ${tooSimilarSequentialCount}`);
 console.log(`Consecutive visual core duplicate count: ${consecutiveVisualCoreDuplicateCount}`);
 console.log(`Consecutive visual core duplicate rate: ${((consecutiveVisualCoreDuplicateCount / Math.max(1, sequentialComparisonCount)) * 100).toFixed(1)}%`);
+console.log('Image Prompt quality statistics');
+console.log(`Average Image Prompt word count: ${(imagePromptWordTotal / sampleSize).toFixed(1)}`);
+console.log(`Max Image Prompt word count: ${imagePromptWordMax}`);
+console.log(`Image Prompts over 450 words: ${imagePromptOver450Count}/${sampleSize} (${((imagePromptOver450Count / sampleSize) * 100).toFixed(1)}%)`);
+console.log(`Image Prompts with no readable text phrase: ${imagePromptNoReadableTextCount}/${sampleSize} (${((imagePromptNoReadableTextCount / sampleSize) * 100).toFixed(1)}%)`);
+console.log(`Image Prompts with forbidden no text phrase: ${imagePromptNoTextPhraseCount}/${sampleSize} (${((imagePromptNoTextPhraseCount / sampleSize) * 100).toFixed(1)}%)`);
+console.log(`Full-body mode prompts with full-body phrase: ${imagePromptFullBodyModePhraseCount}/${Math.max(1, imagePromptFullBodyModeTotal)} (${((imagePromptFullBodyModePhraseCount / Math.max(1, imagePromptFullBodyModeTotal)) * 100).toFixed(1)}%)`);
+console.log(`Image Prompts with race appearance phrase: ${imagePromptRaceAppearanceCount}/${sampleSize} (${((imagePromptRaceAppearanceCount / sampleSize) * 100).toFixed(1)}%)`);
+console.log(`Image Prompts with class readability phrase: ${imagePromptClassReadabilityCount}/${sampleSize} (${((imagePromptClassReadabilityCount / sampleSize) * 100).toFixed(1)}%)`);
+console.log(`Image Prompts with quality rules: ${imagePromptQualityRulesCount}/${sampleSize} (${((imagePromptQualityRulesCount / sampleSize) * 100).toFixed(1)}%)`);
+console.log(`Image Prompts with negative prompt: ${imagePromptNegativePromptCount}/${sampleSize} (${((imagePromptNegativePromptCount / sampleSize) * 100).toFixed(1)}%)`);
+console.log(`Average scene props in Image Prompt: ${(imagePromptScenePropTotal / sampleSize).toFixed(2)}`);
+console.log(`Average character-bound details in Image Prompt: ${(imagePromptCharacterBoundTotal / sampleSize).toFixed(2)}`);
 console.log('Mismatch statistics');
 for (const [key, count] of Object.entries(mismatchCounts)) console.log(`${key}: ${count}`);
 console.log('Appearance and clutter statistics');

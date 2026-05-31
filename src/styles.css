@@ -164,6 +164,15 @@ h2 {
   font-size: 1.02rem;
 }
 
+.image-prompt-card {
+  border-color: rgba(255, 217, 138, 0.28);
+  background: linear-gradient(180deg, rgba(255, 217, 138, 0.08), rgba(255, 255, 255, 0.04));
+}
+
+.draft-prompt-card p {
+  color: #d8c8b7;
+}
+
 .trace-card {
   grid-column: 1 / -1;
 }

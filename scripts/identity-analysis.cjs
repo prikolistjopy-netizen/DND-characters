@@ -56,6 +56,14 @@ function formatPercent(value) {
   return `${value.toFixed(1)}%`;
 }
 
+function wordCount(text) {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function hasForbiddenNoTextPhrase(text) {
+  return /\bno text\b|no text in image/i.test(text);
+}
+
 function entropy(counts) {
   const total = [...counts.values()].reduce((sum, count) => sum + count, 0);
   if (total === 0 || counts.size <= 1) return { entropy: 0, normalized: 0 };
@@ -254,6 +262,19 @@ function analyze(label, useSmartPool) {
   let equipmentContradictionCount = 0;
   let companionActiveCount = 0;
   let legendaryCompanionCount = 0;
+  let imagePromptWordTotal = 0;
+  let imagePromptWordMax = 0;
+  let imagePromptOver450Count = 0;
+  let imagePromptNoReadableTextCount = 0;
+  let imagePromptNoTextPhraseCount = 0;
+  let imagePromptFullBodyModePhraseCount = 0;
+  let imagePromptFullBodyModeTotal = 0;
+  let imagePromptRaceAppearanceCount = 0;
+  let imagePromptClassReadabilityCount = 0;
+  let imagePromptQualityRulesCount = 0;
+  let imagePromptNegativePromptCount = 0;
+  let imagePromptScenePropTotal = 0;
+  let imagePromptCharacterBoundTotal = 0;
   let previousSequentialSeed = null;
   let sequentialSimilarityTotal = 0;
   let sequentialSimilarityMax = 0;
@@ -293,6 +314,23 @@ function analyze(label, useSmartPool) {
     for (const prop of seed.sceneProps ?? []) increment(scenePropTop, prop);
     const sceneLimit = seed.compositionMode === 'cinematic_splash_art' ? 3 : seed.environmentDetailLevel === 'minimal' || seed.compositionMode === 'character_card' ? 0 : 1;
     if ((seed.sceneProps?.length ?? 0) > sceneLimit) excessiveClutterCount += 1;
+    const imagePrompt = result.imagePrompt ?? '';
+    const imageWords = wordCount(imagePrompt);
+    imagePromptWordTotal += imageWords;
+    imagePromptWordMax = Math.max(imagePromptWordMax, imageWords);
+    if (imageWords > 450) imagePromptOver450Count += 1;
+    if (imagePrompt.includes('no readable text')) imagePromptNoReadableTextCount += 1;
+    if (hasForbiddenNoTextPhrase(imagePrompt)) imagePromptNoTextPhraseCount += 1;
+    if (seed.compositionMode === 'full_body_character_art') {
+      imagePromptFullBodyModeTotal += 1;
+      if (imagePrompt.includes('full-body character concept art') && imagePrompt.includes('entire body visible from head to toe')) imagePromptFullBodyModePhraseCount += 1;
+    }
+    if (imagePrompt.includes('Race appearance:')) imagePromptRaceAppearanceCount += 1;
+    if (imagePrompt.includes('Class and build fantasy:') && imagePrompt.includes('clearly readable as')) imagePromptClassReadabilityCount += 1;
+    if (imagePrompt.includes('Quality rules:')) imagePromptQualityRulesCount += 1;
+    if (imagePrompt.includes('Negative prompt:')) imagePromptNegativePromptCount += 1;
+    imagePromptScenePropTotal += seed.sceneProps?.length ?? 0;
+    imagePromptCharacterBoundTotal += seed.characterBoundDetails?.length ?? 0;
     if (seed.classes.length > 2) tripleMulticlassCount += 1;
     const forbiddenKey = [...seed.classes].sort().join('/');
     if (['barbarian/bard', 'barbarian/wizard', 'artificer/barbarian', 'druid/paladin', 'artificer/monk', 'cleric/rogue'].includes(forbiddenKey)) forbiddenMulticlassCount += 1;
@@ -490,6 +528,19 @@ function analyze(label, useSmartPool) {
     dreamWalkerLightCounts,
     dreamWalkerFxCounts,
     dreamWalkerDetailCounts,
+    imagePromptWordAverage: imagePromptWordTotal / sampleSize,
+    imagePromptWordMax,
+    imagePromptOver450Count,
+    imagePromptNoReadableTextCount,
+    imagePromptNoTextPhraseCount,
+    imagePromptFullBodyModePhraseCount,
+    imagePromptFullBodyModeTotal,
+    imagePromptRaceAppearanceCount,
+    imagePromptClassReadabilityCount,
+    imagePromptQualityRulesCount,
+    imagePromptNegativePromptCount,
+    imagePromptScenePropAverage: imagePromptScenePropTotal / sampleSize,
+    imagePromptCharacterBoundAverage: imagePromptCharacterBoundTotal / sampleSize,
     appearanceDistribution,
     compositionModeCounts,
     environmentLevelCounts,
@@ -589,6 +640,19 @@ console.log(`Mismatch counts: weapon ${smart.mismatchCounts.weaponLanguage}, arm
 console.log(`Fallback language usage: armor ${smart.armorLanguageCounts.get('plain_armor_language') ?? 0}/${sampleSize} (${formatPercent(((smart.armorLanguageCounts.get('plain_armor_language') ?? 0) / sampleSize) * 100)}), weapon ${smart.weaponLanguageCounts.get('plain_weapon_language') ?? 0}/${sampleSize} (${formatPercent(((smart.weaponLanguageCounts.get('plain_weapon_language') ?? 0) / sampleSize) * 100)})`);
 console.log(`Equipment contradiction count: ${smart.equipmentContradictionCount}`);
 console.log(`Recent similarity: avg ${smart.sequentialSimilarityAverage.toFixed(1)}, max ${smart.sequentialSimilarityMax}, too-similar ${smart.tooSimilarSequentialCount}, visual-core duplicates ${smart.consecutiveVisualCoreDuplicateCount} (${formatPercent(smart.consecutiveVisualCoreDuplicateRate * 100)})`);
+console.log('Image Prompt quality statistics');
+console.log(`Average Image Prompt word count: ${smart.imagePromptWordAverage.toFixed(1)}`);
+console.log(`Max Image Prompt word count: ${smart.imagePromptWordMax}`);
+console.log(`Image Prompts over 450 words: ${smart.imagePromptOver450Count}/${sampleSize} (${formatPercent((smart.imagePromptOver450Count / sampleSize) * 100)})`);
+console.log(`Image Prompts with no readable text phrase: ${smart.imagePromptNoReadableTextCount}/${sampleSize} (${formatPercent((smart.imagePromptNoReadableTextCount / sampleSize) * 100)})`);
+console.log(`Image Prompts with forbidden no text phrase: ${smart.imagePromptNoTextPhraseCount}/${sampleSize} (${formatPercent((smart.imagePromptNoTextPhraseCount / sampleSize) * 100)})`);
+console.log(`Full-body mode prompts with full-body phrase: ${smart.imagePromptFullBodyModePhraseCount}/${Math.max(1, smart.imagePromptFullBodyModeTotal)} (${formatPercent((smart.imagePromptFullBodyModePhraseCount / Math.max(1, smart.imagePromptFullBodyModeTotal)) * 100)})`);
+console.log(`Image Prompts with race appearance phrase: ${smart.imagePromptRaceAppearanceCount}/${sampleSize} (${formatPercent((smart.imagePromptRaceAppearanceCount / sampleSize) * 100)})`);
+console.log(`Image Prompts with class readability phrase: ${smart.imagePromptClassReadabilityCount}/${sampleSize} (${formatPercent((smart.imagePromptClassReadabilityCount / sampleSize) * 100)})`);
+console.log(`Image Prompts with quality rules: ${smart.imagePromptQualityRulesCount}/${sampleSize} (${formatPercent((smart.imagePromptQualityRulesCount / sampleSize) * 100)})`);
+console.log(`Image Prompts with negative prompt: ${smart.imagePromptNegativePromptCount}/${sampleSize} (${formatPercent((smart.imagePromptNegativePromptCount / sampleSize) * 100)})`);
+console.log(`Average scene props in Image Prompt: ${smart.imagePromptScenePropAverage.toFixed(2)}`);
+console.log(`Average character-bound details in Image Prompt: ${smart.imagePromptCharacterBoundAverage.toFixed(2)}`);
 console.log('Appearance / clutter / multiclass report');
 console.log(`Average same-race appearance similarity: ${smart.averageSameRaceAppearanceSimilarity.toFixed(1)}`);
 console.log(`Consecutive same-race same-appearance count: ${smart.consecutiveSameRaceSameAppearanceCount}`);

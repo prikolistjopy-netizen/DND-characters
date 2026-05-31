@@ -45,11 +45,21 @@ function App() {
           <pre>{generation.seedOutput}</pre>
         </article>
 
-        <article className="card prompt-card">
+        <article className="card prompt-card image-prompt-card">
+          <div className="card-header">
+            <h2>Image Prompt</h2>
+            <button type="button" onClick={() => copyToClipboard(generation.imagePrompt, 'Image Prompt')}>
+              Copy Image Prompt
+            </button>
+          </div>
+          <p>{generation.imagePrompt}</p>
+        </article>
+
+        <article className="card prompt-card draft-prompt-card">
           <div className="card-header">
             <h2>Prompt Draft</h2>
-            <button type="button" onClick={() => copyToClipboard(generation.promptDraft, 'Prompt')}>
-              Copy Prompt
+            <button type="button" onClick={() => copyToClipboard(generation.promptDraft, 'Prompt Draft')}>
+              Copy Prompt Draft
             </button>
           </div>
           <p>{generation.promptDraft}</p>

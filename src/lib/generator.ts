@@ -73,6 +73,7 @@ type Mode = (typeof modeWeights)[number]['name'];
 export type DiversityMode = 'off' | 'soft' | 'strict';
 export type EnvironmentDetailLevel = 'minimal' | 'balanced' | 'cinematic';
 export type CompositionMode = 'character_concept_portrait' | 'full_body_character_art' | 'cinematic_splash_art' | 'character_card';
+export type StylePreset = 'heroic_dnd_concept_art' | 'realistic_dark_fantasy' | 'wuxia_inspired_high_fantasy' | 'painterly_rpg_splash' | 'grounded_character_sheet';
 type RegenerableLayer = 'template' | 'theme' | 'themeVariant' | 'motif' | 'narrativeVariant' | 'culture' | 'armor' | 'weapon' | 'silhouette' | 'pose' | 'mood' | 'light' | 'fx';
 
 type TemplateSelection = {
@@ -115,6 +116,7 @@ type SmartSelectionContext = {
   trace: string[];
   compositionMode?: CompositionMode;
   environmentDetailLevel?: EnvironmentDetailLevel;
+  stylePreset?: StylePreset;
 };
 
 export type GenerationOptions = {
@@ -122,6 +124,7 @@ export type GenerationOptions = {
   diversityMode?: DiversityMode;
   environmentDetailLevel?: EnvironmentDetailLevel;
   compositionMode?: CompositionMode;
+  stylePreset?: StylePreset;
 };
 
 export type CharacterSeed = {
@@ -149,6 +152,7 @@ export type CharacterSeed = {
   culturalOrigin: CulturalOrigin;
   compositionMode: CompositionMode;
   environmentDetailLevel: EnvironmentDetailLevel;
+  stylePreset: StylePreset;
   curatedMulticlassProfile: CuratedMulticlassProfile | null;
   cultureDetails: string[];
   classAnchorScore: number;
@@ -179,6 +183,7 @@ export type GenerationResult = {
   seed: CharacterSeed;
   seedOutput: string;
   promptDraft: string;
+  imagePrompt: string;
   trace: string[];
 };
 
@@ -225,6 +230,30 @@ const identityInfluence = {
   themeVariant: 5,
   motifVariant: 5,
   culture: 5,
+};
+
+
+const stylePresets: Record<StylePreset, { phrase: string; use: string }> = {
+  heroic_dnd_concept_art: {
+    phrase: 'heroic D&D character concept art, realistic digital fantasy art, high-end RPG production art, dark high fantasy and heroic fantasy, premium concept-art quality, detailed but readable, cinematic character-focused lighting, strong clean silhouette, detailed costume and gear, grounded fantasy materials, subtle painterly finish, no excessive background clutter',
+    use: 'default stable D&D concept-art style',
+  },
+  realistic_dark_fantasy: {
+    phrase: 'realistic dark fantasy character concept art, grounded materials, moody lighting, worn gear, mature atmosphere, detailed but restrained',
+    use: 'grim, occult, rogue, and grave themes',
+  },
+  wuxia_inspired_high_fantasy: {
+    phrase: 'realistic high fantasy character concept art with subtle wuxia-inspired elegance, flowing fabric, graceful motion, refined silhouettes, ornate but readable costume details',
+    use: 'monks, temple guardians, fey, and elegant casters',
+  },
+  painterly_rpg_splash: {
+    phrase: 'painterly RPG splash art, dramatic lighting, rich atmosphere, high fantasy action pose, detailed costume and gear, character-focused composition',
+    use: 'cinematic splash art only',
+  },
+  grounded_character_sheet: {
+    phrase: 'grounded fantasy character sheet art, full body visible, neutral readable pose, clean silhouette, minimal background, practical costume and gear design',
+    use: 'character cards and design review',
+  },
 };
 
 function getClassAnchor(className: CharacterClass): ClassAnchor {
@@ -1729,6 +1758,7 @@ function createSeed(context: SmartSelectionContext): CharacterSeed {
   const cultureDetails = pickCultureDetails(culturalOrigin);
   const compositionMode = context.compositionMode ?? 'full_body_character_art';
   const environmentDetailLevel = context.environmentDetailLevel ?? 'balanced';
+  const stylePreset = context.stylePreset ?? 'heroic_dnd_concept_art';
   const appearanceProfile = selectAppearanceProfile(race, size, primaryClass, buildTemplate, visualTheme, fantasyPillar, culturalOrigin, context);
   const armor = smartPickArmor(constrainedArmorOptions(buildTemplate, archetype, primaryClass, size, visualTheme), primaryClass, context);
   const armorLanguage = selectArmorLanguage(armor, { primaryClass, buildTemplate, visualTheme, fantasyPillar, culturalOrigin }, themeProfile, context);
@@ -1774,6 +1804,7 @@ function createSeed(context: SmartSelectionContext): CharacterSeed {
     culturalOrigin,
     compositionMode,
     environmentDetailLevel,
+    stylePreset,
     curatedMulticlassProfile,
     cultureDetails,
     classAnchorScore: 0,
@@ -2484,6 +2515,7 @@ function formatSeed(seed: CharacterSeed): string {
     `Appearance Details: ${seed.appearanceProfile.promptFragment}`,
     `Composition Mode: ${seed.compositionMode}`,
     `Environment Detail Level: ${seed.environmentDetailLevel}`,
+    `Style Preset: ${seed.stylePreset}`,
     `Secondary Class: ${seed.curatedMulticlassProfile ? seed.curatedMulticlassProfile.secondaryClass : 'none'}`,
     `Curated Multiclass Profile: ${seed.curatedMulticlassProfile ? seed.curatedMulticlassProfile.label : 'none'}`,
     `Curated Visual Fantasy: ${seed.curatedMulticlassProfile ? seed.curatedMulticlassProfile.visualFantasy : 'none'}`,
@@ -2547,6 +2579,87 @@ function formatPrompt(seed: CharacterSeed): string {
     `Lighting: ${seed.light.name}; primary visual effect: ${seed.fx.name}.`,
     'Negative prompt: biography text, wall of lore, unreadable gear, duplicate props, extra FX, modern clothing, no readable text, only abstract marks or illegible symbols on papers.',
   ].join(' ');
+}
+
+
+function compositionImagePromptPhrase(compositionMode: CompositionMode): string {
+  if (compositionMode === 'character_concept_portrait') return 'focused character concept portrait, readable face and upper costume, limited background, strong race features';
+  if (compositionMode === 'cinematic_splash_art') return 'cinematic fantasy splash art, dynamic scene, dramatic lighting, readable character silhouette';
+  if (compositionMode === 'character_card') return 'clean vertical character card illustration, full body visible, readable silhouette, minimal background, strong design clarity';
+  return 'full-body character concept art, centered character, entire body visible from head to toe, clean readable silhouette, minimal environment';
+}
+
+function qualityRulesForMode(compositionMode: CompositionMode): string {
+  if (compositionMode === 'character_concept_portrait') return 'Quality rules: readable face, clear race identity, clear class identity, strong upper-body silhouette, detailed but not cluttered, character is the main focus, environment is secondary.';
+  return 'Quality rules: full body visible, entire character fits in frame, clear race identity, clear class identity, strong silhouette, detailed but not cluttered, character is the main focus, environment is secondary.';
+}
+
+function negativePromptForImage(): string {
+  return 'Negative prompt: no cropped body, no missing limbs, no extra limbs, no malformed hands, no distorted face, no unreadable face, no childlike proportions unless explicitly child, no modern clothing, no sci-fi, no guns, no logo, no watermark, no cluttered background, no random objects on the floor, no duplicate weapons, no inconsistent armor, no anime, no chibi, no cartoon, no readable text, only abstract marks or illegible symbols if papers or books appear.';
+}
+
+function sentenceJoin(parts: Array<string | null | undefined | false>): string {
+  return parts.filter((part): part is string => Boolean(part && part.trim())).join(' ');
+}
+
+function shortList(items: string[], max = 5): string {
+  return uniqueCleanDetails(items).slice(0, max).join(', ');
+}
+
+function multiclassInfluence(seed: CharacterSeed): string {
+  if (!seed.curatedMulticlassProfile) return `clearly readable as ${seed.primaryClass}.`;
+  const secondaryDetails = shortList([
+    seed.curatedMulticlassProfile.promptHint,
+    ...seed.characterBoundDetails,
+    seed.equipmentEnchantment.intensity !== 'none' ? seed.equipmentEnchantment.label : '',
+  ].filter(Boolean), 2);
+  return `clearly readable as ${seed.primaryClass} first, with subtle ${seed.curatedMulticlassProfile.secondaryClass} influence in ${secondaryDetails}.`;
+}
+
+function stylePresetForSeed(seed: CharacterSeed): StylePreset {
+  if (seed.stylePreset !== 'heroic_dnd_concept_art') return seed.stylePreset;
+  return 'heroic_dnd_concept_art';
+}
+
+function formatImagePrompt(seed: CharacterSeed): string {
+  const stylePreset = stylePresets[stylePresetForSeed(seed)];
+  const identity = seed.curatedMulticlassProfile
+    ? `Create a ${seed.size} ${seed.race.name} ${seed.primaryClass} primary character, ${seed.primaryClass} / ${seed.curatedMulticlassProfile.secondaryClass} curated multiclass.`
+    : `Create a ${seed.size} ${seed.race.name} ${seed.primaryClass} character.`;
+  const armorFragments = shortList(seed.armorLanguage.promptFragments, 2);
+  const weaponFragments = shortList(seed.weaponLanguage.promptFragments, 2);
+  const finishFragments = shortList(seed.equipmentFinish.promptFragments, 1);
+  const enchantmentLine = seed.enchantmentIntensity === 'none'
+    ? null
+    : `Equipment enchantment: ${seed.equipmentEnchantment.label}, ${shortList(seed.equipmentEnchantment.promptFragments, seed.enchantmentIntensity === 'legendary' ? 1 : 2)}.`;
+  const narrativeVisuals = shortList([...seed.narrativeVariant.storyDetails, ...seed.storyDetails, ...seed.promptFragments], 2);
+  const sceneProps = seed.sceneProps.length > 0 ? shortList(seed.sceneProps, seed.compositionMode === 'cinematic_splash_art' ? 3 : 1) : 'no major scene props';
+  const companionLine = seed.companion ? `Companion: ${seed.companion.label}, ${seed.companion.promptFragment}, visually subordinate to the character.` : null;
+  const cultureLine = seed.cultureDetails.length > 0 ? `Culture details: ${seed.culturalOrigin.label} influence, ${shortList(seed.cultureDetails, 2)} integrated into clothing and gear.` : null;
+
+  return sentenceJoin([
+    compositionImagePromptPhrase(seed.compositionMode) + '.',
+    stylePreset.phrase + '.',
+    identity,
+    `Race appearance: ${seed.appearanceProfile.promptFragment}.`,
+    `Class and build fantasy: ${seed.archetype.name}, ${seed.buildTemplate.label}, ${multiclassInfluence(seed)}`,
+    `Visual theme: ${seed.visualTheme.label}, theme variant: ${seed.visualThemeVariant.label}; theme reads through costume, gear, light, and FX.`,
+    narrativeVisuals && seed.compositionMode === 'cinematic_splash_art' ? `Narrative visual motif: ${seed.narrativeMotif.label}, expressed through ${narrativeVisuals}.` : null,
+    `Silhouette: ${seed.silhouetteProfile.label}, ${seed.silhouetteProfile.promptFragment}.`,
+    `Armor and clothing: ${seed.armor.name}, with ${armorFragments || seed.armorLanguage.label}.`,
+    `Weapon and tool: ${seed.weapon.name}, with ${weaponFragments || seed.weaponLanguage.label}.`,
+    `Equipment finish: ${seed.equipmentFinish.label}, ${finishFragments || 'grounded fantasy surface treatment'}.`,
+    enchantmentLine,
+    `Pose and expression: ${seed.pose.name}, ${seed.emotion}, ${seed.mood.name}; stable readable anatomy.`,
+    `Character-bound visual details: ${shortList(seed.characterBoundDetails, 5)}.`,
+    cultureLine,
+    `Limited scene props: ${sceneProps}.`,
+    companionLine,
+    `Lighting: ${seed.light.name}; reveal face, hands, weapon, and silhouette.`,
+    `FX: ${seed.fx.name}; accents only, do not cover anatomy or gear.`,
+    qualityRulesForMode(seed.compositionMode),
+    negativePromptForImage(),
+  ]).replace(/\s+/g, ' ').trim();
 }
 
 
@@ -2626,8 +2739,9 @@ export function generateCharacterSeed(options: GenerationOptions = {}): Generati
   const diversityMode = options.diversityMode ?? 'soft';
   const compositionMode = options.compositionMode ?? 'full_body_character_art';
   const environmentDetailLevel = options.environmentDetailLevel ?? 'balanced';
+  const stylePreset = options.stylePreset ?? 'heroic_dnd_concept_art';
   const trace: string[] = [`Starting v8 smart candidate pool generation (${useSmartPool ? 'smart pool' : 'baseline weighted'} mode; diversity ${diversityMode}).`];
-  const context: SmartSelectionContext = { useSmartPool, trace, compositionMode, environmentDetailLevel };
+  const context: SmartSelectionContext = { useSmartPool, trace, compositionMode, environmentDetailLevel, stylePreset };
   let seed = createSeed(context);
   let similarityStatus: SimilarityReport = { score: 0, tooSimilar: false, duplicateVisualCore: false, similarSummary: 'none' };
 
@@ -2642,7 +2756,7 @@ export function generateCharacterSeed(options: GenerationOptions = {}): Generati
   trace.push(`Selected narrativeVariant: ${seed.narrativeVariant.id}.`);
   trace.push(`Selected culture: ${seed.culturalOrigin.label} (${seed.cultureDetails.join(', ')}).`);
   trace.push(`Selected appearance profile: ${seed.appearanceProfile.id} (${seed.appearanceProfile.promptFragment}).`);
-  trace.push(`Composition mode: ${seed.compositionMode}; environment detail level: ${seed.environmentDetailLevel}.`);
+  trace.push(`Composition mode: ${seed.compositionMode}; environment detail level: ${seed.environmentDetailLevel}; style preset: ${seed.stylePreset}.`);
   trace.push(`Identity priority: class ${identityInfluence.classIdentity}%, build template ${identityInfluence.buildTemplate}%, visual theme ${identityInfluence.visualTheme}%, narrative motif ${identityInfluence.narrativeMotif}%, theme variant ${identityInfluence.themeVariant}%, motif variant ${identityInfluence.motifVariant}%, culture ${identityInfluence.culture}%.`);
   trace.push(`Class Anchor Score: ${seed.classAnchorScore}/5.`);
   trace.push(`Motif selection reason: ${seed.motifReason}.`);
@@ -2685,6 +2799,7 @@ export function generateCharacterSeed(options: GenerationOptions = {}): Generati
     seed: resolvedSeed,
     seedOutput: formatSeed(resolvedSeed),
     promptDraft: formatPrompt(resolvedSeed),
+    imagePrompt: formatImagePrompt(resolvedSeed),
     trace,
   };
 }
