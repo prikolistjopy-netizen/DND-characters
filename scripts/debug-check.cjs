@@ -33,7 +33,9 @@ run(
 writeFileSync(path.join(outDir, 'package.json'), JSON.stringify({ type: 'commonjs' }));
 
 const { generateCharacterSeed, validateGeneratedSeed, resetSmartCandidatePoolMemory } = require(path.join(outDir, 'lib/generator.js'));
-const { visualThemes, visualThemeVariants, narrativeMotifs, narrativeVariants, culturalOrigins, themeContentProfiles } = require(path.join(outDir, 'data/seedData.js'));
+const { visualThemes, visualThemeVariants, narrativeMotifs, narrativeVariants, culturalOrigins, themeContentProfiles, raceAppearanceRules, curatedMulticlassProfiles } = require(path.join(outDir, 'data/seedData.js'));
+const raceRulesById = new Map(raceAppearanceRules.map((rule) => [rule.raceId, rule]));
+const curatedProfileIds = new Set(curatedMulticlassProfiles.map((profile) => profile.id));
 
 const failures = [];
 
@@ -100,6 +102,28 @@ const companionByClass = new Map();
 const companionByBuildTemplate = new Map();
 const companionClassTotals = new Map();
 const companionBuildTemplateTotals = new Map();
+const appearanceCountsByRace = new Map();
+const appearanceDistribution = new Map();
+const compositionModeCounts = new Map();
+const environmentLevelCounts = new Map();
+const scenePropCounts = new Map();
+const characterBoundCounts = new Map();
+const repeatedScenePropCounts = new Map();
+const modeCounts = new Map();
+const curatedProfileCounts = new Map();
+let scenePropTotal = 0;
+let characterBoundTotal = 0;
+let excessiveClutterCount = 0;
+let consecutiveSameRaceSameAppearanceCount = 0;
+let dwarfSameBeardRepeatCount = 0;
+let raceForbiddenFeatureViolations = 0;
+let sameRaceAppearanceSimilarityTotal = 0;
+let sameRaceAppearanceComparisonCount = 0;
+let randomMulticlassCount = 0;
+let tripleMulticlassCount = 0;
+let forbiddenMulticlassCount = 0;
+let multiclassAnchorTotal = 0;
+let multiclassAnchorCount = 0;
 const warnings = [];
 
 function classifyValidationIssue(issue) {
@@ -161,6 +185,34 @@ function detailOverlap(a, b) {
 function visualCore(seed) {
   return [seed.buildTemplate.id, seed.visualTheme.id, seed.pose.name, seed.weapon.name, seed.light.name, seed.fx.name].join('|');
 }
+function appearanceSimilarity(seed, previous) {
+  if (!seed.appearanceProfile || !previous.appearanceProfile || seed.race.name !== previous.race.name) return 0;
+  let score = 0;
+  if (seed.appearanceProfile.id === previous.appearanceProfile.id) score += 12;
+  if (seed.appearanceProfile.ageCategory === previous.appearanceProfile.ageCategory) score += 6;
+  if (seed.appearanceProfile.faceType === previous.appearanceProfile.faceType) score += 8;
+  if (seed.appearanceProfile.bodyType === previous.appearanceProfile.bodyType) score += 6;
+  if (seed.appearanceProfile.hairStyle && seed.appearanceProfile.hairStyle === previous.appearanceProfile.hairStyle) score += 5;
+  if (seed.appearanceProfile.facialHair && seed.appearanceProfile.facialHair === previous.appearanceProfile.facialHair) score += 8;
+  score += detailOverlap(seed.appearanceProfile.raceSpecificFeatures, previous.appearanceProfile.raceSpecificFeatures) * 4;
+  score += detailOverlap(seed.appearanceProfile.distinctiveMarks, previous.appearanceProfile.distinctiveMarks) * 3;
+  return score;
+}
+
+function forbiddenMulticlassKey(seed) { return [...seed.classes].sort().join('/'); }
+const forbiddenMulticlasses = new Set(['barbarian/bard', 'barbarian/wizard', 'artificer/barbarian', 'druid/paladin', 'artificer/monk', 'cleric/rogue']);
+
+function appearanceForbiddenViolation(seed) {
+  const profile = seed.appearanceProfile;
+  if (!profile || !profile.compatibleRaces.includes(seed.race.name)) return true;
+  const rule = raceRulesById.get(seed.race.name);
+  const text = [profile.promptFragment, profile.faceType, profile.bodyType, profile.hairStyle, profile.facialHair, ...(profile.raceSpecificFeatures ?? [])].join(' ').toLowerCase();
+  if (rule && rule.forbiddenFeatures.some((feature) => text.includes(feature.toLowerCase()))) return true;
+  if (seed.race.name === 'elf' && /(thick beard|dwarf-like|square beard|elderly wizard beard)/.test(text)) return true;
+  if (seed.race.name === 'dragonborn' && /(human beard|human nose|smooth human skin)/.test(text)) return true;
+  return false;
+}
+
 function similarityScore(seed, previous) {
   let score = 0;
   if (seed.buildTemplate.id === previous.buildTemplate.id) score += 15;
@@ -178,7 +230,7 @@ function similarityScore(seed, previous) {
   if (seed.visualMotif.id === previous.visualMotif.id) score += 8;
   if (seed.equipmentFinish.id === previous.equipmentFinish.id) score += 5;
   if (seed.equipmentEnchantment.id === previous.equipmentEnchantment.id) score += 5;
-  if (seed.race.name === previous.race.name) score += 5;
+  if (seed.race.name === previous.race.name) score += 5 + appearanceSimilarity(seed, previous);
   if (seed.culturalOrigin.id === previous.culturalOrigin.id) score += 5;
   if (seed.narrativeMotif.id === previous.narrativeMotif.id) score += 6;
   if (seed.narrativeVariant.id === previous.narrativeVariant.id) score += 4;
@@ -197,6 +249,39 @@ for (let index = 0; index < sampleSize; index += 1) {
   const weaponTags = seed.weapon.tags;
   const poseTags = seed.pose.tags;
   const summary = `${seed.race.name} ${seed.size} ${seed.classes.join('/')} ${seed.archetype.name} | ${seed.buildTemplate.id}/${seed.visualTheme.id}/${seed.visualThemeVariant?.id ?? 'no-theme-variant'}/${seed.narrativeMotif?.id ?? 'no-motif'}/${seed.narrativeVariant?.id ?? 'no-narrative-variant'} | ${seed.silhouette.name} | ${seed.armor.name} | ${seed.weapon.name} | ${seed.pose.name} | ${seed.fx.name}`;
+
+  increment(modeCounts, seed.mode);
+  increment(compositionModeCounts, seed.compositionMode ?? 'no-composition');
+  increment(environmentLevelCounts, seed.environmentDetailLevel ?? 'no-environment-level');
+  increment(appearanceDistribution, `${seed.race.name}:${seed.appearanceProfile?.id ?? 'no-appearance'}`);
+  increment(appearanceCountsByRace, seed.race.name);
+  scenePropTotal += seed.sceneProps?.length ?? 0;
+  characterBoundTotal += seed.characterBoundDetails?.length ?? 0;
+  increment(scenePropCounts, String(seed.sceneProps?.length ?? 0));
+  increment(characterBoundCounts, String(seed.characterBoundDetails?.length ?? 0));
+  for (const prop of seed.sceneProps ?? []) increment(repeatedScenePropCounts, prop);
+  const sceneLimit = seed.compositionMode === 'cinematic_splash_art' ? 3 : seed.environmentDetailLevel === 'minimal' || seed.compositionMode === 'character_card' ? 0 : 1;
+  if ((seed.sceneProps?.length ?? 0) > sceneLimit) excessiveClutterCount += 1;
+  if (appearanceForbiddenViolation(seed)) {
+    raceForbiddenFeatureViolations += 1;
+    failures.push(`race appearance forbidden feature violation :: ${summary}`);
+  }
+  if (!result.promptDraft.includes('no readable text') || result.promptDraft.includes('no text in image')) {
+    failures.push(`prompt must use no readable text guidance :: ${summary}`);
+  }
+  if ((seed.characterBoundDetails?.length ?? 0) < (seed.sceneProps?.length ?? 0) && seed.compositionMode !== 'cinematic_splash_art') {
+    failures.push(`character-bound details should dominate scene props :: ${summary}`);
+  }
+  if (seed.classes.length > 2) tripleMulticlassCount += 1;
+  if (seed.mode === 'curated multiclass') {
+    if (!seed.curatedMulticlassProfile || !curatedProfileIds.has(seed.curatedMulticlassProfile.id)) randomMulticlassCount += 1;
+    else increment(curatedProfileCounts, seed.curatedMulticlassProfile.id);
+    multiclassAnchorTotal += seed.classAnchorScore;
+    multiclassAnchorCount += 1;
+  } else if (seed.classes.length > 1 || seed.curatedMulticlassProfile) {
+    randomMulticlassCount += 1;
+  }
+  if (forbiddenMulticlasses.has(forbiddenMulticlassKey(seed))) forbiddenMulticlassCount += 1;
 
   increment(motifCounts, seed.narrativeMotif?.id ?? 'no-motif');
   increment(narrativeVariantCounts, seed.narrativeVariant?.id ?? 'no-narrative-variant');
@@ -230,6 +315,13 @@ for (let index = 0; index < sampleSize; index += 1) {
     sequentialComparisonCount += 1;
     if (score >= 65) tooSimilarSequentialCount += 1;
     if (visualCore(seed) === visualCore(previousSequentialSeed)) consecutiveVisualCoreDuplicateCount += 1;
+    if (seed.race.name === previousSequentialSeed.race.name) {
+      const appScore = appearanceSimilarity(seed, previousSequentialSeed);
+      sameRaceAppearanceSimilarityTotal += appScore;
+      sameRaceAppearanceComparisonCount += 1;
+      if (seed.appearanceProfile?.id === previousSequentialSeed.appearanceProfile?.id) consecutiveSameRaceSameAppearanceCount += 1;
+      if (seed.race.name === 'dwarf' && seed.appearanceProfile?.facialHair === previousSequentialSeed.appearanceProfile?.facialHair) dwarfSameBeardRepeatCount += 1;
+    }
   }
   previousSequentialSeed = seed;
   increment(equipmentFinishCounts, seed.equipmentFinish?.id ?? 'no-equipment-finish');
@@ -317,7 +409,7 @@ for (let index = 0; index < sampleSize; index += 1) {
     failures.push(`void_oracle without void FX :: ${summary}`);
   }
 
-  if (seed.archetype.tags.includes('pirate') && !(seed.visualDetails.some((detail) => ['rope belt', 'sea charts', 'barnacle relics', 'stolen relic case', 'song-scroll case', 'travel lute charms'].includes(detail)))) {
+  if (seed.archetype.tags.includes('pirate') && !(seed.visualDetails.some((detail) => ['rope belt', 'sea charts', 'barnacle relics', 'stolen relic case', 'song-scroll case', 'travel lute charms'].some((needle) => detail.includes(needle))))) {
     failures.push(`pirate archetype without pirate-compatible gear :: ${summary}`);
   }
 
@@ -462,6 +554,21 @@ if (plainWeaponRate >= 0.20) failures.push(`plain weapon language fallback too h
 if (plainArmorRate >= 0.20) failures.push(`plain armor language fallback too high: ${(plainArmorRate * 100).toFixed(1)}%`);
 if (equipmentContradictionCount > 0) failures.push(`equipment contradiction count should be zero: ${equipmentContradictionCount}`);
 if (consecutiveVisualCoreDuplicateCount > 0) failures.push(`consecutive visual core duplicate count should be zero: ${consecutiveVisualCoreDuplicateCount}`);
+const ordinaryRate = (modeCounts.get('ordinary class') ?? 0) / sampleSize;
+const curatedRate = (modeCounts.get('curated multiclass') ?? 0) / sampleSize;
+if (ordinaryRate < 0.94 || ordinaryRate > 0.97) failures.push(`ordinary class rate outside target: ${(ordinaryRate * 100).toFixed(1)}%`);
+if (curatedRate < 0.03 || curatedRate > 0.05) failures.push(`curated multiclass rate outside target: ${(curatedRate * 100).toFixed(1)}%`);
+if (randomMulticlassCount > 0) failures.push(`random multiclass count should be zero: ${randomMulticlassCount}`);
+if (tripleMulticlassCount > 0) failures.push(`triple multiclass count should be zero: ${tripleMulticlassCount}`);
+if (forbiddenMulticlassCount > 0) failures.push(`forbidden multiclass count should be zero: ${forbiddenMulticlassCount}`);
+if (multiclassAnchorCount > 0 && multiclassAnchorTotal / multiclassAnchorCount < 4.3) failures.push(`multiclass class anchor average below 4.3: ${(multiclassAnchorTotal / multiclassAnchorCount).toFixed(2)}`);
+if (consecutiveSameRaceSameAppearanceCount > 0) failures.push(`consecutive same-race same-appearance count should be zero: ${consecutiveSameRaceSameAppearanceCount}`);
+if (dwarfSameBeardRepeatCount > 0) failures.push(`dwarf same beard repeat count should be zero: ${dwarfSameBeardRepeatCount}`);
+if (raceForbiddenFeatureViolations > 0) failures.push(`race forbidden feature violations should be zero: ${raceForbiddenFeatureViolations}`);
+if (excessiveClutterCount / sampleSize >= 0.05) failures.push(`excessive clutter prompts exceed 5%: ${((excessiveClutterCount / sampleSize) * 100).toFixed(1)}%`);
+if (scenePropTotal / sampleSize > 1.2) failures.push(`average scene props above 1.2: ${(scenePropTotal / sampleSize).toFixed(2)}`);
+if (characterBoundTotal / sampleSize < 4) failures.push(`average character-bound details below 4: ${(characterBoundTotal / sampleSize).toFixed(2)}`);
+if ((compositionModeCounts.get('cinematic_splash_art') ?? 0) > 0) failures.push(`default generation should not use cinematic splash art: ${compositionModeCounts.get('cinematic_splash_art')}`);
 
 const scholarTotal = [...scholarThemeCounts.values()].reduce((sum, count) => sum + count, 0);
 if (scholarTotal > sampleSize * 0.28) {
@@ -537,6 +644,22 @@ console.log(`Consecutive visual core duplicate count: ${consecutiveVisualCoreDup
 console.log(`Consecutive visual core duplicate rate: ${((consecutiveVisualCoreDuplicateCount / Math.max(1, sequentialComparisonCount)) * 100).toFixed(1)}%`);
 console.log('Mismatch statistics');
 for (const [key, count] of Object.entries(mismatchCounts)) console.log(`${key}: ${count}`);
+console.log('Appearance and clutter statistics');
+console.log(`Average same-race appearance similarity: ${(sameRaceAppearanceSimilarityTotal / Math.max(1, sameRaceAppearanceComparisonCount)).toFixed(1)}`);
+console.log(`Consecutive same-race same-appearance count: ${consecutiveSameRaceSameAppearanceCount}`);
+console.log(`Dwarf same beard repeat count: ${dwarfSameBeardRepeatCount}`);
+console.log(`Race-specific forbidden feature violations: ${raceForbiddenFeatureViolations}`);
+console.log(`Average scene props: ${(scenePropTotal / sampleSize).toFixed(2)}`);
+console.log(`Average character-bound details: ${(characterBoundTotal / sampleSize).toFixed(2)}`);
+console.log(`Excessive clutter prompts: ${excessiveClutterCount}/${sampleSize} (${((excessiveClutterCount / sampleSize) * 100).toFixed(1)}%)`);
+console.log('Multiclass statistics');
+console.log(`Ordinary class rate: ${modeCounts.get('ordinary class') ?? 0}/${sampleSize} (${(((modeCounts.get('ordinary class') ?? 0) / sampleSize) * 100).toFixed(1)}%)`);
+console.log(`Curated multiclass rate: ${modeCounts.get('curated multiclass') ?? 0}/${sampleSize} (${(((modeCounts.get('curated multiclass') ?? 0) / sampleSize) * 100).toFixed(1)}%)`);
+console.log(`Chaos rate: ${modeCounts.get('chaos') ?? 0}/${sampleSize} (${(((modeCounts.get('chaos') ?? 0) / sampleSize) * 100).toFixed(1)}%)`);
+console.log(`Random multiclass count: ${randomMulticlassCount}`);
+console.log(`Triple multiclass count: ${tripleMulticlassCount}`);
+console.log(`Forbidden multiclass count: ${forbiddenMulticlassCount}`);
+console.log(`Multiclass class anchor average: ${(multiclassAnchorTotal / Math.max(1, multiclassAnchorCount)).toFixed(2)}/5`);
 if (warnings.length > 0) {
   console.log('Warnings');
   for (const warning of warnings) console.log(`warning: ${warning}`);
@@ -565,6 +688,13 @@ printStats('Top repeated sequential visual themes', sequentialThemeCounts);
 printStats('Top repeated sequential poses', sequentialPoseCounts);
 printStats('Top repeated sequential FX', sequentialFxCounts);
 printStats('Top repeated sequential visual details', sequentialDetailCounts);
+printStats('Composition mode distribution', compositionModeCounts);
+printStats('Environment detail level distribution', environmentLevelCounts);
+printStats('Character-bound detail count buckets', characterBoundCounts);
+printStats('Scene prop count buckets', scenePropCounts);
+printStats('Top repeated scene props', repeatedScenePropCounts);
+printStats('Appearance distribution by race/profile', appearanceDistribution);
+printStats('Curated multiclass distribution', curatedProfileCounts);
 printStats('Top equipment finishes', equipmentFinishCounts);
 printStats('Top equipment enchantments', equipmentEnchantmentCounts);
 printStats('Top visual details', visualDetailCounts);

@@ -407,6 +407,67 @@ export type ThemeVisualProfile = {
   companionBias?: CompanionTier[];
 };
 
+
+export type RaceAppearanceRules = {
+  raceId: string;
+  requiredRaceFeatures: string[];
+  allowedAgeCategories: string[];
+  allowedFaceTypes: string[];
+  allowedBodyTypes: string[];
+  allowedHairStyles: string[];
+  allowedFacialHairStyles: string[];
+  raceSpecificFeatureFields?: string[];
+  forbiddenFeatures: string[];
+  promptGuidelines: string[];
+};
+
+export type CharacterAppearanceProfile = {
+  id: string;
+  label: string;
+  compatibleRaces: string[];
+  compatibleSizes?: SizeCategory[];
+  compatibleClasses?: CharacterClass[];
+  compatibleBuildTemplates?: string[];
+  compatibleThemes?: string[];
+  compatiblePillars?: FantasyPillarId[];
+  compatibleCultures?: string[];
+  ageCategory: string;
+  faceType: string;
+  bodyType: string;
+  hairStyle?: string;
+  facialHair?: string;
+  groomingStyle?: string;
+  raceSpecificFeatures?: string[];
+  distinctiveMarks?: string[];
+  promptFragment: string;
+  weight: number;
+};
+
+export type CuratedMulticlassProfile = {
+  id: string;
+  label: string;
+  primaryClass: CharacterClass;
+  secondaryClass: CharacterClass;
+  allowedRaces?: string[];
+  forbiddenRaces?: string[];
+  allowedSizes?: SizeCategory[];
+  buildTemplateId: string;
+  fantasyPillarId: FantasyPillarId;
+  compatibleThemes: string[];
+  preferredThemes: string[];
+  forbiddenThemes?: string[];
+  preferredSilhouettes?: string[];
+  preferredWeapons?: string[];
+  preferredArmor?: string[];
+  preferredPoses?: string[];
+  preferredMoods?: string[];
+  preferredLights?: string[];
+  preferredFx?: string[];
+  visualFantasy: string;
+  promptHint: string;
+  weight: number;
+};
+
 export type VisualDetailBudget = {
   majorVisualDetails: number;
   minorVisualDetails: number;
@@ -417,9 +478,9 @@ export type VisualDetailBudget = {
 };
 
 export const modeWeights = [
-  { name: 'ordinary class', weight: 68 },
-  { name: 'multiclass', weight: 24 },
-  { name: 'chaos', weight: 8 },
+  { name: 'ordinary class', weight: 96 },
+  { name: 'curated multiclass', weight: 4 },
+  { name: 'chaos', weight: 0 },
 ] as const;
 
 export const characterClasses: Array<WeightedOption<{ name: CharacterClass }>> = [
@@ -478,6 +539,104 @@ export const races: Array<WeightedOption<RaceOption>> = [
   { name: 'firbolg', tags: ['large-presence', 'fey'], weight: 4 },
   { name: 'satyr', tags: ['fey'], weight: 4 },
   { name: 'fairy', tags: ['small', 'fey'], weight: 3 },
+];
+
+
+export const raceAppearanceRules: RaceAppearanceRules[] = [
+  { raceId: 'dwarf', requiredRaceFeatures: ['compact sturdy build', 'strong brow', 'broad hands', 'grounded proportions'], allowedAgeCategories: ['young adult', 'middle-aged', 'elder'], allowedFaceTypes: ['square stern face', 'weathered temple face', 'broad-cheeked face'], allowedBodyTypes: ['compact sturdy build', 'stocky veteran build'], allowedHairStyles: ['braided hair', 'shaved sides', 'bald rune-marked scalp', 'weathered hair'], allowedFacialHairStyles: ['short military beard', 'long ceremonial beard', 'braided beard', 'forked beard', 'black beard', 'white beard', 'grey beard', 'trimmed urban beard', 'clean-shaven rare'], forbiddenFeatures: ['tall willowy elf body', 'childlike proportions'], promptGuidelines: ['show compact sturdy adult proportions', 'vary beard shape and grooming'] },
+  { raceId: 'elf', requiredRaceFeatures: ['pointed ears', 'graceful facial structure', 'elegant posture'], allowedAgeCategories: ['young adult', 'ageless adult', 'ancient but not frail'], allowedFaceTypes: ['long elegant face', 'sharp moonlit face', 'scarred exile face'], allowedBodyTypes: ['willowy build', 'lean graceful build'], allowedHairStyles: ['long silver hair', 'braided court hair', 'wild forest hair', 'short urban hair'], allowedFacialHairStyles: ['none', 'subtle sideburns only'], forbiddenFeatures: ['thick beard', 'dwarf-like square beard', 'heavy stocky dwarf body', 'elderly wizard beard'], promptGuidelines: ['no beard except subtle sideburns', 'pointed ears visible'] },
+  { raceId: 'halfling', requiredRaceFeatures: ['small adult proportions', 'grounded practical features', 'mature face'], allowedAgeCategories: ['young adult', 'middle-aged', 'older adult'], allowedFaceTypes: ['practical mature face', 'sharp street face', 'round adult face'], allowedBodyTypes: ['small adult build', 'wiry scout build'], allowedHairStyles: ['practical cropped hair', 'wind-tossed hair', 'neat guild hair'], allowedFacialHairStyles: ['none', 'short sideburns'], forbiddenFeatures: ['toddler proportions', 'childlike boy look', 'oversized head child proportions', 'generic curly child look'], promptGuidelines: ['small adult, never childlike'] },
+  { raceId: 'gnome', requiredRaceFeatures: ['small adult proportions', 'expressive face', 'distinctive nose or eyes'], allowedAgeCategories: ['young adult', 'middle-aged', 'elder'], allowedFaceTypes: ['expressive sharp face', 'wide-eyed academic face', 'mossy hermit face'], allowedBodyTypes: ['small adult build', 'compact tinkerer build'], allowedHairStyles: ['wild hair', 'neat city hair', 'mossy hair', 'oiled tinkerer hair'], allowedFacialHairStyles: ['none', 'neat moustache', 'short pointed beard'], forbiddenFeatures: ['childlike toddler proportions', 'generic curly child look'], promptGuidelines: ['small adult with distinctive nose or eyes'] },
+  { raceId: 'tiefling', requiredRaceFeatures: ['horns', 'infernal or unusual eyes', 'pointed ears or infernal features'], allowedAgeCategories: ['young adult', 'middle-aged', 'ageless adult'], allowedFaceTypes: ['sharp infernal face', 'soft moonlit face', 'scarred street face'], allowedBodyTypes: ['lean infernal build', 'duelist build'], allowedHairStyles: ['wild occult hair', 'swept court hair', 'cropped street hair'], allowedFacialHairStyles: ['none', 'subtle goatee'], raceSpecificFeatureFields: ['hornShape', 'tailStyle', 'skinToneHint', 'infernalMarks'], forbiddenFeatures: [], promptGuidelines: ['horn silhouette visible', 'vary horn shape'] },
+  { raceId: 'dragonborn', requiredRaceFeatures: ['dragon-like head', 'scale pattern', 'crest or horn structure', 'non-human face structure'], allowedAgeCategories: ['young adult', 'mature adult', 'ancient adult'], allowedFaceTypes: ['draconic snout', 'serpent-like face', 'heavy crested face'], allowedBodyTypes: ['scaled martial build', 'sleek reptilian build'], allowedHairStyles: ['crest spines', 'horn crest', 'no hair'], allowedFacialHairStyles: ['none'], raceSpecificFeatureFields: ['scalePattern', 'crestShape', 'hornShape', 'snoutShape'], forbiddenFeatures: ['human beard', 'human nose', 'smooth human skin'], promptGuidelines: ['non-human dragon face', 'visible scale pattern'] },
+  { raceId: 'satyr', requiredRaceFeatures: ['horns', 'goat-like legs', 'fey features'], allowedAgeCategories: ['young adult', 'mature adult', 'old adult'], allowedFaceTypes: ['mischievous fey face', 'rugged scout face', 'courtly satyr face'], allowedBodyTypes: ['goat-legged build', 'nimble fey build'], allowedHairStyles: ['curled hair', 'wild mane', 'court braids'], allowedFacialHairStyles: ['none', 'short goat beard'], raceSpecificFeatureFields: ['hornShape', 'legFurPattern', 'goatFeatures'], forbiddenFeatures: [], promptGuidelines: ['horns and goat features visible'] },
+  { raceId: 'aasimar', requiredRaceFeatures: ['celestial mark', 'unusual radiant eyes'], allowedAgeCategories: ['young adult', 'middle-aged', 'ageless adult'], allowedFaceTypes: ['serene radiant face', 'tired fallen face', 'stern celestial face'], allowedBodyTypes: ['graceful build', 'armored holy build'], allowedHairStyles: ['golden hair', 'silver hair', 'dark fallen hair'], allowedFacialHairStyles: ['none', 'trimmed beard'], raceSpecificFeatureFields: ['celestialMark', 'eyeGlow', 'radianceStyle', 'fallenRadiance'], forbiddenFeatures: [], promptGuidelines: ['radiance should be subtle and character-bound'] },
+  { raceId: 'fairy', requiredRaceFeatures: ['tiny adult proportions', 'wings', 'fey eyes'], allowedAgeCategories: ['young adult', 'ancient adult', 'ageless adult'], allowedFaceTypes: ['tiny sharp face', 'dreamy moth face', 'courtly fey face'], allowedBodyTypes: ['tiny adult build', 'delicate winged build'], allowedHairStyles: ['petal hair', 'moon-dust hair', 'thorny cropped hair'], allowedFacialHairStyles: ['none'], raceSpecificFeatureFields: ['wingType', 'tinyFeatureStyle', 'antennaeOrGlow', 'feyEyeStyle'], forbiddenFeatures: ['childlike toddler proportions'], promptGuidelines: ['tiny adult, wing type visible'] },
+  { raceId: 'firbolg', requiredRaceFeatures: ['gentle giant face', 'broad nose', 'soft ears'], allowedAgeCategories: ['young adult', 'middle-aged', 'old adult'], allowedFaceTypes: ['gentle giant face', 'stone-nosed face', 'solemn grave face'], allowedBodyTypes: ['large gentle build', 'broad guardian build'], allowedHairStyles: ['mossy hair', 'river hair', 'braided forest hair'], allowedFacialHairStyles: ['none', 'soft beard'], raceSpecificFeatureFields: ['gentleGiantFace', 'noseShape', 'earShape', 'hairTexture', 'natureMarks'], forbiddenFeatures: [], promptGuidelines: ['large but gentle non-human proportions'] },
+  { raceId: 'half-orc', requiredRaceFeatures: ['tusks', 'strong jaw', 'orcish features'], allowedAgeCategories: ['young adult', 'middle-aged', 'old adult'], allowedFaceTypes: ['broad veteran face', 'lean hunter face', 'scarred gladiator face'], allowedBodyTypes: ['broad veteran build', 'lean hunter build'], allowedHairStyles: ['shaved sides', 'braided warrior hair', 'cropped mercenary hair'], allowedFacialHairStyles: ['none', 'short beard'], raceSpecificFeatureFields: ['tuskShape', 'jawShape', 'scarPattern', 'skinToneHint'], forbiddenFeatures: [], promptGuidelines: ['visible tusks and strong jaw'] },
+  { raceId: 'human', requiredRaceFeatures: ['distinctive human features'], allowedAgeCategories: ['young adult', 'middle-aged', 'elderly'], allowedFaceTypes: ['duelist face', 'veteran face', 'scholar face', 'frontier face'], allowedBodyTypes: ['average build', 'veteran build', 'wiry frontier build'], allowedHairStyles: ['cropped hair', 'long tied hair', 'wild frontier hair', 'neat court hair'], allowedFacialHairStyles: ['none', 'trimmed beard', 'moustache', 'stubble'], raceSpecificFeatureFields: ['ageLines', 'hairTexture', 'facialStructure', 'distinctiveHumanFeatures'], forbiddenFeatures: [], promptGuidelines: ['avoid generic face; add one distinctive human mark'] },
+];
+
+const raceAppearanceNames: Record<string, string[]> = {
+  dwarf: ['young forge dwarf', 'scarred veteran dwarf', 'elder temple dwarf', 'urban clean-shaven dwarf', 'noble braided dwarf', 'wild mountain dwarf', 'bald rune-marked dwarf', 'black-bearded mercenary dwarf', 'ash-bearded grave dwarf', 'salt-weathered coast dwarf'],
+  elf: ['ancient calm elf', 'young restless elf', 'severe moon elf', 'wild forest elf', 'elegant court elf', 'scarred exile elf', 'silver-haired scholar elf', 'sunlit temple elf', 'shadow-eyed urban elf', 'fey-touched laughing elf'],
+  halfling: ['practical middle-aged halfling', 'sharp street halfling', 'round cheerful adult halfling', 'weathered traveler halfling', 'older pipe-smoking halfling', 'wiry scout halfling', 'serious guild halfling', 'scarred caravan halfling', 'quiet temple halfling', 'bold duelist halfling'],
+  gnome: ['elderly tinkerer gnome', 'sharp academic gnome', 'wild-haired forest gnome', 'clean city gnome', 'eccentric rune gnome', 'nervous clockwork gnome', 'stern alchemist gnome', 'cheerful illusionist gnome', 'mossy hermit gnome', 'jewel-eyed fey gnome'],
+  human: ['young duelist human', 'middle-aged veteran human', 'elderly scholar human', 'weathered pilgrim human', 'stern noble human', 'scarred survivor human', 'calm temple human', 'sharp street human', 'wild frontier human', 'refined court human'],
+  tiefling: ['sharp-faced infernal tiefling', 'soft-featured moonlit tiefling', 'scarred street tiefling', 'noble horned tiefling', 'wild-haired occult tiefling', 'broken-horn exile tiefling', 'small-horn scholar tiefling', 'sweeping-horn duelist tiefling', 'ash-skinned warlock tiefling', 'bright-eyed trickster tiefling'],
+  satyr: ['youthful trickster satyr', 'mature horned wanderer', 'rugged goat-legged scout', 'elegant fey court satyr', 'old forest satyr', 'sharp-eyed urban satyr', 'scarred reveler satyr', 'gentle musician satyr', 'storm-coast satyr', 'wild antlered satyr'],
+  aasimar: ['serene radiant aasimar', 'tired fallen aasimar', 'scarred divine survivor', 'youthful chosen vessel', 'stern celestial knight', 'silver-eyed oracle aasimar', 'sun-marked pilgrim aasimar', 'pale grave aasimar', 'golden-haired temple aasimar', 'dimmed halo exile aasimar'],
+  'half-orc': ['broad veteran half-orc', 'lean hunter half-orc', 'scarred gladiator half-orc', 'calm shamanic half-orc', 'young disciplined half-orc', 'broken-tusk mercenary half-orc', 'soft-eyed healer half-orc', 'grim bounty hunter half-orc', 'tattooed tribal half-orc', 'old warleader half-orc'],
+  dragonborn: ['ancient crested dragonborn', 'scarred warrior dragonborn', 'scholar dragonborn', 'sleek serpent-like dragonborn', 'heavy plated dragonborn', 'young bright-scaled dragonborn', 'broken-horn exile dragonborn', 'storm-frilled dragonborn', 'ash-scaled dragonborn', 'jeweled noble dragonborn'],
+  fairy: ['tiny sharp-featured fairy', 'moth-winged dreamy fairy', 'elegant court fairy', 'wild forest fairy', 'mischievous bright-eyed fairy', 'ancient tiny fey fairy', 'thorn-winged fairy', 'moon-dust fairy', 'beetle-wing scout fairy', 'soft-glow oracle fairy'],
+  firbolg: ['gentle giant firbolg', 'moss-haired forest firbolg', 'old hermit firbolg', 'broad guardian firbolg', 'wandering soft-eyed firbolg', 'stone-nosed mountain firbolg', 'young shy firbolg', 'antler-charm firbolg', 'river-haired firbolg', 'solemn grave firbolg'],
+};
+
+const appearanceThemeHints: Record<string, string[]> = {
+  grave: ['grave_warden', 'divine_archivist'], temple: ['temple_guardian', 'battle_chaplain', 'sun_knight'], scholar: ['academy_mage', 'divine_archivist', 'archive_performer', 'ritualist'], occult: ['void_oracle', 'ritualist', 'cursed_lore_singer'], fey: ['fey_noble', 'forest_sprite', 'moonlit_duelist', 'wandering_bard', 'court_jester'], street: ['urban_assassin', 'bounty_hunter', 'relic_thief', 'pirate_raider'], hunter: ['trail_warden', 'swamp_tracker', 'monster_slayer_veteran', 'beast_slayer'], veteran: ['mercenary_captain', 'veteran_officer', 'arena_champion', 'royal_guard'], noble: ['royal_guard', 'court_loremaster', 'fey_noble', 'sun_knight'], coast: ['pirate_raider', 'storm_warrior'], trickster: ['court_jester', 'wandering_bard'], dragon: ['dragon_style_adept', 'storm_warrior'], forest: ['forest_sprite', 'trail_warden'], healer: ['wandering_healer', 'battle_chaplain'], oracle: ['void_oracle', 'star_seer'], warlock: ['void_oracle', 'ritualist'], duelist: ['moonlit_duelist', 'urban_assassin', 'court_loremaster']
+};
+
+const raceSpecificFeaturePools: Record<string, string[]> = {
+  tiefling: ['short swept horns', 'broken left horn', 'wide crescent horns', 'small scholar horns', 'ash-red skin', 'gold infernal eyes', 'barbed tail', 'ink-black pact marks'],
+  dragonborn: ['bronze scale pattern', 'ash scale pattern', 'jewel scale pattern', 'storm frill crest', 'broken horn', 'heavy brow crest', 'serpent snout', 'plate-like cheek scales'],
+  satyr: ['short goat horns', 'sweeping ram horns', 'antler-like fey horns', 'dark leg fur', 'spotted leg fur', 'braided mane', 'cloven hooves'],
+  aasimar: ['dim halo scar', 'silver eye glow', 'golden eye glow', 'fallen radiance cracks', 'sun mark on brow', 'pale grave radiance'],
+  fairy: ['moth wings', 'beetle wings', 'thorn wings', 'moon-dust wings', 'soft glow antennae', 'fey glass eyes'],
+  firbolg: ['broad gentle nose', 'soft long ears', 'mossy hair texture', 'river-streak hair', 'bark-like nature marks'],
+  'half-orc': ['broken tusk', 'short even tusks', 'heavy jaw', 'old cheek scar', 'green-grey skin tone', 'ochre tribal tattoos'],
+  human: ['crow-foot age lines', 'distinctive hooked nose', 'freckled cheeks', 'old eyebrow scar', 'tight curls', 'weathered tan skin'],
+};
+
+function makeAppearanceProfile(raceId: string, label: string, index: number): CharacterAppearanceProfile {
+  const lower = label.toLowerCase();
+  const ageCategory = lower.includes('elder') || lower.includes('ancient') || lower.includes('old') || lower.includes('elderly') ? 'elder' : lower.includes('young') || lower.includes('youthful') ? 'young adult' : 'middle-aged';
+  const bodyType = raceId === 'dwarf' ? (lower.includes('urban') ? 'compact city build' : 'compact sturdy build') : raceId === 'dragonborn' ? (lower.includes('sleek') ? 'sleek reptilian build' : 'scaled martial build') : ['halfling', 'gnome'].includes(raceId) ? 'small adult build' : raceId === 'fairy' ? 'tiny adult build' : raceId === 'firbolg' ? 'large gentle build' : lower.includes('scout') || lower.includes('duelist') ? 'lean agile build' : 'distinctive adult build';
+  const faceType = lower.includes('scar') ? 'scarred face' : lower.includes('scholar') || lower.includes('academic') ? 'scholarly face' : lower.includes('noble') || lower.includes('court') ? 'refined court face' : lower.includes('grave') ? 'solemn grave face' : lower.includes('street') ? 'sharp street face' : lower.includes('wild') || lower.includes('forest') ? 'wild expressive face' : 'distinctive adult face';
+  const hairStyle = lower.includes('bald') ? 'bald or shaved head' : lower.includes('wild') ? 'wild textured hair' : lower.includes('silver') ? 'silver hair' : lower.includes('ash') ? 'ash-colored hair' : lower.includes('braided') || lower.includes('noble') ? 'braided styled hair' : 'race-appropriate hair';
+  let facialHair = 'none';
+  if (raceId === 'dwarf') facialHair = lower.includes('clean-shaven') ? 'clean-shaven rare' : lower.includes('black') || lower.includes('mercenary') ? 'black beard' : lower.includes('ash') || lower.includes('grave') ? 'ash-grey beard' : lower.includes('braided') || lower.includes('noble') ? 'braided beard' : lower.includes('elder') || lower.includes('temple') ? 'long ceremonial beard' : 'short military beard';
+  else if (raceId === 'gnome' && (lower.includes('elder') || lower.includes('tinkerer'))) facialHair = 'short pointed beard';
+  else if (['human', 'half-orc', 'firbolg', 'satyr', 'aasimar'].includes(raceId) && (lower.includes('old') || lower.includes('veteran') || lower.includes('mature'))) facialHair = raceId === 'satyr' ? 'short goat beard' : 'trimmed beard';
+  const features = [...(raceSpecificFeaturePools[raceId] ?? [])].slice(index % 4, index % 4 + 2);
+  const themeKeys = Object.keys(appearanceThemeHints).filter((key) => lower.includes(key));
+  const compatibleThemes = themeKeys.flatMap((key) => appearanceThemeHints[key]);
+  return {
+    id: `${raceId.replace(/[^a-z0-9]+/g, '_')}_${label.replace(/[^a-z0-9]+/gi, '_').toLowerCase()}`,
+    label,
+    compatibleRaces: [raceId],
+    compatibleThemes,
+    compatiblePillars: lower.includes('scholar') || lower.includes('academic') ? ['scholar', 'mystic'] : lower.includes('grave') || lower.includes('temple') || lower.includes('radiant') ? ['divine'] : lower.includes('fey') || lower.includes('forest') ? ['fey', 'primal'] : lower.includes('veteran') || lower.includes('gladiator') ? ['warrior'] : undefined,
+    ageCategory,
+    faceType,
+    bodyType,
+    hairStyle,
+    facialHair,
+    groomingStyle: lower.includes('noble') || lower.includes('court') ? 'polished grooming' : lower.includes('wild') || lower.includes('hermit') ? 'untamed grooming' : 'practical grooming',
+    raceSpecificFeatures: features,
+    distinctiveMarks: [lower.includes('scar') ? 'visible old scar' : lower.includes('rune') ? 'rune-marked skin' : lower.includes('salt') || lower.includes('coast') ? 'salt-weathered skin' : lower.includes('grave') ? 'pale grave mark' : 'distinctive personal mark'],
+    promptFragment: `${label}, ${ageCategory}, ${faceType}, ${bodyType}, ${hairStyle}${facialHair !== 'none' ? `, ${facialHair}` : ''}${features.length ? `, ${features.join(', ')}` : ''}`,
+    weight: 8,
+  };
+}
+
+export const characterAppearanceProfiles: CharacterAppearanceProfile[] = Object.entries(raceAppearanceNames).flatMap(([raceId, labels]) => labels.map((label, index) => makeAppearanceProfile(raceId, label, index)));
+
+export const curatedMulticlassProfiles: CuratedMulticlassProfile[] = [
+  { id: 'cursed_oath_knight', label: 'Cursed Oath Knight', primaryClass: 'paladin', secondaryClass: 'warlock', buildTemplateId: 'holy_warrior', fantasyPillarId: 'divine', compatibleThemes: ['fallen_saint', 'grave_warden', 'battle_chaplain', 'wandering_healer'], preferredThemes: ['fallen_saint'], visualFantasy: 'a holy champion carrying the visible stain of a forbidden pact', promptHint: 'sacred armor remains dominant while forbidden pact marks corrupt the edges', weight: 5 },
+  { id: 'temple_champion', label: 'Temple Champion', primaryClass: 'cleric', secondaryClass: 'paladin', buildTemplateId: 'holy_warrior', fantasyPillarId: 'divine', compatibleThemes: ['battle_chaplain', 'sun_knight', 'grave_warden', 'wandering_healer', 'fallen_saint'], preferredThemes: ['battle_chaplain', 'sun_knight'], visualFantasy: 'a relic-bearing priest trained to stand in the shield wall', promptHint: 'divine focus and armor read before martial accents', weight: 7 },
+  { id: 'spellblade_veteran', label: 'Spellblade Veteran', primaryClass: 'fighter', secondaryClass: 'wizard', buildTemplateId: 'martial_veteran', fantasyPillarId: 'warrior', compatibleThemes: ['arena_champion', 'veteran_officer', 'royal_guard'], preferredThemes: ['veteran_officer'], visualFantasy: 'a battlefield swordsman with disciplined arcane techniques', promptHint: 'martial silhouette first, restrained rune accents second', weight: 6 },
+  { id: 'academy_inventor', label: 'Academy Inventor', primaryClass: 'wizard', secondaryClass: 'artificer', buildTemplateId: 'arcane_caster', fantasyPillarId: 'scholar', compatibleThemes: ['academy_mage', 'battle_mage', 'ritualist', 'void_oracle'], preferredThemes: ['academy_mage'], visualFantasy: 'an academy mage whose spellcraft is supported by precise devices', promptHint: 'robes, books, and arcane focus remain primary with mechanical measuring tools', weight: 5 },
+  { id: 'void_touched_heir', label: 'Void-Touched Heir', primaryClass: 'sorcerer', secondaryClass: 'warlock', buildTemplateId: 'arcane_caster', fantasyPillarId: 'mystic', compatibleThemes: ['void_oracle', 'ritualist', 'star_seer', 'academy_mage', 'battle_mage'], preferredThemes: ['void_oracle'], visualFantasy: 'an innate caster marked by an inherited occult pact', promptHint: 'bloodline magic reads through eyes and focus, pact marks stay as accents', weight: 6 },
+  { id: 'duelist_veteran', label: 'Duelist Veteran', primaryClass: 'fighter', secondaryClass: 'rogue', buildTemplateId: 'martial_veteran', fantasyPillarId: 'warrior', compatibleThemes: ['mercenary_captain', 'arena_champion', 'veteran_officer'], preferredThemes: ['mercenary_captain'], visualFantasy: 'a disciplined officer with hidden duelist habits', promptHint: 'combat gear and command posture remain primary with discreet blades', weight: 7 },
+  { id: 'shadow_tracker', label: 'Shadow Tracker', primaryClass: 'ranger', secondaryClass: 'rogue', buildTemplateId: 'frontier_hunter', fantasyPillarId: 'explorer', compatibleThemes: ['trail_warden'], preferredThemes: ['trail_warden'], visualFantasy: 'a wilderness tracker who moves like a thief at dusk', promptHint: 'bow, trail gear, and wilderness signs remain primary with stealth tools', weight: 7 },
+  { id: 'shadow_monastery_adept', label: 'Shadow Monastery Adept', primaryClass: 'monk', secondaryClass: 'rogue', buildTemplateId: 'wandering_martial_artist', fantasyPillarId: 'warrior', compatibleThemes: ['silent_avenger', 'temple_guardian'], preferredThemes: ['silent_avenger'], visualFantasy: 'a silent martial artist trained to strike from temple shadows', promptHint: 'monk wraps and martial pose remain primary with hidden knife discipline', weight: 5 },
+  { id: 'wildwarden', label: 'Wildwarden', primaryClass: 'druid', secondaryClass: 'ranger', buildTemplateId: 'frontier_hunter', fantasyPillarId: 'primal', compatibleThemes: ['trail_warden', 'forest_sprite'], preferredThemes: ['trail_warden'], visualFantasy: 'a forest guardian who tracks threats through old wild magic', promptHint: 'wilderness identity remains primary with subtle druidic marks', weight: 6 },
+  { id: 'berserker_veteran', label: 'Berserker Veteran', primaryClass: 'fighter', secondaryClass: 'barbarian', buildTemplateId: 'martial_veteran', fantasyPillarId: 'warrior', compatibleThemes: ['arena_champion', 'monster_slayer_veteran'], preferredThemes: ['arena_champion'], visualFantasy: 'a trained veteran whose discipline barely contains primal violence', promptHint: 'veteran armor and weapon discipline remain primary with trophy scars', weight: 5 },
+  { id: 'prayer_fist_guardian', label: 'Prayer-Fist Guardian', primaryClass: 'monk', secondaryClass: 'cleric', buildTemplateId: 'wandering_martial_artist', fantasyPillarId: 'divine', compatibleThemes: ['temple_guardian', 'wandering_master'], preferredThemes: ['temple_guardian'], visualFantasy: 'a sacred martial artist whose prayers move through disciplined strikes', promptHint: 'monk silhouette and wraps stay primary with holy beads and temple light', weight: 6 },
+  { id: 'court_spy', label: 'Court Spy', primaryClass: 'bard', secondaryClass: 'rogue', buildTemplateId: 'skald_performer', fantasyPillarId: 'noble', compatibleThemes: ['lore_skald'], preferredThemes: ['lore_skald'], visualFantasy: 'a performer-spy hiding coded secrets in courtly art', promptHint: 'bard performance identity remains primary with spy tools in the costume', weight: 6 },
+  { id: 'pact_singer', label: 'Pact Singer', primaryClass: 'bard', secondaryClass: 'warlock', buildTemplateId: 'skald_performer', fantasyPillarId: 'fey', compatibleThemes: ['lore_skald'], preferredThemes: ['lore_skald'], visualFantasy: 'a skald whose songs carry a forbidden pact resonance', promptHint: 'instrument and performance silhouette remain primary with occult marks', weight: 4 },
+  { id: 'radiant_spell_knight', label: 'Radiant Spell Knight', primaryClass: 'paladin', secondaryClass: 'sorcerer', buildTemplateId: 'holy_warrior', fantasyPillarId: 'divine', compatibleThemes: ['sun_knight', 'battle_chaplain', 'wandering_healer', 'academy_mage'], preferredThemes: ['sun_knight'], visualFantasy: 'a sacred champion whose bloodline shines through martial vows', promptHint: 'holy armor and sacred weapon remain primary with radiant spell accents', weight: 3 },
+  { id: 'veteran_scout', label: 'Veteran Scout', primaryClass: 'ranger', secondaryClass: 'fighter', buildTemplateId: 'frontier_hunter', fantasyPillarId: 'explorer', compatibleThemes: ['trail_warden'], preferredThemes: ['trail_warden'], visualFantasy: 'a frontier scout hardened by military campaigns', promptHint: 'ranger gear and tracking posture remain primary with veteran insignia', weight: 5 },
 ];
 
 export const archetypes: Array<WeightedOption<ArchetypeOption>> = [
@@ -1022,7 +1181,7 @@ export const armorLanguages: ArmorLanguage[] = [
   { id: 'monastic_travel_wraps', label: 'Monastic Travel Wraps', armorCategory: ['cloth', 'none'], compatibleBuildTemplates: ['wandering_martial_artist'], compatibleThemes: ['mountain_hermit', 'wandering_master', 'silent_avenger'], promptFragments: ['layered travel wraps', 'weathered sash ties', 'dust-stained cloth hems'], detailHints: ['layered travel wraps', 'weathered sash ties'] },
   { id: 'temple_guardian_cloth', label: 'Temple Guardian Cloth', armorCategory: ['cloth', 'none'], compatibleBuildTemplates: ['wandering_martial_artist'], compatibleThemes: ['temple_guardian', 'dragon_style_adept'], promptFragments: ['temple-dyed cloth', 'prayer bead toggles', 'reinforced training sash'], detailHints: ['temple-dyed cloth', 'reinforced training sash'] },
   { id: 'scholar_travel_robes', label: 'Scholar Travel Robes', armorCategory: ['cloth', 'none', 'light'], compatibleBuildTemplates: ['arcane_caster', 'divine_scholar', 'lorekeeper_bard'], compatibleThemes: ['academy_mage', 'ritualist', 'divine_archivist', 'archive_performer', 'court_loremaster'], promptFragments: ['travel-ready scholar robes', 'labeled inner pockets', 'ink-safe cuffs'], detailHints: ['labeled inner pockets', 'ink-safe cuffs'] },
-  { id: 'occult_prophecy_robes', label: 'Occult Prophecy Robes', armorCategory: ['cloth', 'none'], compatibleBuildTemplates: ['arcane_caster'], compatibleThemes: ['void_oracle', 'ritualist', 'star_seer'], promptFragments: ['prophecy strips sewn into the robe', 'starless lining', 'black-thread fasteners'], detailHints: ['prophecy strips', 'starless lining'] },
+  { id: 'occult_prophecy_robes', label: 'Occult Prophecy Robes', armorCategory: ['cloth', 'none'], compatibleBuildTemplates: ['arcane_caster'], compatibleThemes: ['void_oracle', 'ritualist', 'star_seer', 'academy_mage', 'battle_mage'], promptFragments: ['prophecy strips sewn into the robe', 'starless lining', 'black-thread fasteners'], detailHints: ['prophecy strips', 'starless lining'] },
   { id: 'fey_travel_garb', label: 'Fey Travel Garb', armorCategory: ['cloth', 'light'], compatibleBuildTemplates: ['fey_trickster', 'skald_performer'], compatibleThemes: ['forest_sprite', 'wandering_bard', 'fey_noble', 'moonlit_duelist', 'lore_skald'], promptFragments: ['moonlit travel garb', 'leaflike stitching', 'soft living-thread accents'], detailHints: ['leaflike stitching', 'living-thread accents'] },
   { id: 'bardic_travel_cloak', label: 'Bardic Travel Cloak', armorCategory: ['cloth', 'light'], compatibleBuildTemplates: ['skald_performer', 'lorekeeper_bard'], compatibleThemes: ['lore_skald', 'wandering_storyteller', 'archive_performer', 'court_loremaster', 'cursed_lore_singer'], promptFragments: ['performer cloak with hidden pockets', 'song-note embroidery', 'road-worn hem'], detailHints: ['song-note embroidery', 'hidden performer pockets'] },
   { id: 'pilgrim_healer_robes', label: 'Pilgrim Healer Robes', armorCategory: ['cloth', 'light', 'medium'], compatibleBuildTemplates: ['holy_warrior', 'divine_scholar'], compatibleThemes: ['wandering_healer', 'battle_chaplain', 'divine_archivist'], promptFragments: ['pilgrim healer layers', 'medicine-satchel straps', 'plain sacred trim'], detailHints: ['medicine-satchel straps', 'plain sacred trim'] },
@@ -1036,7 +1195,7 @@ export const armorLanguages: ArmorLanguage[] = [
   { id: 'gravewarden_chain', label: 'Gravewarden Chain', armorCategory: ['medium', 'heavy', 'metal'], compatibleBuildTemplates: ['holy_warrior', 'divine_scholar'], compatibleThemes: ['grave_warden', 'fallen_saint', 'divine_archivist'], promptFragments: ['blackened gravewarden chain', 'funeral-bell tabs', 'ash-dark tabard'], detailHints: ['funeral-bell tabs', 'ash-dark tabard'] },
   { id: 'mercenary_scale_mail', label: 'Mercenary Scale Mail', armorCategory: ['medium', 'metal'], compatibleBuildTemplates: ['martial_veteran', 'frontier_hunter'], compatibleThemes: ['mercenary_captain', 'veteran_officer', 'arena_champion'], promptFragments: ['practical mercenary scale mail', 'contract-token fasteners', 'field-repaired scales'], detailHints: ['contract-token fasteners', 'field-repaired scales'] },
   { id: 'oathbound_plate', label: 'Oathbound Plate', armorCategory: ['heavy', 'metal'], compatibleBuildTemplates: ['holy_warrior', 'martial_veteran'], compatibleThemes: ['sun_knight', 'royal_guard', 'battle_chaplain'], promptFragments: ['oath-etched plate armor', 'sacred shield-side trim', 'formal vow markings'], detailHints: ['oath-etched plate', 'formal vow markings'] },
-  { id: 'fallen_saint_plate', label: 'Fallen Saint Plate', armorCategory: ['heavy', 'metal'], compatibleBuildTemplates: ['holy_warrior'], compatibleThemes: ['fallen_saint', 'grave_warden'], promptFragments: ['darkened saintly plate', 'scratched halo motifs', 'cracked sacred trim'], detailHints: ['scratched halo motifs', 'cracked sacred trim'] },
+  { id: 'fallen_saint_plate', label: 'Fallen Saint Plate', armorCategory: ['heavy', 'metal'], compatibleBuildTemplates: ['holy_warrior'], compatibleThemes: ['fallen_saint', 'grave_warden', 'battle_chaplain', 'wandering_healer'], promptFragments: ['darkened saintly plate', 'scratched halo motifs', 'cracked sacred trim'], detailHints: ['scratched halo motifs', 'cracked sacred trim'] },
   { id: 'sun_knight_plate', label: 'Sun Knight Plate', armorCategory: ['heavy', 'metal'], compatibleBuildTemplates: ['holy_warrior', 'martial_veteran'], compatibleThemes: ['sun_knight', 'royal_guard'], promptFragments: ['sunburst plate trim', 'bright polished pauldrons', 'radiant heraldic edgework'], detailHints: ['sunburst trim', 'radiant edgework'] },
   { id: 'veteran_half_plate', label: 'Veteran Half Plate', armorCategory: ['medium', 'heavy', 'metal'], compatibleBuildTemplates: ['martial_veteran', 'savage_berserker'], compatibleThemes: ['veteran_officer', 'mercenary_captain', 'monster_slayer_veteran', 'arena_champion'], promptFragments: ['veteran half-plate', 'old campaign dents', 'practical replacement straps'], detailHints: ['old campaign dents', 'replacement straps'] },
   { id: 'reinforced_artificer_coat', label: 'Reinforced Artificer Coat', armorCategory: ['light', 'medium', 'metal'], compatibleBuildTemplates: ['battle_engineer'], compatibleThemes: ['clockwork_sapper', 'pirate_raider'], promptFragments: ['reinforced artificer coat', 'riveted tool loops', 'heat-resistant sleeves'], detailHints: ['riveted tool loops', 'heat-resistant sleeves'] },

@@ -9,6 +9,8 @@ import {
   silhouetteProfiles,
   fantasyPillars,
   companionRelationships,
+  characterAppearanceProfiles,
+  curatedMulticlassProfiles,
   companionProfiles,
   armorLanguages,
   classAnchors,
@@ -34,8 +36,10 @@ import {
   type ArmorOption,
   type BuildTemplate,
   type ClassAnchor,
+  type CharacterAppearanceProfile,
   type CharacterClass,
   type CulturalOrigin,
+  type CuratedMulticlassProfile,
   type EquipmentEffectIntensity,
   type EquipmentEnchantment,
   type EquipmentFinish,
@@ -67,6 +71,8 @@ import {
 
 type Mode = (typeof modeWeights)[number]['name'];
 export type DiversityMode = 'off' | 'soft' | 'strict';
+export type EnvironmentDetailLevel = 'minimal' | 'balanced' | 'cinematic';
+export type CompositionMode = 'character_concept_portrait' | 'full_body_character_art' | 'cinematic_splash_art' | 'character_card';
 type RegenerableLayer = 'template' | 'theme' | 'themeVariant' | 'motif' | 'narrativeVariant' | 'culture' | 'armor' | 'weapon' | 'silhouette' | 'pose' | 'mood' | 'light' | 'fx';
 
 type TemplateSelection = {
@@ -91,6 +97,8 @@ type SmartSelectionLayer =
   | 'Equipment Finish'
   | 'Equipment Enchantment'
   | 'Companion'
+  | 'Curated Multiclass'
+  | 'Appearance'
   | 'Pose'
   | 'Mood'
   | 'Light'
@@ -105,11 +113,15 @@ type SmartCandidate<T> = {
 type SmartSelectionContext = {
   useSmartPool: boolean;
   trace: string[];
+  compositionMode?: CompositionMode;
+  environmentDetailLevel?: EnvironmentDetailLevel;
 };
 
 export type GenerationOptions = {
   useSmartPool?: boolean;
   diversityMode?: DiversityMode;
+  environmentDetailLevel?: EnvironmentDetailLevel;
+  compositionMode?: CompositionMode;
 };
 
 export type CharacterSeed = {
@@ -118,6 +130,7 @@ export type CharacterSeed = {
   classes: CharacterClass[];
   race: RaceOption;
   size: SizeCategory;
+  appearanceProfile: CharacterAppearanceProfile;
   archetype: ArchetypeOption;
   buildTemplate: BuildTemplate;
   templateReason: string;
@@ -126,11 +139,17 @@ export type CharacterSeed = {
   visualThemeVariant: VisualThemeVariant;
   visualFantasy: string;
   visualDetails: string[];
+  characterBoundDetails: string[];
+  sceneProps: string[];
+  backgroundProps: string[];
   visualDetailBudget: VisualDetailBudget;
   visualMotif: VisualMotif;
   narrativeMotif: NarrativeMotif;
   narrativeVariant: NarrativeVariant;
   culturalOrigin: CulturalOrigin;
+  compositionMode: CompositionMode;
+  environmentDetailLevel: EnvironmentDetailLevel;
+  curatedMulticlassProfile: CuratedMulticlassProfile | null;
   cultureDetails: string[];
   classAnchorScore: number;
   motifReason: string;
@@ -168,6 +187,7 @@ type SimilarityReport = {
   tooSimilar: boolean;
   duplicateVisualCore: boolean;
   similarSummary: string;
+  appearanceScore?: number;
 };
 
 export type ValidationIssue = {
@@ -319,6 +339,103 @@ function getFantasyPillar(theme: VisualTheme, primaryClass?: CharacterClass, bui
 
 function isPillarCompatible(seed: Pick<CharacterSeed, 'fantasyPillar' | 'primaryClass' | 'buildTemplate'>): boolean {
   return classPillarCompatibility[seed.primaryClass].includes(seed.fantasyPillar.id) && (buildTemplatePillarCompatibility[seed.buildTemplate.id] ?? []).includes(seed.fantasyPillar.id);
+}
+
+
+function selectAppearanceProfile(
+  race: RaceOption,
+  size: SizeCategory,
+  primaryClass: CharacterClass,
+  buildTemplate: BuildTemplate,
+  visualTheme: VisualTheme,
+  fantasyPillar: FantasyPillar,
+  culturalOrigin: CulturalOrigin,
+  context: SmartSelectionContext,
+): CharacterAppearanceProfile {
+  const baseCandidates = characterAppearanceProfiles.filter((profile) => profile.compatibleRaces.includes(race.name) && (!profile.compatibleSizes || profile.compatibleSizes.includes(size)));
+  const immediatePrevious = [...recentSeedMemory].reverse().find((seed) => seed.race.name === race.name)?.appearanceProfile;
+  const filteredCandidates = immediatePrevious
+    ? baseCandidates.filter((profile) => {
+      if (profile.id === immediatePrevious.id) return false;
+      if (race.name === 'dwarf' && profile.facialHair === immediatePrevious.facialHair) return false;
+      if (['tiefling', 'satyr', 'dragonborn', 'fairy'].includes(race.name)) {
+        const previousFeatures = new Set(immediatePrevious.raceSpecificFeatures ?? []);
+        if ((profile.raceSpecificFeatures ?? []).some((feature) => previousFeatures.has(feature))) return false;
+      }
+      return true;
+    })
+    : baseCandidates;
+  const candidates = filteredCandidates.length >= 3 ? filteredCandidates : baseCandidates.filter((profile) => !immediatePrevious || profile.id !== immediatePrevious.id);
+  const recentSameRace = recentSeedMemory.slice(-8).filter((seed) => seed.race.name === race.name).map((seed) => seed.appearanceProfile);
+  return smartSelect(
+    'Appearance',
+    candidates.map((profile) => {
+      let score = profile.weight + 40;
+      const reasons = [`race ${race.name}`];
+      if (profile.compatibleClasses?.includes(primaryClass)) { score += 10; reasons.push(`class ${primaryClass}`); }
+      if (profile.compatibleBuildTemplates?.includes(buildTemplate.id)) { score += 12; reasons.push(`template ${buildTemplate.id}`); }
+      if (profile.compatibleThemes?.includes(visualTheme.id)) { score += 24; reasons.push(`theme ${visualTheme.id}`); }
+      if (profile.compatiblePillars?.includes(fantasyPillar.id)) { score += 14; reasons.push(`pillar ${fantasyPillar.id}`); }
+      if (profile.compatibleCultures?.includes(culturalOrigin.id)) { score += 8; reasons.push(`culture ${culturalOrigin.id}`); }
+      for (const previous of recentSameRace) {
+        if (previous.id === profile.id) score -= 100;
+        if (previous.ageCategory === profile.ageCategory) score -= 14;
+        if (race.name === 'dwarf' && previous.facialHair === profile.facialHair) score -= 40;
+        const previousFeatures = new Set(previous.raceSpecificFeatures ?? []);
+        const overlap = (profile.raceSpecificFeatures ?? []).filter((feature) => previousFeatures.has(feature)).length;
+        score -= overlap * 18;
+      }
+      return { item: profile, score, reasons };
+    }),
+    context,
+    () => weightedPick(candidates),
+  );
+}
+
+function bindDetail(detail: string, index: number): string {
+  const anchors = ['tucked into the sash', 'fastened to the belt', 'pinned to the cloak', 'tied to the wrist', 'attached to the armor', 'braided into hair or beard'];
+  if (/tucked|fastened|pinned|tied|attached|braided|around the neck|on the cloak|on armor/.test(detail)) return detail;
+  return `${detail} ${anchors[index % anchors.length]}`;
+}
+
+function splitVisualDetails(details: string[], environmentDetailLevel: EnvironmentDetailLevel, compositionMode: CompositionMode): { characterBoundDetails: string[]; sceneProps: string[]; backgroundProps: string[]; visualDetails: string[] } {
+  const maxScene = environmentDetailLevel === 'cinematic' || compositionMode === 'cinematic_splash_art' ? 3 : environmentDetailLevel === 'minimal' || compositionMode === 'character_card' ? 0 : 1;
+  const maxBackground = environmentDetailLevel === 'cinematic' || compositionMode === 'cinematic_splash_art' ? 2 : compositionMode === 'character_card' ? 0 : 1;
+  const sceneKeywords = /map|book|scroll|journal|letter|coin|box|instrument|tool|record|chart|registry|plans|papers|orders|contract|satchel|case/i;
+  const sceneCandidates = details.filter((detail) => sceneKeywords.test(detail));
+  const sceneProps = sceneCandidates.slice(0, maxScene).map((detail) => `${detail} carried close, not scattered`);
+  const backgroundProps = maxBackground > 0 ? details.filter((detail) => !sceneProps.some((scene) => scene.includes(detail))).slice(-maxBackground).map((detail) => `subtle background hint of ${detail}`) : [];
+  const characterBoundDetails = details
+    .filter((detail) => !sceneProps.some((scene) => scene.includes(detail)) && !backgroundProps.some((background) => background.includes(detail)))
+    .slice(0, 6)
+    .map(bindDetail);
+  while (characterBoundDetails.length < Math.min(4, details.length)) {
+    const fallback = details[characterBoundDetails.length];
+    if (!fallback) break;
+    characterBoundDetails.push(bindDetail(fallback, characterBoundDetails.length));
+  }
+  return { characterBoundDetails, sceneProps, backgroundProps, visualDetails: uniqueCleanDetails([...characterBoundDetails, ...sceneProps, ...backgroundProps]).slice(0, 8) };
+}
+
+function compositionPrompt(compositionMode: CompositionMode): string {
+  if (compositionMode === 'character_concept_portrait') return 'focused character concept portrait, readable upper-to-full figure, limited background';
+  if (compositionMode === 'cinematic_splash_art') return 'cinematic fantasy splash art, dynamic scene, character remains dominant';
+  if (compositionMode === 'character_card') return 'clean character card illustration, readable silhouette, minimal background';
+  return 'full-body character concept art, character fully visible, centered 3:4 portrait-friendly composition';
+}
+
+function appearanceSimilarity(a: CharacterAppearanceProfile, b: CharacterAppearanceProfile): number {
+  let score = 0;
+  if (a.id === b.id) score += 12;
+  if (a.ageCategory === b.ageCategory) score += 6;
+  if (a.faceType === b.faceType) score += 8;
+  if (a.bodyType === b.bodyType) score += 6;
+  if (a.hairStyle && a.hairStyle === b.hairStyle) score += 5;
+  if (a.facialHair && a.facialHair === b.facialHair) score += 8;
+  if (a.groomingStyle && a.groomingStyle === b.groomingStyle) score += 4;
+  score += detailOverlap(a.raceSpecificFeatures ?? [], b.raceSpecificFeatures ?? []) * 4;
+  score += detailOverlap(a.distinctiveMarks ?? [], b.distinctiveMarks ?? []) * 3;
+  return score;
 }
 
 function getThemeVisualProfile(theme: VisualTheme): ThemeVisualProfile {
@@ -569,15 +686,25 @@ function pickDistinctClasses(count: number): CharacterClass[] {
 }
 
 function pickClasses(mode: Mode): CharacterClass[] {
-  if (mode === 'multiclass') {
-    return pickDistinctClasses(2);
-  }
-
   if (mode === 'chaos') {
-    return pickDistinctClasses(Math.random() > 0.45 ? 3 : 2);
+    return [weightedPick(characterClasses).name];
   }
 
   return [weightedPick(characterClasses).name];
+}
+
+function selectCuratedMulticlassProfile(race: RaceOption, size: SizeCategory, context: SmartSelectionContext): CuratedMulticlassProfile {
+  const candidates = curatedMulticlassProfiles.filter((profile) =>
+    !(profile.forbiddenRaces ?? []).includes(race.name)
+    && (!profile.allowedRaces || profile.allowedRaces.includes(race.name))
+    && (!profile.allowedSizes || profile.allowedSizes.includes(size)),
+  );
+  return smartSelect(
+    'Curated Multiclass',
+    candidates.map((profile) => ({ item: profile, score: profile.weight + 40, reasons: [`${profile.primaryClass}/${profile.secondaryClass}`] })),
+    context,
+    () => weightedPick(candidates),
+  );
 }
 
 function hasAny<T extends string>(actualTags: T[], requiredTags: T[]): boolean {
@@ -768,7 +895,7 @@ function selectVisualTheme(template: BuildTemplate, archetype: ArchetypeOption, 
   const candidates = visualThemes.filter((theme) => theme.buildTemplateId === template.id);
   const forcedByArchetype = candidates.filter((theme) => {
     if (archetype.tags.includes('void')) return theme.id === 'void_oracle';
-    if (archetype.tags.includes('pirate')) return theme.id === 'pirate_raider' || theme.id === 'lore_skald' || theme.id === 'relic_thief';
+    if (archetype.tags.includes('pirate')) return theme.id === 'pirate_raider' || theme.id === 'lore_skald' || theme.id === 'relic_thief' || theme.id === 'wandering_storyteller';
     if (archetype.tags.includes('cartographer')) return ['relic_thief', 'academy_mage', 'ritualist', 'divine_archivist'].includes(theme.id);
     if (archetype.name === 'exiled temple guardian') return ['temple_guardian', 'battle_chaplain', 'grave_warden'].includes(theme.id);
     return false;
@@ -809,6 +936,22 @@ function selectVisualTheme(template: BuildTemplate, archetype: ArchetypeOption, 
       const bestScore = Math.max(...baseline.map((theme) => theme.weight));
       return weightedPick(baseline.filter((theme) => theme.weight === bestScore));
     },
+  );
+}
+
+
+function selectCuratedVisualTheme(profile: CuratedMulticlassProfile, template: BuildTemplate, archetype: ArchetypeOption, race: RaceOption, context: SmartSelectionContext): VisualTheme {
+  const candidates = visualThemes.filter((theme) => theme.buildTemplateId === template.id && profile.compatibleThemes.includes(theme.id) && !(profile.forbiddenThemes ?? []).includes(theme.id));
+  if (candidates.length === 0) return selectVisualTheme(template, archetype, race, context);
+  return smartSelect(
+    'Visual Theme',
+    candidates.map((theme) => ({
+      item: theme,
+      score: theme.weight + 45 + (profile.preferredThemes.includes(theme.id) ? 35 : 0) + theme.archetypeTags.filter((tag) => archetype.tags.includes(tag)).length * 8,
+      reasons: [`curated multiclass ${profile.id}`, `template ${template.id}`],
+    })),
+    context,
+    () => weightedPick(candidates.map((theme) => ({ ...theme, weight: theme.weight + (profile.preferredThemes.includes(theme.id) ? 10 : 0) }))),
   );
 }
 
@@ -1509,6 +1652,23 @@ function selectSilhouetteProfile(
   );
 }
 
+function pickCuratedArchetype(profile: CuratedMulticlassProfile, primaryClass: CharacterClass, context: SmartSelectionContext): ArchetypeOption {
+  const profileThemes = visualThemes.filter((theme) => profile.compatibleThemes.includes(theme.id));
+  const classArchetypes = archetypes.filter((archetype) => archetype.classes.includes(primaryClass));
+  const candidates = classArchetypes.filter((archetype) => profileThemes.some((theme) => theme.archetypeNames.includes(archetype.name) || theme.archetypeTags.some((tag) => archetype.tags.includes(tag))));
+  const pool = candidates.length > 0 ? candidates : classArchetypes;
+  return smartSelect(
+    'Curated Multiclass',
+    pool.map((archetype) => {
+      const directThemeMatches = profileThemes.filter((theme) => theme.archetypeNames.includes(archetype.name)).length;
+      const tagMatches = profileThemes.reduce((sum, theme) => sum + theme.archetypeTags.filter((tag) => archetype.tags.includes(tag)).length, 0);
+      return { item: archetype, score: archetype.weight + 35 + directThemeMatches * 25 + tagMatches * 8, reasons: [`curated multiclass ${profile.id}`, `primary ${primaryClass}`] };
+    }),
+    context,
+    () => weightedPick(pool),
+  );
+}
+
 function calculateClassAnchorScore(seed: Pick<CharacterSeed, 'primaryClass' | 'weapon' | 'armor' | 'pose' | 'visualDetails' | 'storyDetails' | 'cultureDetails' | 'buildTemplate'> & Partial<Pick<CharacterSeed, 'fantasyPillar' | 'visualMotif' | 'armorLanguage' | 'weaponLanguage' | 'silhouetteProfile' | 'companion' | 'visualFantasy'>>): number {
   const anchor = getClassAnchor(seed.primaryClass);
   const text = normalizeText([
@@ -1541,13 +1701,18 @@ function calculateClassAnchorScore(seed: Pick<CharacterSeed, 'primaryClass' | 'w
 
 function createSeed(context: SmartSelectionContext): CharacterSeed {
   const mode = weightedPick(modeWeights).name;
-  const classes = pickClasses(mode);
-  const primaryClass = classes[0];
   const race = weightedPick(races);
   const size = getRaceSize(race);
-  const archetype = pickArchetype(classes, primaryClass);
-  const { template: buildTemplate, reason: templateReason } = selectBuildTemplate(primaryClass, archetype, race, mode, context);
-  const visualTheme = selectVisualTheme(buildTemplate, archetype, race, context);
+  const curatedMulticlassProfile = mode === 'curated multiclass' ? selectCuratedMulticlassProfile(race, size, context) : null;
+  const classes = curatedMulticlassProfile ? [curatedMulticlassProfile.primaryClass, curatedMulticlassProfile.secondaryClass] : pickClasses(mode);
+  const primaryClass = classes[0];
+  const archetype = curatedMulticlassProfile ? pickCuratedArchetype(curatedMulticlassProfile, primaryClass, context) : pickArchetype(classes, primaryClass);
+  const curatedTemplate = curatedMulticlassProfile ? buildTemplates.find((template) => template.id === curatedMulticlassProfile.buildTemplateId) : undefined;
+  const templateSelection = curatedTemplate
+    ? { template: curatedTemplate, reason: `curated multiclass ${curatedMulticlassProfile?.id} locks template ${curatedTemplate.id}` }
+    : selectBuildTemplate(primaryClass, archetype, race, mode, context);
+  const { template: buildTemplate, reason: templateReason } = templateSelection;
+  const visualTheme = curatedMulticlassProfile ? selectCuratedVisualTheme(curatedMulticlassProfile, buildTemplate, archetype, race, context) : selectVisualTheme(buildTemplate, archetype, race, context);
   const themeProfile = getThemeVisualProfile(visualTheme);
   const fantasyPillar = getFantasyPillar(visualTheme, primaryClass, buildTemplate);
   const visualThemeVariant = selectVisualThemeVariant(visualTheme, context, buildTemplate.allowedFx);
@@ -1562,6 +1727,9 @@ function createSeed(context: SmartSelectionContext): CharacterSeed {
     () => weightedPick(culturalOrigins),
   );
   const cultureDetails = pickCultureDetails(culturalOrigin);
+  const compositionMode = context.compositionMode ?? 'full_body_character_art';
+  const environmentDetailLevel = context.environmentDetailLevel ?? 'balanced';
+  const appearanceProfile = selectAppearanceProfile(race, size, primaryClass, buildTemplate, visualTheme, fantasyPillar, culturalOrigin, context);
   const armor = smartPickArmor(constrainedArmorOptions(buildTemplate, archetype, primaryClass, size, visualTheme), primaryClass, context);
   const armorLanguage = selectArmorLanguage(armor, { primaryClass, buildTemplate, visualTheme, fantasyPillar, culturalOrigin }, themeProfile, context);
   const weaponOptions = constrainedWeaponOptions(buildTemplate, archetype, size, race, primaryClass, visualTheme);
@@ -1578,6 +1746,7 @@ function createSeed(context: SmartSelectionContext): CharacterSeed {
   const equipmentEnchantment = selectEquipmentEnchantment({ mode, buildTemplate, visualTheme, fantasyPillar, weapon, armor, visualMotif, fx }, context);
   let visualDetailSelection = buildVisualDetails(visualTheme, visualThemeVariant, themeProfile, visualMotif, armorLanguage, weaponLanguage, companionSelection.companion);
   visualDetailSelection = applyEquipmentLegendaryDetail(visualDetailSelection, equipmentEnchantment);
+  const detailSplit = splitVisualDetails(visualDetailSelection.details, environmentDetailLevel, compositionMode);
   context.trace.push(`Visual Detail Budget: major ${visualDetailSelection.budget.majorVisualDetails}, minor ${visualDetailSelection.budget.minorVisualDetails}, story ${visualDetailSelection.budget.storyProps}, culture ${visualDetailSelection.budget.cultureDetails}, companion ${visualDetailSelection.budget.companionDetails}, legendary ${visualDetailSelection.budget.legendaryDetails}.`);
 
   const seed: CharacterSeed = {
@@ -1586,6 +1755,7 @@ function createSeed(context: SmartSelectionContext): CharacterSeed {
     classes,
     race,
     size,
+    appearanceProfile,
     archetype,
     buildTemplate,
     templateReason,
@@ -1593,12 +1763,18 @@ function createSeed(context: SmartSelectionContext): CharacterSeed {
     fantasyPillar,
     visualThemeVariant,
     visualFantasy: themeProfile.visualFantasy,
-    visualDetails: visualDetailSelection.details,
+    visualDetails: detailSplit.visualDetails,
+    characterBoundDetails: detailSplit.characterBoundDetails,
+    sceneProps: detailSplit.sceneProps,
+    backgroundProps: detailSplit.backgroundProps,
     visualDetailBudget: visualDetailSelection.budget,
     visualMotif,
     narrativeMotif,
     narrativeVariant,
     culturalOrigin,
+    compositionMode,
+    environmentDetailLevel,
+    curatedMulticlassProfile,
     cultureDetails,
     classAnchorScore: 0,
     motifReason: motifSelection.reason,
@@ -1670,12 +1846,75 @@ function hasMapContext(seed: CharacterSeed): boolean {
   return isCartographerLike(seed.archetype) || isScholarLike(seed.archetype) || hasAny(seed.weapon.tags, ['map', 'book', 'scroll', 'compass']) || seed.pose.name === 'ritual prep around carefully arranged instruments';
 }
 
+function detailsContainAny(details: string[], needles: string[]): boolean {
+  return details.some((detail) => needles.some((needle) => detail.includes(needle)));
+}
+
+function forbiddenMulticlassKey(seed: CharacterSeed): string {
+  return seed.classes.slice().sort().join('/');
+}
+
 export function validateGeneratedSeed(seed: CharacterSeed): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const weaponTags = seed.weapon.tags;
   const armorTags = seed.armor.tags;
   const poseTags = seed.pose.tags;
   const smallOrFey = smallRaceNames.includes(seed.race.name) || seed.race.tags.includes('fey');
+
+  if (!seed.appearanceProfile || !seed.appearanceProfile.compatibleRaces.includes(seed.race.name)) {
+    issues.push({ message: 'seed must include race-compatible CharacterAppearance profile', layers: ['theme'] });
+  }
+
+  const appearanceText = [
+    seed.appearanceProfile?.promptFragment ?? '',
+    seed.appearanceProfile?.faceType ?? '',
+    seed.appearanceProfile?.bodyType ?? '',
+    seed.appearanceProfile?.hairStyle ?? '',
+    seed.appearanceProfile?.facialHair ?? '',
+    ...(seed.appearanceProfile?.raceSpecificFeatures ?? []),
+  ].join(' ').toLowerCase();
+  if (seed.race.name === 'elf' && /(thick beard|dwarf-like|square beard|elderly wizard beard)/.test(appearanceText)) {
+    issues.push({ message: 'elf appearance cannot include thick or dwarf-like beard features', layers: ['theme'] });
+  }
+  if (seed.race.name === 'dragonborn' && /(human beard|human nose|smooth human skin)/.test(appearanceText)) {
+    issues.push({ message: 'dragonborn appearance cannot include human beard, human nose, or smooth human skin', layers: ['theme'] });
+  }
+
+  if (seed.sceneProps.length > (seed.compositionMode === 'cinematic_splash_art' ? 3 : seed.environmentDetailLevel === 'minimal' || seed.compositionMode === 'character_card' ? 0 : 1)) {
+    issues.push({ message: 'scene props exceed composition/environment budget', layers: ['theme'] });
+  }
+  if (seed.compositionMode !== 'cinematic_splash_art' && seed.characterBoundDetails.length < seed.sceneProps.length) {
+    issues.push({ message: 'character-bound details must dominate scene props outside cinematic mode', layers: ['theme'] });
+  }
+
+  const forbiddenMulticlasses = new Set(['barbarian/bard', 'barbarian/wizard', 'artificer/barbarian', 'druid/paladin', 'artificer/monk', 'cleric/rogue']);
+  const multiclassKey = forbiddenMulticlassKey(seed);
+  if (seed.classes.length > 2) {
+    issues.push({ message: 'triple multiclass is disabled in normal generation', layers: ['template'] });
+  }
+  if (seed.mode === 'curated multiclass') {
+    if (!seed.curatedMulticlassProfile) {
+      issues.push({ message: 'curated multiclass mode requires CuratedMulticlassProfile', layers: ['template'] });
+    } else {
+      if (seed.primaryClass !== seed.curatedMulticlassProfile.primaryClass || seed.classes[1] !== seed.curatedMulticlassProfile.secondaryClass) {
+        issues.push({ message: 'curated multiclass classes must match profile primary/secondary classes', layers: ['template'] });
+      }
+      if (seed.buildTemplate.id !== seed.curatedMulticlassProfile.buildTemplateId) {
+        issues.push({ message: 'curated multiclass primary class must control the build template', layers: ['template'] });
+      }
+      if (!seed.curatedMulticlassProfile.compatibleThemes.includes(seed.visualTheme.id)) {
+        issues.push({ message: 'curated multiclass visual theme must match profile compatibility', layers: ['theme'] });
+      }
+      if (seed.classAnchorScore < 3) {
+        issues.push({ message: 'curated multiclass class anchor score must stay at least 3/5', layers: ['template'] });
+      }
+    }
+  } else if (seed.classes.length > 1 || seed.curatedMulticlassProfile) {
+    issues.push({ message: 'random multiclass is disabled; multiclass must come from CuratedMulticlassProfile', layers: ['template'] });
+  }
+  if (forbiddenMulticlasses.has(multiclassKey)) {
+    issues.push({ message: `forbidden multiclass combination generated: ${multiclassKey}`, layers: ['template'] });
+  }
 
   if (seed.visualTheme.buildTemplateId !== seed.buildTemplate.id) {
     issues.push({ message: `${seed.visualTheme.id} does not belong to build template ${seed.buildTemplate.id}`, layers: ['theme'] });
@@ -1759,11 +1998,11 @@ export function validateGeneratedSeed(seed: CharacterSeed): ValidationIssue[] {
     issues.push({ message: 'void oracle must have void FX', layers: ['fx'] });
   }
 
-  if (seed.archetype.tags.includes('pirate') && !['pirate_raider', 'relic_thief', 'lore_skald', 'wandering_bard'].includes(seed.visualTheme.id)) {
+  if (seed.archetype.tags.includes('pirate') && !['pirate_raider', 'relic_thief', 'lore_skald', 'wandering_bard', 'wandering_storyteller'].includes(seed.visualTheme.id)) {
     issues.push({ message: 'pirate archetype requires pirate-compatible visual theme', layers: ['theme', 'weapon', 'pose'] });
   }
 
-  if (seed.archetype.tags.includes('pirate') && !hasAny(seed.visualDetails, ['rope belt', 'sea charts', 'barnacle relics', 'stolen relic case', 'song-scroll case', 'travel lute charms'])) {
+  if (seed.archetype.tags.includes('pirate') && !detailsContainAny(seed.visualDetails, ['rope belt', 'sea charts', 'barnacle relics', 'stolen relic case', 'song-scroll case', 'travel lute charms'])) {
     issues.push({ message: 'pirate archetype requires pirate-compatible gear details', layers: ['theme'] });
   }
 
@@ -2017,6 +2256,7 @@ function refreshVisualLibraryLayers(seed: CharacterSeed, context: SmartSelection
   if (seed.archetype.tags.includes('pirate') && !hasAny(visualDetailSelection.details, ['rope belt', 'sea charts', 'barnacle relics', 'stolen relic case', 'song-scroll case', 'travel lute charms'])) {
     visualDetailSelection.details = uniqueCleanDetails(['rope belt', ...visualDetailSelection.details]).slice(0, 8);
   }
+  const detailSplit = splitVisualDetails(visualDetailSelection.details, seed.environmentDetailLevel, seed.compositionMode);
   context.trace.push(`Visual Detail Budget: major ${visualDetailSelection.budget.majorVisualDetails}, minor ${visualDetailSelection.budget.minorVisualDetails}, story ${visualDetailSelection.budget.storyProps}, culture ${visualDetailSelection.budget.cultureDetails}, companion ${visualDetailSelection.budget.companionDetails}, legendary ${visualDetailSelection.budget.legendaryDetails}.`);
   return withClassAnchorScore({
     ...seed,
@@ -2034,7 +2274,10 @@ function refreshVisualLibraryLayers(seed: CharacterSeed, context: SmartSelection
     companionRelationship: companionSelection.relationship,
     companionDetails: visualDetailSelection.companionDetails,
     silhouetteProfile,
-    visualDetails: visualDetailSelection.details,
+    visualDetails: detailSplit.visualDetails,
+    characterBoundDetails: detailSplit.characterBoundDetails,
+    sceneProps: detailSplit.sceneProps,
+    backgroundProps: detailSplit.backgroundProps,
     visualDetailBudget: visualDetailSelection.budget,
     legendaryVisualDetails: visualDetailSelection.legendary,
     promptFragments: [...seed.narrativeMotif.promptFragments, ...seed.narrativeVariant.promptFragments, ...seed.visualThemeVariant.promptFragments, ...visualMotif.promptFragments, ...armorLanguage.promptFragments, ...weaponLanguage.promptFragments, ...equipmentFinish.promptFragments, ...equipmentEnchantment.promptFragments, ...(companionSelection.companion ? [companionSelection.companion.promptFragment, companionSelection.relationship?.promptFragment ?? ''] : [])].filter(Boolean),
@@ -2043,8 +2286,10 @@ function refreshVisualLibraryLayers(seed: CharacterSeed, context: SmartSelection
 
 function rerollLayer(seed: CharacterSeed, layer: RegenerableLayer, context: SmartSelectionContext): CharacterSeed {
   if (layer === 'template') {
-    const selection = selectBuildTemplate(seed.primaryClass, seed.archetype, seed.race, seed.mode, context);
-    const visualTheme = selectVisualTheme(selection.template, seed.archetype, seed.race, context);
+    const selection = seed.curatedMulticlassProfile
+      ? { template: getTemplate(seed.curatedMulticlassProfile.buildTemplateId), reason: `curated multiclass ${seed.curatedMulticlassProfile.id} keeps locked template` }
+      : selectBuildTemplate(seed.primaryClass, seed.archetype, seed.race, seed.mode, context);
+    const visualTheme = seed.curatedMulticlassProfile ? selectCuratedVisualTheme(seed.curatedMulticlassProfile, selection.template, seed.archetype, seed.race, context) : selectVisualTheme(selection.template, seed.archetype, seed.race, context);
     const visualThemeVariant = selectVisualThemeVariant(visualTheme, context, selection.template.allowedFx);
     const motifSelection = selectNarrativeMotif({ ...seed, buildTemplate: selection.template, visualTheme }, context);
     const narrativeVariant = selectNarrativeVariant(motifSelection.motif, context, selection.template.allowedFx);
@@ -2052,7 +2297,7 @@ function rerollLayer(seed: CharacterSeed, layer: RegenerableLayer, context: Smar
   }
 
   if (layer === 'theme') {
-    const visualTheme = selectVisualTheme(seed.buildTemplate, seed.archetype, seed.race, context);
+    const visualTheme = seed.curatedMulticlassProfile ? selectCuratedVisualTheme(seed.curatedMulticlassProfile, seed.buildTemplate, seed.archetype, seed.race, context) : selectVisualTheme(seed.buildTemplate, seed.archetype, seed.race, context);
     const visualThemeVariant = selectVisualThemeVariant(visualTheme, context, seed.buildTemplate.allowedFx);
     const motifSelection = selectNarrativeMotif({ ...seed, visualTheme }, context);
     const narrativeVariant = selectNarrativeVariant(motifSelection.motif, context, seed.buildTemplate.allowedFx);
@@ -2222,8 +2467,10 @@ function formatClassLine(seed: CharacterSeed): string {
   if (seed.mode === 'ordinary class') {
     return seed.primaryClass;
   }
-
-  return `${seed.primaryClass} primary (${seed.classes.join(' / ')})`;
+  if (seed.curatedMulticlassProfile) {
+    return `${seed.primaryClass} primary (${seed.primaryClass} / ${seed.curatedMulticlassProfile.secondaryClass}) — ${seed.curatedMulticlassProfile.label}`;
+  }
+  return seed.primaryClass;
 }
 
 function formatSeed(seed: CharacterSeed): string {
@@ -2233,6 +2480,13 @@ function formatSeed(seed: CharacterSeed): string {
     `Class: ${formatClassLine(seed)}`,
     `Race: ${seed.race.name}`,
     `Size: ${seed.size}`,
+    `Appearance Profile: ${seed.appearanceProfile.label}`,
+    `Appearance Details: ${seed.appearanceProfile.promptFragment}`,
+    `Composition Mode: ${seed.compositionMode}`,
+    `Environment Detail Level: ${seed.environmentDetailLevel}`,
+    `Secondary Class: ${seed.curatedMulticlassProfile ? seed.curatedMulticlassProfile.secondaryClass : 'none'}`,
+    `Curated Multiclass Profile: ${seed.curatedMulticlassProfile ? seed.curatedMulticlassProfile.label : 'none'}`,
+    `Curated Visual Fantasy: ${seed.curatedMulticlassProfile ? seed.curatedMulticlassProfile.visualFantasy : 'none'}`,
     `Archetype: ${seed.archetype.name}`,
     `Fantasy Pillar: ${seed.fantasyPillar.label}`,
     `Build Template: ${seed.buildTemplate.id}`,
@@ -2262,6 +2516,9 @@ function formatSeed(seed: CharacterSeed): string {
     `Mood: ${seed.mood.name}`,
     `Light: ${seed.light.name}`,
     `FX: ${seed.fx.name}`,
+    `Character-Bound Details: ${seed.characterBoundDetails.join(', ')}`,
+    `Scene Props: ${seed.sceneProps.length > 0 ? seed.sceneProps.join(', ') : 'none'}`,
+    `Background Props: ${seed.backgroundProps.length > 0 ? seed.backgroundProps.join(', ') : 'none'}`,
     `Visual Details: ${seed.visualDetails.join(', ')}`,
     `Legendary Visual Details: ${seed.legendaryVisualDetails.length > 0 ? seed.legendaryVisualDetails.join(', ') : 'none'}`,
     `Story Details: ${seed.storyDetails.join(', ')}`,
@@ -2269,8 +2526,13 @@ function formatSeed(seed: CharacterSeed): string {
 }
 
 function formatPrompt(seed: CharacterSeed): string {
+  const multiclassLine = seed.curatedMulticlassProfile
+    ? `Create a D&D character concept art portrait of a ${seed.race.name} ${seed.primaryClass} primary (${seed.primaryClass} / ${seed.curatedMulticlassProfile.secondaryClass}), built around the curated fantasy: ${seed.curatedMulticlassProfile.label}. ${seed.curatedMulticlassProfile.promptHint}.`
+    : `Create a D&D character concept art portrait of a ${seed.race.name} ${seed.primaryClass}.`;
   return [
-    `Detailed fantasy concept art portrait of a ${seed.race.name} ${formatClassLine(seed)}.`,
+    compositionPrompt(seed.compositionMode),
+    multiclassLine,
+    `Appearance: ${seed.appearanceProfile.promptFragment}.`,
     `Build template: ${seed.buildTemplate.label}; fantasy pillar: ${seed.fantasyPillar.label}; visual theme: ${seed.visualTheme.label} (${seed.visualFantasy}); theme variant: ${seed.visualThemeVariant.label}.`,
     `Silhouette: ${seed.silhouetteProfile.label}, ${seed.silhouetteProfile.promptFragment}.`,
     `Armor: ${seed.armor.name}; armor language: ${seed.armorLanguage.promptFragments.join(', ')}; finish: ${seed.equipmentFinish.promptFragments.slice(0, 1).join(', ')}.`,
@@ -2278,10 +2540,12 @@ function formatPrompt(seed: CharacterSeed): string {
     `Pose: ${seed.pose.name}; expression: ${seed.emotion}.`,
     seed.companion ? `Companion: ${seed.companion.label}, ${seed.companion.promptFragment}; relationship: ${seed.companionRelationship?.label ?? 'bonded companion'}.` : 'No companion; keep the silhouette focused on the character.',
     `Primary visual motif: ${seed.visualMotif.label}; ${seed.visualMotif.promptFragments.join(', ')}.`,
-    `Visual details: ${seed.visualDetails.join(', ')}.`,
+    `Character-bound details: ${seed.characterBoundDetails.join(', ')}.`,
+    seed.sceneProps.length > 0 ? `Minimal scene props: ${seed.sceneProps.join(', ')}.` : 'Minimal scene props: none; keep the environment clean.',
+    seed.backgroundProps.length > 0 ? `Background hints: ${seed.backgroundProps.join(', ')}.` : 'Background hints: minimal.',
     `Cultural details: ${seed.cultureDetails.slice(0, 2).join(', ')}.`,
     `Lighting: ${seed.light.name}; primary visual effect: ${seed.fx.name}.`,
-    'Negative prompt: biography text, wall of lore, unreadable gear, duplicate props, extra FX, modern clothing, text in image.',
+    'Negative prompt: biography text, wall of lore, unreadable gear, duplicate props, extra FX, modern clothing, no readable text, only abstract marks or illegible symbols on papers.',
   ].join(' ');
 }
 
@@ -2317,6 +2581,7 @@ function similarityScore(seed: CharacterSeed, previous: CharacterSeed): number {
   if (seed.equipmentFinish.id === previous.equipmentFinish.id) score += 5;
   if (seed.equipmentEnchantment.id === previous.equipmentEnchantment.id) score += 5;
   if (seed.race.name === previous.race.name) score += 5;
+  if (seed.race.name === previous.race.name) score += appearanceSimilarity(seed.appearanceProfile, previous.appearanceProfile);
   if (seed.culturalOrigin.id === previous.culturalOrigin.id) score += 5;
   if (seed.narrativeMotif.id === previous.narrativeMotif.id) score += 6;
   if (seed.narrativeVariant.id === previous.narrativeVariant.id) score += 4;
@@ -2328,17 +2593,21 @@ function similarityScore(seed: CharacterSeed, previous: CharacterSeed): number {
 
 function analyzeRecentSimilarity(seed: CharacterSeed, threshold: number): SimilarityReport {
   let bestScore = 0;
+  let bestAppearanceScore = 0;
   let bestSeed: CharacterSeed | null = null;
   let duplicateVisualCore = false;
   for (const previous of recentSeedMemory.slice(-20)) {
     const score = similarityScore(seed, previous);
+    const appScore = seed.race.name === previous.race.name ? appearanceSimilarity(seed.appearanceProfile, previous.appearanceProfile) : 0;
+    bestAppearanceScore = Math.max(bestAppearanceScore, appScore);
     if (score > bestScore) { bestScore = score; bestSeed = previous; }
     const sameCore = visualCore(seed) === visualCore(previous);
     const sameTemplateThemeWeaponPoseLightFx = seed.buildTemplate.id === previous.buildTemplate.id && seed.visualTheme.id === previous.visualTheme.id && seed.weapon.name === previous.weapon.name && seed.pose.name === previous.pose.name && seed.light.name === previous.light.name && seed.fx.name === previous.fx.name;
     const sameTemplateThemeArmorWeaponDetails = seed.buildTemplate.id === previous.buildTemplate.id && seed.visualTheme.id === previous.visualTheme.id && seed.armor.name === previous.armor.name && seed.weapon.name === previous.weapon.name && detailOverlap(seed.visualDetails, previous.visualDetails) >= 2;
-    if (sameCore || sameTemplateThemeWeaponPoseLightFx || sameTemplateThemeArmorWeaponDetails) duplicateVisualCore = true;
+    const sameFace = seed.race.name === previous.race.name && (seed.appearanceProfile.id === previous.appearanceProfile.id || appearanceSimilarity(seed.appearanceProfile, previous.appearanceProfile) >= 34);
+    if (sameCore || sameTemplateThemeWeaponPoseLightFx || sameTemplateThemeArmorWeaponDetails || sameFace) duplicateVisualCore = true;
   }
-  return { score: bestScore, tooSimilar: bestScore >= threshold || duplicateVisualCore, duplicateVisualCore, similarSummary: bestSeed ? seedSummary(bestSeed) : 'none' };
+  return { score: bestScore, tooSimilar: bestScore >= threshold || duplicateVisualCore, duplicateVisualCore, similarSummary: bestSeed ? seedSummary(bestSeed) : 'none', appearanceScore: bestAppearanceScore };
 }
 
 function rememberSeed(seed: CharacterSeed): void {
@@ -2355,8 +2624,10 @@ function diversityThreshold(mode: DiversityMode, seedMode: Mode): number {
 export function generateCharacterSeed(options: GenerationOptions = {}): GenerationResult {
   const useSmartPool = options.useSmartPool ?? true;
   const diversityMode = options.diversityMode ?? 'soft';
+  const compositionMode = options.compositionMode ?? 'full_body_character_art';
+  const environmentDetailLevel = options.environmentDetailLevel ?? 'balanced';
   const trace: string[] = [`Starting v8 smart candidate pool generation (${useSmartPool ? 'smart pool' : 'baseline weighted'} mode; diversity ${diversityMode}).`];
-  const context: SmartSelectionContext = { useSmartPool, trace };
+  const context: SmartSelectionContext = { useSmartPool, trace, compositionMode, environmentDetailLevel };
   let seed = createSeed(context);
   let similarityStatus: SimilarityReport = { score: 0, tooSimilar: false, duplicateVisualCore: false, similarSummary: 'none' };
 
@@ -2370,6 +2641,8 @@ export function generateCharacterSeed(options: GenerationOptions = {}): Generati
   trace.push(`Selected narrativeMotif: ${seed.narrativeMotif.id}.`);
   trace.push(`Selected narrativeVariant: ${seed.narrativeVariant.id}.`);
   trace.push(`Selected culture: ${seed.culturalOrigin.label} (${seed.cultureDetails.join(', ')}).`);
+  trace.push(`Selected appearance profile: ${seed.appearanceProfile.id} (${seed.appearanceProfile.promptFragment}).`);
+  trace.push(`Composition mode: ${seed.compositionMode}; environment detail level: ${seed.environmentDetailLevel}.`);
   trace.push(`Identity priority: class ${identityInfluence.classIdentity}%, build template ${identityInfluence.buildTemplate}%, visual theme ${identityInfluence.visualTheme}%, narrative motif ${identityInfluence.narrativeMotif}%, theme variant ${identityInfluence.themeVariant}%, motif variant ${identityInfluence.motifVariant}%, culture ${identityInfluence.culture}%.`);
   trace.push(`Class Anchor Score: ${seed.classAnchorScore}/5.`);
   trace.push(`Motif selection reason: ${seed.motifReason}.`);
@@ -2387,7 +2660,7 @@ export function generateCharacterSeed(options: GenerationOptions = {}): Generati
     }
   }
   similarityStatus = analyzeRecentSimilarity(resolvedSeed, diversityThreshold(diversityMode, resolvedSeed.mode));
-  trace.push(`Recent similarity score: ${similarityStatus.score}; most similar previous seed: ${similarityStatus.similarSummary}; duplicate visual core: ${similarityStatus.duplicateVisualCore}; final status: ${similarityStatus.tooSimilar ? 'accepted after retry budget' : 'distinct'}.`);
+  trace.push(`Recent similarity score: ${similarityStatus.score}; appearance similarity score: ${similarityStatus.appearanceScore ?? 0}; most similar previous seed: ${similarityStatus.similarSummary}; duplicate visual core or same-face: ${similarityStatus.duplicateVisualCore}; final status: ${similarityStatus.tooSimilar ? 'accepted after retry budget' : 'distinct'}.`);
   rememberSeed(resolvedSeed);
   trace.push(`Final fantasy pillar: ${resolvedSeed.fantasyPillar.label}.`);
   trace.push(`Final selected visualTheme: ${resolvedSeed.visualTheme.id}.`);
@@ -2395,6 +2668,8 @@ export function generateCharacterSeed(options: GenerationOptions = {}): Generati
   trace.push(`Final selected narrativeMotif: ${resolvedSeed.narrativeMotif.id}.`);
   trace.push(`Final selected narrativeVariant: ${resolvedSeed.narrativeVariant.id}.`);
   trace.push(`Final culture: ${resolvedSeed.culturalOrigin.label} (${resolvedSeed.cultureDetails.join(', ')}).`);
+  trace.push(`Final appearance profile: ${resolvedSeed.appearanceProfile.id}.`);
+  trace.push(`Final character-bound details: ${resolvedSeed.characterBoundDetails.length}; scene props: ${resolvedSeed.sceneProps.length}; background props: ${resolvedSeed.backgroundProps.length}.`);
   trace.push(`Final silhouette profile: ${resolvedSeed.silhouetteProfile.id} (${resolvedSeed.silhouetteProfile.category}).`);
   trace.push(`Final visual motif: ${resolvedSeed.visualMotif.id}.`);
   trace.push(`Final armor language: ${resolvedSeed.armorLanguage.id}.`);

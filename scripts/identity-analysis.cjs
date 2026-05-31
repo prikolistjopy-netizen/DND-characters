@@ -121,8 +121,21 @@ function similarityScore(seed, previous) {
     [seed.narrativeVariant.id, previous.narrativeVariant.id, 4],
   ];
   for (const [a, b, weight] of matches) if (a && a === b) score += weight;
+  if (seed.race.id === previous.race.id) score += appearanceSimilarity(seed, previous);
   score += detailOverlap(seed.storyDetails, previous.storyDetails) * 2;
   score += detailOverlap(seed.cultureDetails, previous.cultureDetails) * 2;
+  return score;
+}
+
+function appearanceSimilarity(seed, previous) {
+  if (!seed.appearanceProfile || !previous.appearanceProfile || seed.race.name !== previous.race.name) return 0;
+  let score = 0;
+  if (seed.appearanceProfile.id === previous.appearanceProfile.id) score += 12;
+  if (seed.appearanceProfile.ageCategory === previous.appearanceProfile.ageCategory) score += 6;
+  if (seed.appearanceProfile.faceType === previous.appearanceProfile.faceType) score += 8;
+  if (seed.appearanceProfile.bodyType === previous.appearanceProfile.bodyType) score += 6;
+  if (seed.appearanceProfile.facialHair && seed.appearanceProfile.facialHair === previous.appearanceProfile.facialHair) score += 8;
+  score += detailOverlap(seed.appearanceProfile.raceSpecificFeatures, previous.appearanceProfile.raceSpecificFeatures) * 4;
   return score;
 }
 
@@ -202,6 +215,25 @@ function analyze(label, useSmartPool) {
   const sequentialPoseCounts = new Map();
   const sequentialFxCounts = new Map();
   const sequentialDetailCounts = new Map();
+  const appearanceDistribution = new Map();
+  const compositionModeCounts = new Map();
+  const environmentLevelCounts = new Map();
+  const scenePropCounts = new Map();
+  const characterBoundCounts = new Map();
+  const scenePropTop = new Map();
+  const modeCounts = new Map();
+  const curatedProfileCounts = new Map();
+  let scenePropTotal = 0;
+  let characterBoundTotal = 0;
+  let excessiveClutterCount = 0;
+  let consecutiveSameRaceSameAppearanceCount = 0;
+  let sameRaceAppearanceSimilarityTotal = 0;
+  let sameRaceAppearanceComparisonCount = 0;
+  let randomMulticlassCount = 0;
+  let tripleMulticlassCount = 0;
+  let forbiddenMulticlassCount = 0;
+  let multiclassAnchorTotal = 0;
+  let multiclassAnchorCount = 0;
   let conflictCount = 0;
   let equipmentContradictionCount = 0;
   let companionActiveCount = 0;
@@ -233,6 +265,27 @@ function analyze(label, useSmartPool) {
       for (const issue of issues) classifyValidationIssue(issue, mismatchCounts);
       failures.push(`${seedSummary(seed)} :: ${issues.map((issue) => issue.message).join('; ')}`);
     }
+
+    increment(modeCounts, seed.mode);
+    increment(compositionModeCounts, seed.compositionMode ?? 'no-composition');
+    increment(environmentLevelCounts, seed.environmentDetailLevel ?? 'no-environment-level');
+    increment(appearanceDistribution, `${seed.race.name}:${seed.appearanceProfile?.id ?? 'no-appearance'}`);
+    increment(scenePropCounts, String(seed.sceneProps?.length ?? 0));
+    increment(characterBoundCounts, String(seed.characterBoundDetails?.length ?? 0));
+    scenePropTotal += seed.sceneProps?.length ?? 0;
+    characterBoundTotal += seed.characterBoundDetails?.length ?? 0;
+    for (const prop of seed.sceneProps ?? []) increment(scenePropTop, prop);
+    const sceneLimit = seed.compositionMode === 'cinematic_splash_art' ? 3 : seed.environmentDetailLevel === 'minimal' || seed.compositionMode === 'character_card' ? 0 : 1;
+    if ((seed.sceneProps?.length ?? 0) > sceneLimit) excessiveClutterCount += 1;
+    if (seed.classes.length > 2) tripleMulticlassCount += 1;
+    const forbiddenKey = [...seed.classes].sort().join('/');
+    if (['barbarian/bard', 'barbarian/wizard', 'artificer/barbarian', 'druid/paladin', 'artificer/monk', 'cleric/rogue'].includes(forbiddenKey)) forbiddenMulticlassCount += 1;
+    if (seed.mode === 'curated multiclass') {
+      if (seed.curatedMulticlassProfile) increment(curatedProfileCounts, seed.curatedMulticlassProfile.id);
+      else randomMulticlassCount += 1;
+      multiclassAnchorTotal += seed.classAnchorScore;
+      multiclassAnchorCount += 1;
+    } else if (seed.classes.length > 1 || seed.curatedMulticlassProfile) randomMulticlassCount += 1;
 
     const budget = identityBudget(seed);
     for (const [layer, value] of Object.entries(budget.normalized)) increment(layerTotals, layer, value);
@@ -280,6 +333,11 @@ function analyze(label, useSmartPool) {
       sequentialComparisonCount += 1;
       if (score >= 65) tooSimilarSequentialCount += 1;
       if (visualCore(seed) === visualCore(previousSequentialSeed)) consecutiveVisualCoreDuplicateCount += 1;
+      if (seed.race.name === previousSequentialSeed.race.name) {
+        sameRaceAppearanceSimilarityTotal += appearanceSimilarity(seed, previousSequentialSeed);
+        sameRaceAppearanceComparisonCount += 1;
+        if (seed.appearanceProfile?.id === previousSequentialSeed.appearanceProfile?.id) consecutiveSameRaceSameAppearanceCount += 1;
+      }
     }
     previousSequentialSeed = seed;
     increment(combinationCounts, `${seed.primaryClass}+${seed.visualTheme.id}+${seed.narrativeMotif.id}`);
@@ -382,6 +440,23 @@ function analyze(label, useSmartPool) {
     plainWeaponFallbackBuildTemplates,
     plainWeaponFallbackThemes,
     plainWeaponFallbackClasses,
+    appearanceDistribution,
+    compositionModeCounts,
+    environmentLevelCounts,
+    scenePropCounts,
+    characterBoundCounts,
+    scenePropTop,
+    modeCounts,
+    curatedProfileCounts,
+    scenePropAverage: scenePropTotal / sampleSize,
+    characterBoundAverage: characterBoundTotal / sampleSize,
+    excessiveClutterCount,
+    consecutiveSameRaceSameAppearanceCount,
+    averageSameRaceAppearanceSimilarity: sameRaceAppearanceSimilarityTotal / Math.max(1, sameRaceAppearanceComparisonCount),
+    randomMulticlassCount,
+    tripleMulticlassCount,
+    forbiddenMulticlassCount,
+    multiclassClassAnchorAverage: multiclassAnchorTotal / Math.max(1, multiclassAnchorCount),
     sequentialThemeCounts,
     sequentialPoseCounts,
     sequentialFxCounts,
@@ -464,6 +539,19 @@ console.log(`Mismatch counts: weapon ${smart.mismatchCounts.weaponLanguage}, arm
 console.log(`Fallback language usage: armor ${smart.armorLanguageCounts.get('plain_armor_language') ?? 0}/${sampleSize} (${formatPercent(((smart.armorLanguageCounts.get('plain_armor_language') ?? 0) / sampleSize) * 100)}), weapon ${smart.weaponLanguageCounts.get('plain_weapon_language') ?? 0}/${sampleSize} (${formatPercent(((smart.weaponLanguageCounts.get('plain_weapon_language') ?? 0) / sampleSize) * 100)})`);
 console.log(`Equipment contradiction count: ${smart.equipmentContradictionCount}`);
 console.log(`Recent similarity: avg ${smart.sequentialSimilarityAverage.toFixed(1)}, max ${smart.sequentialSimilarityMax}, too-similar ${smart.tooSimilarSequentialCount}, visual-core duplicates ${smart.consecutiveVisualCoreDuplicateCount} (${formatPercent(smart.consecutiveVisualCoreDuplicateRate * 100)})`);
+console.log('Appearance / clutter / multiclass report');
+console.log(`Average same-race appearance similarity: ${smart.averageSameRaceAppearanceSimilarity.toFixed(1)}`);
+console.log(`Consecutive same-race same-appearance count: ${smart.consecutiveSameRaceSameAppearanceCount}`);
+console.log(`Average scene props: ${smart.scenePropAverage.toFixed(2)}`);
+console.log(`Average character-bound details: ${smart.characterBoundAverage.toFixed(2)}`);
+console.log(`Excessive clutter prompts: ${smart.excessiveClutterCount}/${sampleSize} (${formatPercent((smart.excessiveClutterCount / sampleSize) * 100)})`);
+console.log(`Ordinary class rate: ${smart.modeCounts.get('ordinary class') ?? 0}/${sampleSize} (${formatPercent(((smart.modeCounts.get('ordinary class') ?? 0) / sampleSize) * 100)})`);
+console.log(`Curated multiclass rate: ${smart.modeCounts.get('curated multiclass') ?? 0}/${sampleSize} (${formatPercent(((smart.modeCounts.get('curated multiclass') ?? 0) / sampleSize) * 100)})`);
+console.log(`Chaos rate: ${smart.modeCounts.get('chaos') ?? 0}/${sampleSize} (${formatPercent(((smart.modeCounts.get('chaos') ?? 0) / sampleSize) * 100)})`);
+console.log(`Random multiclass count: ${smart.randomMulticlassCount}`);
+console.log(`Triple multiclass count: ${smart.tripleMulticlassCount}`);
+console.log(`Forbidden multiclass count: ${smart.forbiddenMulticlassCount}`);
+console.log(`Multiclass class anchor average: ${smart.multiclassClassAnchorAverage.toFixed(2)}/5`);
 console.log('Top 20 plain weapon fallback sources');
 for (const [item, count] of topEntries(smart.plainWeaponFallbackSources, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
 console.log('Plain weapon fallback by tag');
@@ -482,6 +570,16 @@ console.log('Top repeated sequential FX');
 for (const [item, count] of topEntries(smart.sequentialFxCounts, 10)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
 console.log('Top repeated sequential visual details');
 for (const [item, count] of topEntries(smart.sequentialDetailCounts, 10)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Composition mode distribution');
+for (const [item, count] of topEntries(smart.compositionModeCounts, 10)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Environment detail level distribution');
+for (const [item, count] of topEntries(smart.environmentLevelCounts, 10)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top appearance profiles');
+for (const [item, count] of topEntries(smart.appearanceDistribution, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top scene props');
+for (const [item, count] of topEntries(smart.scenePropTop, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Curated multiclass distribution');
+for (const [item, count] of topEntries(smart.curatedProfileCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
 console.log('Equipment finish distribution');
 for (const [item, count] of topEntries(smart.equipmentFinishCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
 console.log('Enchantment intensity distribution');
