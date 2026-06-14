@@ -1237,7 +1237,7 @@ function bardHasPerformerAnchor(seed: Pick<CharacterSeed, 'primaryClass' | 'weap
     seed.pose.name,
     seed.visualTheme.label,
   ].join(' '));
-  return /lute|flute|instrument|song|skald|perform|story|rapier|stage|bard|music|courtly|flourish/.test(text);
+  return /lute|flute|instrument|song|skald|perform|story|rapier|cane sword|stage|bard|music|courtly|flourish/.test(text);
 }
 
 function isBardWizardRisk(seed: Pick<CharacterSeed, 'primaryClass' | 'weapon' | 'pose'>): boolean {
@@ -2773,12 +2773,12 @@ function compositionImagePromptPhrase(compositionMode: CompositionMode): string 
 }
 
 function qualityRulesForMode(compositionMode: CompositionMode): string {
-  if (compositionMode === 'character_concept_portrait') return 'Quality rules: readable face, clear race identity, clear class identity, strong upper-body silhouette, detailed but not cluttered, character is the main focus, environment is secondary.';
-  return 'Quality rules: full body visible, entire character fits in frame, clear race identity, clear class identity, strong silhouette, detailed but not cluttered, character is the main focus, environment is secondary.';
+  if (compositionMode === 'character_concept_portrait') return 'Quality rules: readable face, clear race identity, clear class identity, strong upper-body silhouette, clean accessories, character is the main focus.';
+  return 'Quality rules: full body visible, entire character fits in frame, clear race identity, clear class identity, strong silhouette, clean accessories, character is the main focus.';
 }
 
 function negativePromptForImage(): string {
-  return 'Negative prompt: no cropped body, no missing limbs, no extra limbs, no malformed hands, no distorted face, no unreadable face, no childlike proportions unless explicitly child, no modern clothing, no sci-fi, no guns, no logo, no watermark, no cluttered background, no random objects on the floor, no duplicate weapons, no inconsistent armor, no anime, no chibi, no cartoon, no readable text, only abstract marks or illegible symbols if papers or books appear.';
+  return 'Negative prompt: no cropped body, no missing or extra limbs, no malformed hands, no distorted or unreadable face, no childlike proportions unless explicit, no modern clothing, no sci-fi, no guns, no logo, no watermark, no cluttered background, no floor props, no tables, no altars, no map desks, no duplicate weapons, no inconsistent armor, no excessive belts, no hanging tags, no loose papers, no item clutter, no stacks of books, no floating unreadable pages, no random banners, no giant flags, no background banners, no multiple pennants, no anime, no chibi, no cartoon, no readable text, only abstract marks or illegible symbols if papers or books appear.';
 }
 
 function sentenceJoin(parts: Array<string | null | undefined | false>): string {
@@ -2799,42 +2799,66 @@ function raceAppearanceForImagePrompt(seed: CharacterSeed): string {
   return `${base}, visible celestial ancestry, ${eyeMarker}, radiant skin undertone, ${haloMarker}`;
 }
 
-function detailNoiseCategory(detail: string): 'major_design_detail' | 'minor_accent' | 'paper_or_record' | 'tool_prop' | 'noisy_trinket' | 'motif_trim' | 'body_mark' | 'gear_damage' | 'race_marker' {
+type ImageDetailCategory =
+  | 'integrated_design'
+  | 'body_mark'
+  | 'material_texture'
+  | 'main_tool_detail'
+  | 'object_clutter'
+  | 'paper_clutter'
+  | 'banner_clutter'
+  | 'book_clutter'
+  | 'chain_charm_clutter';
+
+const paperClutterPattern = /battle reports?|field orders?|campaign maps?|\bmaps?\b|records?|ledgers?|inventory|license tags?|\btags?\b|labels?|bookmarks?|loose pages?|loose papers?|documents?|notes?|scrolls?|orders?|thesis fragments?|charts?|astronomical charts?|tally papers?|wanted posters?|poster fragments?|pamphlets?/i;
+const bookClutterPattern = /stacked books?|stacked academy books?|book stacks?|multiple books?|chained books?|\bacademy books?\b|\bbooks?\b|library stamps?|library records?|wax seals?|hanging pages?/i;
+const bannerClutterPattern = /flags?|banners?|banner fragments?|first company banner|pennant cords?|background banners?/i;
+const chainCharmClutterPattern = /hanging chains?|many chains?|many belts?|excessive straps?|dangling charms?|many medallions?|many talismans?|many ribbons?|trophy loops?|many trophies?|tokens?|coins?|necklaces?/i;
+const symbolClutterPattern = /glyph fragments?|floating symbols?|floating glyphs?|formula bands?/i;
+const objectClutterPattern = new RegExp(`${paperClutterPattern.source}|${bookClutterPattern.source}|${bannerClutterPattern.source}|${chainCharmClutterPattern.source}|${symbolClutterPattern.source}`, 'i');
+const objectLikeDetailPattern = /\b(book|grimoire|map|scroll|paper|journal|ledger|record|poster|tag|label|seal|banner|flag|pennant|chain|belt|charm|medallion|talisman|trophy|glyph|symbol|page|document|note|report|chart|order|token|coin|necklace)\b/i;
+
+function classifyImagePromptDetail(detail: string): ImageDetailCategory {
   const text = normalizeText(detail);
-  if (/birthmark|scar|tattoo|eyes|horn|wing|scale|beard|hair|tusk|halo|celestial/.test(text)) return 'race_marker';
-  if (/ledger|license|inventory|record|poster|map|scroll|journal|letter|contract|paper|notes|registry|writ|tag/.test(text)) return 'paper_or_record';
-  if (/spyglass|calibrator|wrench|tool|compass|case|kit|vial/.test(text)) return 'tool_prop';
-  if (/charm|bead|trinket|token|coin|key|seal/.test(text)) return 'noisy_trinket';
-  if (/trim|pattern|stitch|thread|sash|cloak edge|hem|lining|ribbon|tabard/.test(text)) return 'motif_trim';
-  if (/crack|patched|repaired|scarred|claw|bite|burn|weathered|dented|torn/.test(text)) return 'gear_damage';
-  if (/mantle|bracer|glove|boots|belt|shoulder|weapon grip|pommel|wrap/.test(text)) return 'major_design_detail';
-  return 'minor_accent';
+  if (bookClutterPattern.test(text)) return 'book_clutter';
+  if (bannerClutterPattern.test(text)) return 'banner_clutter';
+  if (paperClutterPattern.test(text)) return 'paper_clutter';
+  if (chainCharmClutterPattern.test(text) || symbolClutterPattern.test(text)) return 'chain_charm_clutter';
+  if (/birthmark|scar|tattoo|eyes|horn|wing|scale|beard|hair|tusk|halo|celestial|body mark|pact stain/.test(text)) return 'body_mark';
+  if (/fur|hide|leather|metal|bronze|cloth|velvet|silk|linen|wool|bark|bone|scale texture|weathered|dented|scarred|burned|patched/.test(text)) return 'material_texture';
+  if (/weapon grip|pommel|focus glow|staff head|blade edge|instrument shape|shield face|holy symbol|pact focus/.test(text)) return 'main_tool_detail';
+  if (/trim|pattern|embroidery|stitch|thread|sash|cloak edge|hem|lining|tabard|mantle|robe panels|clasp|seam|markings|colors|texture/.test(text)) return 'integrated_design';
+  if (objectLikeDetailPattern.test(text)) return 'object_clutter';
+  return 'integrated_design';
 }
 
-function detailAllowed(detail: string, seed: CharacterSeed, counts: { paper: number; tool: number; charm: number; mapRecordTag: number }): boolean {
+function transformObjectClutterDetail(detail: string, seed: CharacterSeed): string | null {
   const text = normalizeText(detail);
-  const themeId = seed.visualTheme.id;
-  if (/spyglass/.test(text) && !spyglassThemeIds.has(themeId) && !hasAny(seed.archetype.tags, ['scout', 'frontier', 'hunter'])) return false;
-  if (/ledger|license|inventory/.test(text) && !bureaucracyThemeIds.has(themeId) && !hasAny(seed.archetype.tags, ['academy', 'hunter', 'tools'])) return false;
-  if (/ledger|license|inventory|record|poster|map|scroll|journal|letter|contract|paper|notes|registry|writ/.test(text) && counts.paper >= 1) return false;
-  if (/map|record|poster|tag/.test(text) && counts.mapRecordTag >= 1) return false;
-  if (/spyglass|calibrator|wrench|tool|compass|case|kit|vial/.test(text) && counts.tool >= 1) return false;
-  if (/charm|bead|trinket|token|coin|key|seal|tag/.test(text) && counts.charm >= 1 && !['cleric', 'monk'].includes(seed.primaryClass) && themeId !== 'dream_walker') return false;
-  return true;
+  const weaponText = normalizeText(seed.weapon.name);
+  if (/battle reports?|field orders?|campaign maps?|campaign|reports?|orders?/.test(text)) return seed.primaryClass === 'fighter' ? 'campaign-worn officer trim' : 'weathered command markings on armor';
+  if (/first company banner|banner fragment|torn banner|pennant cords?|flags?|banners?/.test(text)) {
+    if (/banner|pennant/.test(weaponText)) return 'small torn command pennant near the spearhead';
+    return 'faded company colors on cloak lining';
+  }
+  if (/stacked books?|book stacks?|multiple books?|chained books?|academy books?|\bbooks?\b|library records?|library stamps?/.test(text)) return seed.primaryClass === 'wizard' ? 'scholar-layered robe panels' : 'archive-style embroidery';
+  if (/wax seals?|archive labels?|labels?/.test(text)) return 'wax-red robe clasp';
+  if (/prayer strips?|many ribbons?|ribbons?/.test(text)) return 'sacred cloth trim';
+  if (/trophy loops?|many trophies?|trophies/.test(text)) return seed.primaryClass === 'barbarian' ? 'beast-scarred mantle' : 'trophy-scarred armor texture';
+  if (/glyph fragments?|floating symbols?|floating glyphs?|formula bands?/.test(text)) return hasAny(seed.weapon.tags, ['magic-focus', 'staff', 'orb', 'wand', 'book']) ? 'controlled glow on the focus' : 'subtle etched trim';
+  if (/hanging chains?|many chains?|many medallions?|many talismans?|tokens?|coins?|necklaces?/.test(text)) return seed.primaryClass === 'paladin' || seed.primaryClass === 'cleric' ? 'oath-shaped tabard trim' : 'reinforced metal trim';
+  if (/many belts?|excessive straps?/.test(text)) return 'clean fitted gear seams';
+  if (/dangling charms?|bookmarks?|loose pages?|loose papers?|documents?|notes?|scrolls?|charts?|thesis fragments?|wanted posters?|poster fragments?|pamphlets?|tally papers?|records?|ledgers?|inventory|license/.test(text)) {
+    if (seed.primaryClass === 'rogue' || seed.primaryClass === 'ranger') return 'single practical utility pouch';
+    if (seed.primaryClass === 'wizard' || seed.primaryClass === 'sorcerer' || seed.primaryClass === 'warlock') return 'clean robe panels';
+    return 'subtle costume trim';
+  }
+  return null;
 }
-
-function bumpDetailCounts(detail: string, counts: { paper: number; tool: number; charm: number; mapRecordTag: number }): void {
-  const text = normalizeText(detail);
-  if (/ledger|license|inventory|record|poster|map|scroll|journal|letter|contract|paper|notes|registry|writ/.test(text)) counts.paper += 1;
-  if (/spyglass|calibrator|wrench|tool|compass|case|kit|vial/.test(text)) counts.tool += 1;
-  if (/charm|bead|trinket|token|coin|key|seal|tag/.test(text)) counts.charm += 1;
-  if (/map|record|poster|tag/.test(text)) counts.mapRecordTag += 1;
-}
-
 
 function detailMotifKey(detail: string): string {
   return normalizeText(detail)
-    .replace(/\b(tucked into the sash|fastened to the belt|tied to the wrist|pinned to the cloak|attached to the armor|tied to the cloak|tied to the belt)\b/g, '')
+    .replace(/\b(tucked into the sash|fastened to the belt|tied to the wrist|pinned to the cloak|attached to the armor|tied to the cloak|tied to the belt|worked into the costume design|visible as a single clean accent|integrated into the silhouette)\b/g, '')
+    .replace(/\b(one|single|small|subtle|weathered|worn|old|faded|clean)\b/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -2843,54 +2867,82 @@ function cleanPromptDetail(detail: string): string {
   return detail
     .replace(/\s+(tucked into the sash|fastened to the belt|pinned to the cloak|tied to the wrist|tied to the belt|tied to the cloak|around the focus|fastened to a cord|on the belt loop|carried close, not scattered)$/i, '')
     .replace(/\s+(worked into the costume design|visible as a single clean accent|integrated into the silhouette)$/i, '')
+    .replace(/\b(stacked|multiple|many|loose|hanging|dangling|excessive)\b\s*/gi, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
+function sanitizeImagePromptDetails(seed: CharacterSeed, selectedDetails: string[]): string[] {
+  const candidates = selectedDetails
+    .map((detail) => cleanPromptDetail(transformObjectClutterDetail(detail, seed) ?? detail))
+    .filter(Boolean);
+  const selected: string[] = [];
+  const motifKeys = new Set<string>();
+  let objectLikeCount = 0;
+  let bodyMarkerCount = 0;
+
+  const ordered = [...new Set(candidates)].sort((a, b) => {
+    const score = (detail: string) => {
+      const category = classifyImagePromptDetail(detail);
+      if (category === 'body_mark') return 100;
+      if (category === 'integrated_design') return 90;
+      if (category === 'material_texture') return 82;
+      if (category === 'main_tool_detail') return 65;
+      return 10;
+    };
+    return score(b) - score(a) || a.length - b.length;
+  });
+
+  for (const detail of ordered) {
+    if (selected.length >= 2 && bodyMarkerCount > 0) break;
+    if (selected.length >= 2 && classifyImagePromptDetail(detail) !== 'body_mark') break;
+    if (selected.length >= 3) break;
+    const category = classifyImagePromptDetail(detail);
+    const transformed = objectClutterPattern.test(detail) ? transformObjectClutterDetail(detail, seed) : detail;
+    if (!transformed) continue;
+    const clean = cleanPromptDetail(transformed);
+    if (!clean || objectClutterPattern.test(clean)) continue;
+    const motifKey = detailMotifKey(clean);
+    if (!motifKey || motifKeys.has(motifKey)) continue;
+    const isObjectLike = objectLikeDetailPattern.test(clean);
+    if (isObjectLike && objectLikeCount >= 1) continue;
+    if (category === 'body_mark') bodyMarkerCount += 1;
+    if (isObjectLike) objectLikeCount += 1;
+    selected.push(clean);
+    motifKeys.add(motifKey);
+  }
+
+  if (selected.length === 0) {
+    selected.push(seed.primaryClass === 'barbarian' ? 'scarred hide-and-fur silhouette' : seed.primaryClass === 'wizard' ? 'clean layered robe construction' : 'clean integrated costume trim');
+  }
+  if (selected.length === 1) {
+    selected.push(seed.primaryClass === 'fighter' ? 'notched armor texture' : seed.primaryClass === 'bard' ? 'performer-cut coat silhouette' : 'subtle material contrast');
+  }
+  return selected.slice(0, bodyMarkerCount > 0 ? 3 : 2);
+}
+
 function compressCharacterDetails(details: string[], seed: CharacterSeed): string {
   const unique = [...new Set(details.filter(Boolean))];
-  const priority: Record<ReturnType<typeof detailNoiseCategory>, number> = {
-    race_marker: 95,
-    major_design_detail: 90,
-    motif_trim: 85,
-    gear_damage: 80,
-    body_mark: 76,
-    minor_accent: 60,
-    noisy_trinket: 35,
-    tool_prop: 25,
-    paper_or_record: 20,
-  };
-  const sorted = unique.sort((a, b) => priority[detailNoiseCategory(b)] - priority[detailNoiseCategory(a)] || a.length - b.length);
-  const counts = { paper: 0, tool: 0, charm: 0, mapRecordTag: 0 };
-  const selected: string[] = [];
-  const selectedMotifs = new Set<string>();
-  for (const detail of sorted) {
-    if (selected.length >= 3) break;
-    const motifKey = detailMotifKey(detail);
-    if (selectedMotifs.has(motifKey)) continue;
-    if (!detailAllowed(detail, seed, counts)) continue;
-    selected.push(cleanPromptDetail(detail));
-    selectedMotifs.add(motifKey);
-    bumpDetailCounts(detail, counts);
-  }
-  for (const detail of sorted) {
-    if (selected.length >= 3) break;
-    if (selected.includes(detail)) continue;
-    const motifKey = detailMotifKey(detail);
-    if (selectedMotifs.has(motifKey)) continue;
-    if (!detailAllowed(detail, seed, counts)) continue;
-    selected.push(cleanPromptDetail(detail));
-    selectedMotifs.add(motifKey);
-    bumpDetailCounts(detail, counts);
-  }
-  return shortList(uniqueCleanDetails(selected), 3);
+  const sorted = unique.sort((a, b) => {
+    const categoryScore = (detail: string) => {
+      const transformed = transformObjectClutterDetail(detail, seed) ?? detail;
+      const category = classifyImagePromptDetail(transformed);
+      if (category === 'body_mark') return 95;
+      if (category === 'integrated_design') return 90;
+      if (category === 'material_texture') return 82;
+      if (category === 'main_tool_detail') return 60;
+      return 10;
+    };
+    return categoryScore(b) - categoryScore(a) || a.length - b.length;
+  });
+  return shortList(sanitizeImagePromptDetails(seed, sorted), 3);
 }
 
 function multiclassInfluence(seed: CharacterSeed): string {
   if (!seed.curatedMulticlassProfile) return `clearly readable as ${seed.primaryClass}.`;
   const secondaryDetails = shortList([
     seed.curatedMulticlassProfile.promptHint,
-    ...seed.characterBoundDetails,
+    ...sanitizeImagePromptDetails(seed, seed.characterBoundDetails),
     seed.equipmentEnchantment.intensity !== 'none' ? seed.equipmentEnchantment.label : '',
   ].filter(Boolean), 2);
   return `clearly readable as ${seed.primaryClass} first, with subtle ${seed.curatedMulticlassProfile.secondaryClass} influence in ${secondaryDetails}.`;
@@ -2922,6 +2974,7 @@ function formatImagePrompt(seed: CharacterSeed): string {
   return sentenceJoin([
     compositionImagePromptPhrase(seed.compositionMode) + '.',
     compactStyle + '.',
+    'Clean character design: minimal accessories, no loose papers, no item clutter.',
     identity,
     `Race appearance: ${raceAppearanceForImagePrompt(seed)}.`,
     `Class and build fantasy: ${seed.archetype.name}, ${seed.buildTemplate.label}, ${multiclassInfluence(seed)}`,
