@@ -438,28 +438,28 @@ function selectAppearanceProfile(
 }
 
 function bindDetail(detail: string, index: number): string {
-  const anchors = ['tucked into the sash', 'fastened to the belt', 'pinned to the cloak', 'tied to the wrist', 'attached to the armor', 'braided into hair or beard'];
+  const anchors = ['worked into the costume design', 'visible as a single clean accent', 'integrated into the silhouette'];
   if (/tucked|fastened|pinned|tied|attached|braided|around the neck|on the cloak|on armor/.test(detail)) return detail;
   return `${detail} ${anchors[index % anchors.length]}`;
 }
 
 function splitVisualDetails(details: string[], environmentDetailLevel: EnvironmentDetailLevel, compositionMode: CompositionMode): { characterBoundDetails: string[]; sceneProps: string[]; backgroundProps: string[]; visualDetails: string[] } {
-  const maxScene = environmentDetailLevel === 'cinematic' || compositionMode === 'cinematic_splash_art' ? 3 : environmentDetailLevel === 'minimal' || compositionMode === 'character_card' ? 0 : 1;
-  const maxBackground = environmentDetailLevel === 'cinematic' || compositionMode === 'cinematic_splash_art' ? 2 : compositionMode === 'character_card' ? 0 : 1;
+  const maxScene = environmentDetailLevel === 'cinematic' || compositionMode === 'cinematic_splash_art' ? 2 : 0;
+  const maxBackground = environmentDetailLevel === 'cinematic' || compositionMode === 'cinematic_splash_art' ? 1 : 0;
   const sceneKeywords = /map|book|scroll|journal|letter|coin|box|instrument|tool|record|chart|registry|plans|papers|orders|contract|satchel|case/i;
   const sceneCandidates = details.filter((detail) => sceneKeywords.test(detail));
-  const sceneProps = sceneCandidates.slice(0, maxScene).map((detail) => `${detail} carried close, not scattered`);
+  const sceneProps = sceneCandidates.slice(0, maxScene);
   const backgroundProps = maxBackground > 0 ? details.filter((detail) => !sceneProps.some((scene) => scene.includes(detail))).slice(-maxBackground).map((detail) => `subtle background hint of ${detail}`) : [];
   const characterBoundDetails = details
     .filter((detail) => !sceneProps.some((scene) => scene.includes(detail)) && !backgroundProps.some((background) => background.includes(detail)))
-    .slice(0, 6)
+    .slice(0, 4)
     .map(bindDetail);
-  while (characterBoundDetails.length < Math.min(4, details.length)) {
+  while (characterBoundDetails.length < Math.min(3, details.length)) {
     const fallback = details[characterBoundDetails.length];
     if (!fallback) break;
     characterBoundDetails.push(bindDetail(fallback, characterBoundDetails.length));
   }
-  return { characterBoundDetails, sceneProps, backgroundProps, visualDetails: uniqueCleanDetails([...characterBoundDetails, ...sceneProps, ...backgroundProps]).slice(0, 8) };
+  return { characterBoundDetails, sceneProps, backgroundProps, visualDetails: uniqueCleanDetails([...characterBoundDetails, ...sceneProps, ...backgroundProps]).slice(0, 5) };
 }
 
 function compositionPrompt(compositionMode: CompositionMode): string {
@@ -1154,7 +1154,7 @@ function prefer<T extends { name: string; tags: string[] }>(options: Array<Weigh
 
 function constrainedArmorOptions(template: BuildTemplate, archetype: ArchetypeOption, primaryClass: CharacterClass, size: SizeCategory, theme?: VisualTheme) {
   const names = themeNames((theme?.preferredArmor ?? []).filter((name) => template.allowedArmor.includes(name)), template.allowedArmor);
-  const sizeFilter = (armor: WeightedOption<ArmorOption>) => !(size === 'tiny' && armor.name === 'full plate with engraved pauldrons');
+  const sizeFilter = (armor: WeightedOption<ArmorOption>) => !(size === 'tiny' && (armor.name === 'full plate with engraved pauldrons' || armor.tags.includes('heavy')));
   const preferredOptions = templateOptions(armors, names).filter(sizeFilter);
   const options = preferredOptions.length > 0 ? preferredOptions : templateOptions(armors, template.allowedArmor).filter(sizeFilter);
 
@@ -1172,6 +1172,23 @@ function constrainedWeaponOptions(template: BuildTemplate, archetype: ArchetypeO
   const templateAllowed = templateOptions(weapons, template.allowedWeapons).filter(sizeFilter);
   const options = preferredOptions.length > 0 ? preferredOptions : templateAllowed;
   const sourceOptions = isCartographerLike(archetype) ? templateAllowed : options;
+  if (race.name === 'fairy') {
+    const tinyWeaponPool = [...sourceOptions, ...templateAllowed];
+    const seenTinyWeapons = new Set<string>();
+    const lightTinyOptions = tinyWeaponPool.filter((weapon) => {
+      if (seenTinyWeapons.has(weapon.name)) return false;
+      seenTinyWeapons.add(weapon.name);
+      return !weapon.tags.includes('shield') && !hasAny(weapon.tags, ['heavy', 'oversized', 'greataxe', 'greatsword', 'warhammer', 'mace']);
+    });
+    if (lightTinyOptions.length > 0) return lightTinyOptions;
+  }
+  if (primaryClass === 'bard') {
+    const bardOptions = sourceOptions.filter((weapon) =>
+      hasAny(weapon.tags, ['instrument', 'lute', 'flute', 'rapier', 'fey-focus'])
+      || /song|lute|flute|rapier|viol|lyre|instrument|performance|storykeeper/i.test(weapon.name),
+    );
+    if (bardOptions.length > 0) return bardOptions;
+  }
 
   return prefer(classAnchorWeaponOptions(sourceOptions.length > 0 ? sourceOptions : templateOptions(weapons, template.allowedWeapons), primaryClass), [
     (weapon) => isCartographerLike(archetype) && hasAny(weapon.tags, ['map', 'compass', 'scroll', 'book', 'staff']),
@@ -1184,9 +1201,20 @@ function constrainedWeaponOptions(template: BuildTemplate, archetype: ArchetypeO
 
 function constrainedPoseOptions(template: BuildTemplate, archetype: ArchetypeOption, weapon: WeaponOption, theme?: VisualTheme) {
   const names = themeNames((theme?.preferredPoses ?? []).filter((name) => template.allowedPoses.includes(name)), template.allowedPoses);
-  const options = isCartographerLike(archetype) ? templateOptions(poses, template.allowedPoses) : templateOptions(poses, names);
+  const rawOptions = isCartographerLike(archetype) ? templateOptions(poses, template.allowedPoses) : templateOptions(poses, names);
+  const fallbackOptions = templateOptions(poses, template.allowedPoses);
+  const compatible = (pose: WeightedOption<PoseOption>) => {
+    if (pose.tags.includes('shield') && !weapon.tags.includes('shield')) return false;
+    if (pose.tags.includes('bow') && !hasAny(weapon.tags, ['bow', 'longbow', 'shortbow'])) return false;
+    if (pose.tags.includes('rapier') && !weapon.tags.includes('rapier')) return false;
+    if (pose.tags.includes('dual-blades') && !weapon.tags.includes('dual-blades')) return false;
+    if (pose.tags.includes('heavy-melee') && !hasAny(weapon.tags, ['heavy', 'greataxe', 'greatsword', 'maul'])) return false;
+    return true;
+  };
+  const options = rawOptions.filter(compatible);
+  const safeOptions = options.length > 0 ? options : fallbackOptions.filter(compatible);
 
-  return prefer(options, [
+  return prefer(safeOptions.length > 0 ? safeOptions : fallbackOptions, [
     (pose) => isCartographerLike(archetype) && hasAny(pose.tags, ['map', 'tools']),
     (pose) => hasAny(weapon.tags, ['bow', 'longbow', 'shortbow']) && pose.tags.includes('bow'),
     (pose) => weapon.tags.includes('shield') && pose.tags.includes('shield'),
@@ -1197,6 +1225,26 @@ function constrainedPoseOptions(template: BuildTemplate, archetype: ArchetypeOpt
     (pose) => hasAny(weapon.tags, ['staff', 'orb', 'wand', 'book', 'magic-focus', 'holy-focus']) && hasAny(pose.tags, ['casting', 'prayer']),
     (pose) => hasAny(archetype.tags, ['frontier', 'scout', 'hunter']) && hasAny(pose.tags, ['tracking', 'bow', 'general']),
   ]);
+}
+
+function bardHasPerformerAnchor(seed: Pick<CharacterSeed, 'primaryClass' | 'weapon' | 'weaponLanguage' | 'armor' | 'armorLanguage' | 'pose' | 'visualTheme'>): boolean {
+  if (seed.primaryClass !== 'bard') return true;
+  const text = normalizeText([
+    seed.weapon.name,
+    seed.weaponLanguage.label,
+    seed.armor.name,
+    seed.armorLanguage.label,
+    seed.pose.name,
+    seed.visualTheme.label,
+  ].join(' '));
+  return /lute|flute|instrument|song|skald|perform|story|rapier|stage|bard|music|courtly|flourish/.test(text);
+}
+
+function isBardWizardRisk(seed: Pick<CharacterSeed, 'primaryClass' | 'weapon' | 'pose'>): boolean {
+  if (seed.primaryClass !== 'bard') return false;
+  const weaponText = normalizeText(seed.weapon.name);
+  const poseText = normalizeText(seed.pose.name);
+  return /spellbook|grimoire|weathered spellbook|small spellbook/.test(weaponText) || /tracing a glowing sigil|sigil trace/.test(poseText);
 }
 
 function constrainedSilhouetteOptions(template: BuildTemplate, seed: Pick<CharacterSeed, 'mode' | 'primaryClass' | 'race' | 'size' | 'archetype'>, theme?: VisualTheme) {
@@ -1318,6 +1366,14 @@ function isRuneMotifNoisyForTheme(motif: VisualMotif, theme: VisualTheme, buildT
 function recentPosePenalty(pose: PoseOption, primaryClass?: CharacterClass, visualTheme?: VisualTheme): { score: number; reasons: string[] } {
   const reasons: string[] = [];
   let score = 0;
+  if (recentSeedMemory.slice(-8).some((seed) => seed.pose.name === pose.name)) {
+    score -= 220;
+    reasons.push('exact pose cooldown last 8');
+  }
+  if (recentSeedMemory.slice(-12).some((seed) => seed.pose.name === pose.name && seed.primaryClass === primaryClass)) {
+    score -= 220;
+    reasons.push('pose + class cooldown last 12');
+  }
   if (!highImpactPoseNames.has(pose.name)) return { score, reasons };
   const recentFive = recentSeedMemory.slice(-5);
   if (recentFive.some((seed) => seed.pose.name === pose.name)) {
@@ -1338,6 +1394,9 @@ function smartPickPose(options: Array<WeightedOption<PoseOption>>, weapon: Weapo
     : options;
   const baseOptions = candidateOptions.length > 0 ? candidateOptions : options;
   const cooldownOptions = baseOptions.filter((pose) => {
+    const exactRecent = recentSeedMemory.slice(-8).some((seed) => seed.pose.name === pose.name);
+    const sameClassRecent = recentSeedMemory.slice(-12).some((seed) => seed.pose.name === pose.name && seed.primaryClass === poseContext.primaryClass);
+    if (exactRecent || sameClassRecent) return false;
     if (!highImpactPoseNames.has(pose.name)) return true;
     const recentlyUsed = recentSeedMemory.slice(-5).some((seed) => seed.pose.name === pose.name);
     const sameClassOrTheme = recentSeedMemory.slice(-10).some((seed) => seed.pose.name === pose.name && (seed.primaryClass === poseContext.primaryClass || seed.visualTheme.id === poseContext.visualTheme?.id));
@@ -2167,6 +2226,18 @@ export function validateGeneratedSeed(seed: CharacterSeed): ValidationIssue[] {
     issues.push({ message: 'bard can use divine_scholar only with divine/holy/temple context', layers: ['template'] });
   }
 
+  if (seed.primaryClass === 'bard' && (!bardHasPerformerAnchor(seed) || isBardWizardRisk(seed))) {
+    issues.push({ message: 'bard must keep an explicit performer anchor and avoid wizard-like spellbook/sigil identity', layers: ['weapon', 'pose'] });
+  }
+
+  if (seed.race.name === 'fairy' && (seed.armor.name === 'full plate with engraved pauldrons' || seed.armor.tags.includes('heavy'))) {
+    issues.push({ message: 'fairy cannot use full plate or heavy armor fantasy', layers: ['armor'] });
+  }
+
+  if (seed.race.name === 'fairy' && (seed.weapon.tags.includes('shield') || seed.silhouette.name === 'stocky shield-forward stance')) {
+    issues.push({ message: 'fairy should avoid heavy shield-forward fantasy', layers: ['weapon', 'pose', 'silhouette'] });
+  }
+
   if (seed.silhouette.name === 'gadget-laden workshop silhouette' && seed.buildTemplate.id !== 'battle_engineer' && seed.primaryClass !== 'artificer' && !hasAny(seed.archetype.tags, ['academy', 'tools'])) {
     issues.push({ message: 'gadget-laden workshop silhouette requires artificer, battle_engineer, or academy engineer context', layers: ['silhouette'] });
   }
@@ -2768,6 +2839,14 @@ function detailMotifKey(detail: string): string {
     .trim();
 }
 
+function cleanPromptDetail(detail: string): string {
+  return detail
+    .replace(/\s+(tucked into the sash|fastened to the belt|pinned to the cloak|tied to the wrist|tied to the belt|tied to the cloak|around the focus|fastened to a cord|on the belt loop|carried close, not scattered)$/i, '')
+    .replace(/\s+(worked into the costume design|visible as a single clean accent|integrated into the silhouette)$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function compressCharacterDetails(details: string[], seed: CharacterSeed): string {
   const unique = [...new Set(details.filter(Boolean))];
   const priority: Record<ReturnType<typeof detailNoiseCategory>, number> = {
@@ -2786,25 +2865,25 @@ function compressCharacterDetails(details: string[], seed: CharacterSeed): strin
   const selected: string[] = [];
   const selectedMotifs = new Set<string>();
   for (const detail of sorted) {
-    if (selected.length >= 5) break;
+    if (selected.length >= 3) break;
     const motifKey = detailMotifKey(detail);
     if (selectedMotifs.has(motifKey)) continue;
     if (!detailAllowed(detail, seed, counts)) continue;
-    selected.push(detail);
+    selected.push(cleanPromptDetail(detail));
     selectedMotifs.add(motifKey);
     bumpDetailCounts(detail, counts);
   }
   for (const detail of sorted) {
-    if (selected.length >= 4) break;
+    if (selected.length >= 3) break;
     if (selected.includes(detail)) continue;
     const motifKey = detailMotifKey(detail);
     if (selectedMotifs.has(motifKey)) continue;
     if (!detailAllowed(detail, seed, counts)) continue;
-    selected.push(detail);
+    selected.push(cleanPromptDetail(detail));
     selectedMotifs.add(motifKey);
     bumpDetailCounts(detail, counts);
   }
-  return shortList(selected, 5);
+  return shortList(uniqueCleanDetails(selected), 3);
 }
 
 function multiclassInfluence(seed: CharacterSeed): string {
@@ -2824,6 +2903,9 @@ function stylePresetForSeed(seed: CharacterSeed): StylePreset {
 
 function formatImagePrompt(seed: CharacterSeed): string {
   const stylePreset = stylePresets[stylePresetForSeed(seed)];
+  const compactStyle = stylePresetForSeed(seed) === 'heroic_dnd_concept_art'
+    ? 'heroic D&D character concept art, realistic high-end RPG production art, dark heroic fantasy, painterly digital illustration, detailed but readable gear, grounded fantasy materials'
+    : stylePreset.phrase;
   const identity = seed.curatedMulticlassProfile
     ? `Create a ${seed.size} ${seed.race.name} ${seed.primaryClass} primary character, ${seed.primaryClass} / ${seed.curatedMulticlassProfile.secondaryClass} curated multiclass.`
     : `Create a ${seed.size} ${seed.race.name} ${seed.primaryClass} character.`;
@@ -2833,31 +2915,29 @@ function formatImagePrompt(seed: CharacterSeed): string {
   const enchantmentLine = seed.enchantmentIntensity === 'none'
     ? null
     : `Equipment enchantment: ${seed.equipmentEnchantment.label}, ${shortList(seed.equipmentEnchantment.promptFragments, seed.enchantmentIntensity === 'legendary' ? 1 : 2)}.`;
-  const narrativeVisuals = shortList([...seed.narrativeVariant.storyDetails, ...seed.storyDetails, ...seed.promptFragments], 2);
-  const sceneProps = seed.sceneProps.length > 0 ? shortList(seed.sceneProps, seed.compositionMode === 'cinematic_splash_art' ? 3 : 1) : 'no major scene props';
+  const sceneProps = seed.compositionMode === 'cinematic_splash_art' && seed.sceneProps.length > 0 ? shortList(seed.sceneProps, 2) : '';
   const companionLine = seed.companion ? `Companion: ${seed.companion.label}, ${seed.companion.promptFragment}, visually subordinate to the character.` : null;
-  const cultureLine = seed.cultureDetails.length > 0 ? `Culture details: ${seed.culturalOrigin.label} influence, ${shortList(seed.cultureDetails, 2)} integrated into clothing and gear.` : null;
+  const cultureLine = seed.cultureDetails.length > 0 ? `Culture details: ${seed.culturalOrigin.label} influence in ${shortList(seed.cultureDetails, 1)}.` : null;
 
   return sentenceJoin([
     compositionImagePromptPhrase(seed.compositionMode) + '.',
-    stylePreset.phrase + '.',
+    compactStyle + '.',
     identity,
     `Race appearance: ${raceAppearanceForImagePrompt(seed)}.`,
     `Class and build fantasy: ${seed.archetype.name}, ${seed.buildTemplate.label}, ${multiclassInfluence(seed)}`,
-    `Visual theme: ${seed.visualTheme.label}, theme variant: ${seed.visualThemeVariant.label}; theme reads through costume, gear, light, and FX.`,
-    narrativeVisuals && seed.compositionMode === 'cinematic_splash_art' ? `Narrative visual motif: ${seed.narrativeMotif.label}, expressed through ${narrativeVisuals}.` : null,
+    `Visual theme: ${seed.visualTheme.label}, theme variant: ${seed.visualThemeVariant.label}.`,
     `Silhouette: ${seed.silhouetteProfile.label}, ${seed.silhouetteProfile.promptFragment}.`,
     `Armor and clothing: ${seed.armor.name}, with ${armorFragments || seed.armorLanguage.label}.`,
     `Weapon and tool: ${seed.weapon.name}, with ${weaponFragments || seed.weaponLanguage.label}.`,
     `Equipment finish: ${seed.equipmentFinish.label}, ${finishFragments || 'grounded fantasy surface treatment'}.`,
     enchantmentLine,
-    `Pose and expression: ${seed.pose.name}, ${seed.emotion}, ${seed.mood.name}; stable readable anatomy.`,
+    `Pose and expression: ${seed.pose.name}, ${seed.emotion}, ${seed.mood.name}.`,
     `Character-bound visual details: ${compressCharacterDetails(seed.characterBoundDetails, seed)}.`,
     cultureLine,
-    `Limited scene props: ${sceneProps}.`,
+    sceneProps ? `Limited scene props: ${sceneProps}.` : null,
     companionLine,
-    `Lighting: ${seed.light.name}; reveal face, hands, weapon, and silhouette.`,
-    `FX: ${seed.fx.name}; accents only, do not cover anatomy or gear.`,
+    `Lighting: ${seed.light.name}.`,
+    `FX: ${seed.fx.name}; accents only, do not cover anatomy.`,
     qualityRulesForMode(seed.compositionMode),
     negativePromptForImage(),
   ]).replace(/\s+/g, ' ').trim();
@@ -2943,6 +3023,58 @@ function rememberSeed(seed: CharacterSeed): void {
   if (recentSeedMemory.length > 20) recentSeedMemory.splice(0, recentSeedMemory.length - 20);
 }
 
+
+
+function curatedProfileMismatch(seed: CharacterSeed): boolean {
+  return Boolean(seed.curatedMulticlassProfile && (
+    seed.buildTemplate.id !== seed.curatedMulticlassProfile.buildTemplateId
+    || !seed.curatedMulticlassProfile.compatibleThemes.includes(seed.visualTheme.id)
+  ));
+}
+
+function enforceCuratedProfile(seed: CharacterSeed, context: SmartSelectionContext): CharacterSeed {
+  if (!curatedProfileMismatch(seed)) return seed;
+  context.trace.push(`Curated multiclass safety repair: restoring profile ${seed.curatedMulticlassProfile?.id}.`);
+  return rerollLayer(seed, 'template', context);
+}
+
+function sanitizeTinyFairyLoadout(seed: CharacterSeed, context: SmartSelectionContext): CharacterSeed {
+  if (seed.race.name !== 'fairy') return seed;
+
+  let nextSeed = seed;
+  if (nextSeed.armor.name === 'full plate with engraved pauldrons' || nextSeed.armor.tags.includes('heavy')) {
+    const lightArmorOptions = constrainedArmorOptions(nextSeed.buildTemplate, nextSeed.archetype, nextSeed.primaryClass, nextSeed.size, nextSeed.visualTheme)
+      .filter((armor) => !armor.tags.includes('heavy') && armor.name !== 'full plate with engraved pauldrons');
+    if (lightArmorOptions.length > 0) {
+      nextSeed = { ...nextSeed, armor: smartPickArmor(lightArmorOptions, nextSeed.primaryClass, context) };
+    }
+  }
+
+  const currentAnchor = getClassAnchor(nextSeed.primaryClass);
+  if (nextSeed.weapon.tags.includes('shield') || hasAny(nextSeed.weapon.tags, ['heavy', 'oversized', 'greataxe', 'greatsword', 'warhammer', 'mace']) || !hasAny(nextSeed.weapon.tags, currentAnchor.weaponTags)) {
+    const lightWeaponOptions = constrainedWeaponOptions(nextSeed.buildTemplate, nextSeed.archetype, nextSeed.size, nextSeed.race, nextSeed.primaryClass, nextSeed.visualTheme)
+      .filter((weapon) => !weapon.tags.includes('shield') && !hasAny(weapon.tags, ['heavy', 'oversized', 'greataxe', 'greatsword', 'warhammer', 'mace']));
+    const anchor = getClassAnchor(nextSeed.primaryClass);
+    const anchoredLightWeaponOptions = lightWeaponOptions.filter((weapon) => hasAny(weapon.tags, anchor.weaponTags));
+    const tinyWeaponOptions = anchoredLightWeaponOptions.length > 0 ? anchoredLightWeaponOptions : lightWeaponOptions;
+    if (tinyWeaponOptions.length > 0) {
+      const weapon = smartPickWeapon(tinyWeaponOptions, nextSeed.primaryClass, nextSeed.archetype, context);
+      const pose = smartPickPose(constrainedPoseOptions(nextSeed.buildTemplate, nextSeed.archetype, weapon, nextSeed.visualTheme), weapon, nextSeed.archetype, context, { primaryClass: nextSeed.primaryClass, visualTheme: nextSeed.visualTheme });
+      nextSeed = ensureEmotionCoherence({ ...nextSeed, weapon, pose }, context);
+    }
+  }
+
+  if (nextSeed.silhouette.name === 'stocky shield-forward stance') {
+    const compactSilhouettes = constrainedSilhouetteOptions(nextSeed.buildTemplate, nextSeed, nextSeed.visualTheme)
+      .filter((silhouette) => !/stocky|shield-forward|towering|gigantic|giant/i.test(silhouette.name));
+    if (compactSilhouettes.length > 0) {
+      nextSeed = { ...nextSeed, silhouette: smartPickSimpleOption('Silhouette', compactSilhouettes, getClassAnchor(nextSeed.primaryClass).poseTags, context) };
+    }
+  }
+
+  return withClassAnchorScore(refreshVisualLibraryLayers(nextSeed, context));
+}
+
 function diversityThreshold(mode: DiversityMode, seedMode: Mode): number {
   if (mode === 'strict') return seedMode === 'chaos' ? 80 : 55;
   if (mode === 'soft') return seedMode === 'chaos' ? 80 : 65;
@@ -2974,7 +3106,7 @@ export function generateCharacterSeed(options: GenerationOptions = {}): Generati
   trace.push(`Motif selection reason: ${seed.motifReason}.`);
   trace.push(`Motif compatibility filters: template ${seed.buildTemplate.id}, theme ${seed.visualTheme.id}, class ${seed.primaryClass}, race ${seed.race.name}, tags ${seed.archetype.tags.join(', ')}.`);
 
-  let resolvedSeed = ensureEmotionCoherence(refreshVisualLibraryLayers(withClassAnchorScore(resolveSeedConflicts(seed, trace, context)), context), context);
+  let resolvedSeed = sanitizeTinyFairyLoadout(ensureEmotionCoherence(refreshVisualLibraryLayers(withClassAnchorScore(resolveSeedConflicts(seed, trace, context)), context), context), context);
   if (diversityMode !== 'off') {
     const threshold = diversityThreshold(diversityMode, resolvedSeed.mode);
     for (let attempt = 0; attempt <= 60; attempt += 1) {
@@ -2982,8 +3114,11 @@ export function generateCharacterSeed(options: GenerationOptions = {}): Generati
       if (!similarityStatus.tooSimilar) break;
       trace.push(`Recent similarity guard reroll ${attempt + 1}: score ${similarityStatus.score}, duplicate visual core ${similarityStatus.duplicateVisualCore}, most similar ${similarityStatus.similarSummary}.`);
       seed = createSeed(context);
-      resolvedSeed = ensureEmotionCoherence(refreshVisualLibraryLayers(withClassAnchorScore(resolveSeedConflicts(seed, trace, context)), context), context);
+      resolvedSeed = sanitizeTinyFairyLoadout(ensureEmotionCoherence(refreshVisualLibraryLayers(withClassAnchorScore(resolveSeedConflicts(seed, trace, context)), context), context), context);
     }
+  }
+  if (curatedProfileMismatch(resolvedSeed)) {
+    resolvedSeed = sanitizeTinyFairyLoadout(ensureEmotionCoherence(refreshVisualLibraryLayers(withClassAnchorScore(resolveSeedConflicts(enforceCuratedProfile(resolvedSeed, context), trace, context)), context), context), context);
   }
   similarityStatus = analyzeRecentSimilarity(resolvedSeed, diversityThreshold(diversityMode, resolvedSeed.mode));
   trace.push(`Recent similarity score: ${similarityStatus.score}; appearance similarity score: ${similarityStatus.appearanceScore ?? 0}; most similar previous seed: ${similarityStatus.similarSummary}; duplicate visual core or same-face: ${similarityStatus.duplicateVisualCore}; final status: ${similarityStatus.tooSimilar ? 'accepted after retry budget' : 'distinct'}.`);

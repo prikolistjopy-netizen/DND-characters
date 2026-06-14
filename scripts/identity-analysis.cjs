@@ -430,7 +430,7 @@ function analyze(label, useSmartPool) {
     if (imagePrompt.includes('Quality rules:')) imagePromptQualityRulesCount += 1;
     if (imagePrompt.includes('Negative prompt:')) imagePromptNegativePromptCount += 1;
     imagePromptScenePropTotal += seed.sceneProps?.length ?? 0;
-    imagePromptCharacterBoundTotal += seed.characterBoundDetails?.length ?? 0;
+    imagePromptCharacterBoundTotal += imageDetailText ? imageDetailText.split(/,\s*/).filter(Boolean).length : 0;
     if (seed.classes.length > 2) tripleMulticlassCount += 1;
     const forbiddenKey = [...seed.classes].sort().join('/');
     if (['barbarian/bard', 'barbarian/wizard', 'artificer/barbarian', 'druid/paladin', 'artificer/monk', 'cleric/rogue'].includes(forbiddenKey)) forbiddenMulticlassCount += 1;

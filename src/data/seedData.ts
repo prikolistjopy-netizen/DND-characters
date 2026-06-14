@@ -144,7 +144,15 @@ export type PoseTag =
   | 'tracking'
   | 'performance'
   | 'dual-blades'
-  | 'general';
+  | 'general'
+  | 'staff'
+  | 'calm_presence'
+  | 'travel_presence'
+  | 'weapon_display'
+  | 'casting_subtle'
+  | 'social_character_pose'
+  | 'guarded_stance'
+  | 'stealth_motion';
 
 export type PoseOption = {
   name: string;
@@ -530,7 +538,7 @@ export const classAnchors: ClassAnchor[] = [
   { className: 'artificer', label: 'Artificer Device Identity', weaponTags: ['tool', 'mechanical-focus', 'mechanical-weapon', 'magic-focus'], armorTags: ['light', 'medium', 'metal'], poseTags: ['tools', 'casting'], detailKeywords: ['gear', 'clockwork', 'device', 'brass', 'caliper', 'mechanical'] },
   { className: 'warlock', label: 'Warlock Pact Identity', weaponTags: ['magic-focus', 'book', 'orb', 'wand', 'staff', 'fey-focus'], armorTags: ['cloth', 'light'], poseTags: ['casting', 'rapier'], detailKeywords: ['pact', 'void', 'occult', 'curse', 'talisman', 'eldritch'] },
   { className: 'barbarian', label: 'Barbarian Primal Identity', weaponTags: ['heavy', 'greataxe', 'greatsword', 'spear', 'handaxe'], armorTags: ['medium', 'natural', 'cloth'], poseTags: ['heavy-melee', 'general'], detailKeywords: ['trophy', 'hide', 'clan', 'scar', 'rugged', 'war'] },
-  { className: 'fighter', label: 'Fighter Martial Identity', weaponTags: ['martial', 'shield', 'greatsword', 'spear', 'warhammer', 'dual-blades', 'mace', 'bow'], armorTags: ['light', 'medium', 'heavy', 'metal'], poseTags: ['shield', 'heavy-melee', 'dual-blades', 'general', 'bow'], detailKeywords: ['veteran', 'guard', 'arena', 'banner', 'combat', 'campaign'] },
+  { className: 'fighter', label: 'Fighter Martial Identity', weaponTags: ['martial', 'shield', 'greatsword', 'spear', 'handaxe', 'warhammer', 'dual-blades', 'mace', 'bow'], armorTags: ['light', 'medium', 'heavy', 'metal'], poseTags: ['shield', 'heavy-melee', 'dual-blades', 'general', 'bow'], detailKeywords: ['veteran', 'guard', 'arena', 'banner', 'combat', 'campaign'] },
   { className: 'druid', label: 'Druid Natural Identity', weaponTags: ['staff', 'simple', 'spear', 'fey-focus', 'instrument'], armorTags: ['cloth', 'natural', 'light'], poseTags: ['casting', 'tracking', 'general'], detailKeywords: ['leaf', 'forest', 'bark', 'reed', 'nature', 'fey', 'wild'] },
   { className: 'sorcerer', label: 'Sorcerer Innate Magic Identity', weaponTags: ['magic-focus', 'orb', 'wand', 'staff', 'book'], armorTags: ['cloth'], poseTags: ['casting'], detailKeywords: ['aura', 'birthmark', 'arcane', 'spark', 'void', 'dragon'] },
 ];
@@ -796,14 +804,14 @@ export const weapons: Array<WeightedOption<WeaponOption>> = [
 ];
 
 export const poses: Array<WeightedOption<PoseOption>> = [
-  { name: 'ready stance on a cracked dungeon tile', tags: ['general'], weight: 6 },
+  { name: 'ready stance on a cracked dungeon tile', tags: ['general'], weight: 2 },
   { name: 'turning mid-stride as cloak whips around', tags: ['general'], weight: 5 },
   { name: 'weapon raised in a decisive challenge', tags: ['general'], weight: 6 },
   { name: 'aiming down a rain-darkened arrow', tags: ['bow'], weight: 7 },
   { name: 'kneeling shot behind broken cover', tags: ['bow'], weight: 6 },
   { name: 'drawing a bowstring with held breath', tags: ['bow'], weight: 7 },
   { name: 'tracking footprints with cloak pulled low', tags: ['tracking'], weight: 6 },
-  { name: 'shield braced against incoming sparks', tags: ['shield'], weight: 7 },
+  { name: 'shield braced against incoming sparks', tags: ['shield'], weight: 2 },
   { name: 'guarded stance behind a raised shield', tags: ['shield'], weight: 6 },
   { name: 'forward rapier thrust', tags: ['rapier'], weight: 6 },
   { name: 'duelist turn with one foot sliding back', tags: ['rapier'], weight: 6 },
@@ -812,8 +820,8 @@ export const poses: Array<WeightedOption<PoseOption>> = [
   { name: 'close-quarters ready stance', tags: ['dual-blades', 'general'], weight: 6 },
   { name: 'overhead strike with a heavy blade', tags: ['heavy-melee'], weight: 7 },
   { name: 'ground slam sending dust through the scene', tags: ['heavy-melee'], weight: 6 },
-  { name: 'casting with both hands in a spiral gesture', tags: ['casting'], weight: 7 },
-  { name: 'tracing a glowing sigil in the air', tags: ['casting'], weight: 7 },
+  { name: 'casting with both hands in a spiral gesture', tags: ['casting'], weight: 3 },
+  { name: 'tracing a glowing sigil in the air', tags: ['casting'], weight: 2 },
   { name: 'studying a map under candlelight', tags: ['map'], weight: 5 },
   { name: 'ritual prep around carefully arranged instruments', tags: ['tools', 'casting'], weight: 5 },
   { name: 'kneeling prayer as holy light gathers', tags: ['prayer'], weight: 6 },
@@ -821,7 +829,21 @@ export const poses: Array<WeightedOption<PoseOption>> = [
   { name: 'tinkering with sparking tools at a workbench', tags: ['tools'], weight: 6 },
   { name: 'casting through a humming mechanical device', tags: ['tools', 'casting'], weight: 5 },
   { name: 'balanced on one hand in a martial arts sweep', tags: ['monk'], weight: 5 },
-  { name: 'flying kick with prayer beads suspended midair', tags: ['monk'], weight: 5 },
+  { name: 'flying kick with prayer beads suspended midair', tags: ['monk'], weight: 2 },
+  { name: 'standing calmly with weapon lowered', tags: ['general', 'calm_presence'], weight: 7 },
+  { name: 'staff planted on the ground', tags: ['staff', 'casting', 'calm_presence'], weight: 7 },
+  { name: 'resting one hand on weapon pommel', tags: ['general', 'weapon_display'], weight: 7 },
+  { name: 'cloak held against wind', tags: ['general', 'travel_presence'], weight: 6 },
+  { name: 'holding an instrument at rest', tags: ['performance', 'calm_presence'], weight: 8 },
+  { name: 'speaking a spell softly', tags: ['casting', 'casting_subtle'], weight: 8 },
+  { name: 'bow held lowered after tracking', tags: ['bow', 'tracking', 'travel_presence'], weight: 7 },
+  { name: 'one hand extended in subtle magic, not full sigil', tags: ['casting', 'casting_subtle'], weight: 7 },
+  { name: 'book held closed under one arm', tags: ['casting', 'calm_presence'], weight: 6 },
+  { name: 'quiet storytelling stance with one hand raised', tags: ['performance', 'social_character_pose'], weight: 7 },
+  { name: 'courtly flourish with rapier lowered', tags: ['performance', 'rapier', 'social_character_pose'], weight: 7 },
+  { name: 'protective stance with shield lowered', tags: ['shield', 'guarded_stance'], weight: 7 },
+  { name: 'dagger half-drawn under cloak', tags: ['dual-blades', 'stealth_motion'], weight: 7 },
+  { name: 'hands wrapped, ready but not jumping', tags: ['monk', 'calm_presence'], weight: 7 },
   { name: 'adjusting floating pages', tags: ['casting'], weight: 3 },
   { name: 'drawing a sigil circle', tags: ['casting'], weight: 3 },
   { name: 'consulting star charts', tags: ['tools'], weight: 3 },
@@ -1111,7 +1133,7 @@ export const visualThemes: Array<WeightedOption<VisualTheme>> = [
   { id: 'raider_king', label: 'Raider King', buildTemplateId: 'savage_berserker', archetypeTags: ['battlefield'], archetypeNames: [], preferredMoods: ['battle-scarred epic'], preferredLights: ['golden sunset through trees'], preferredFx: ['floating embers'], preferredWeapons: ['oversized maul'], preferredArmor: ['half plate with campaign dents'], preferredPoses: ['ground slam sending dust through the scene'], preferredSilhouettes: ['broad heroic triangle'], visualDetails: ['broken crown', 'raider cloak'], weight: 4 },
   { id: 'storm_warrior', label: 'Storm Warrior', buildTemplateId: 'savage_berserker', archetypeTags: ['battlefield'], archetypeNames: [], preferredMoods: ['battle-scarred epic'], preferredLights: ['storm lightning silhouette'], preferredFx: ['sparks from enchanted steel'], preferredWeapons: ['heavy greataxe'], preferredArmor: ['travel-worn cloth layers'], preferredPoses: ['overhead strike with a heavy blade'], preferredSilhouettes: ['lean and sharp-edged'], visualDetails: ['storm-charred braids', 'lightning scars'], weight: 5 },
   { id: 'blood_oath_survivor', label: 'Blood Oath Survivor', buildTemplateId: 'savage_berserker', archetypeTags: ['fallen', 'cursed'], archetypeNames: ['fallen oathkeeper'], preferredMoods: ['void-cursed omen'], preferredLights: ['cold moon rim light'], preferredFx: ['floating embers'], preferredWeapons: ['heavy greatsword'], preferredArmor: ['patched leather armor'], preferredPoses: ['ready stance on a cracked dungeon tile'], preferredSilhouettes: ['broad heroic triangle'], visualDetails: ['blood oath brands', 'torn vow cloth'], weight: 5 },
-  { id: 'temple_guardian', label: 'Temple Guardian', buildTemplateId: 'wandering_martial_artist', archetypeTags: ['holy'], archetypeNames: ['exiled temple guardian'], preferredMoods: ['radiant temple resolve'], preferredLights: ['golden divine rays', 'warm temple candlelight', 'sunrise through broken monastery roof', 'moonlight through paper windows'], preferredFx: ['spectral feathers', 'incense smoke rings', 'floating prayer slips', 'gold dust motes', 'spiritual afterimages'], preferredWeapons: ['quarterstaff carved with runes', 'unarmed strikes and prayer beads', 'simple monk shortspear'], preferredArmor: ['plain monastery cloth', 'white novice cloth', 'battle-torn temple sash', 'sun-faded monastery linen', 'layered prayer cloth'], preferredPoses: ['ready stance on a cracked dungeon tile', 'low sweeping staff guard', 'open-palm defensive stance', 'deflecting arrows with prayer beads', 'crouched staff block under falling dust'], preferredSilhouettes: ['compact and nimble'], visualDetails: ['temple key beads', 'saffron sash', 'cracked prayer beads', 'wooden temple tokens', 'old master’s cord', 'faded monastery seal', 'incense ash on sleeves', 'calligraphy prayer strips', 'chipped jade charm', 'temple gate key', 'sun-bleached sash', 'broken novice badge', 'dragon tooth prayer bead', 'road dust on wraps', 'palm scars', 'ankle wraps', 'old training bell', 'folded temple letter', 'burned monastery ribbon', 'shrine coin', 'silent oath mark', 'lacquered scale charm'], weight: 8 },
+  { id: 'temple_guardian', label: 'Temple Guardian', buildTemplateId: 'wandering_martial_artist', archetypeTags: ['holy'], archetypeNames: ['exiled temple guardian'], preferredMoods: ['radiant temple resolve'], preferredLights: ['golden divine rays', 'warm temple candlelight', 'sunrise through broken monastery roof', 'moonlight through paper windows'], preferredFx: ['spectral feathers', 'incense smoke rings', 'floating prayer slips', 'gold dust motes', 'spiritual afterimages'], preferredWeapons: ['quarterstaff carved with runes', 'unarmed strikes and prayer beads', 'simple monk shortspear'], preferredArmor: ['plain monastery cloth', 'white novice cloth', 'battle-torn temple sash', 'sun-faded monastery linen', 'layered prayer cloth'], preferredPoses: ['ready stance on a cracked dungeon tile', 'hands wrapped, ready but not jumping', 'low sweeping staff guard', 'open-palm defensive stance', 'deflecting arrows with prayer beads', 'crouched staff block under falling dust'], preferredSilhouettes: ['compact and nimble'], visualDetails: ['temple key beads', 'saffron sash', 'cracked prayer beads', 'wooden temple tokens', 'old master’s cord', 'faded monastery seal', 'incense ash on sleeves', 'calligraphy prayer strips', 'chipped jade charm', 'temple gate key', 'sun-bleached sash', 'broken novice badge', 'dragon tooth prayer bead', 'road dust on wraps', 'palm scars', 'ankle wraps', 'old training bell', 'folded temple letter', 'burned monastery ribbon', 'shrine coin', 'silent oath mark', 'lacquered scale charm'], weight: 8 },
   { id: 'silent_avenger', label: 'Silent Avenger', buildTemplateId: 'wandering_martial_artist', archetypeTags: ['shadow'], archetypeNames: ['silent monastery avenger'], preferredMoods: ['haunted midnight ritual'], preferredLights: ['cold moon rim light'], preferredFx: ['swirling mist'], preferredWeapons: ['unarmed strikes and prayer beads'], preferredArmor: ['no armor, simple travel wraps'], preferredPoses: ['flying kick with prayer beads suspended midair'], preferredSilhouettes: ['lean and sharp-edged'], visualDetails: ['shadow prayer beads', 'wrapped knuckles'], weight: 7 },
   { id: 'mountain_hermit', label: 'Mountain Hermit', buildTemplateId: 'wandering_martial_artist', archetypeTags: ['holy'], archetypeNames: [], preferredMoods: ['grim dungeon hunt'], preferredLights: ['warm torchlight from below'], preferredFx: ['swirling mist'], preferredWeapons: ['simple monk shortspear'], preferredArmor: ['travel-worn cloth layers'], preferredPoses: ['balanced on one hand in a martial arts sweep'], preferredSilhouettes: ['compact and nimble'], visualDetails: ['weathered prayer flags', 'stone talisman'], weight: 5 },
   { id: 'wandering_master', label: 'Wandering Master', buildTemplateId: 'wandering_martial_artist', archetypeTags: ['holy'], archetypeNames: [], preferredMoods: ['radiant temple resolve'], preferredLights: ['warm torchlight from below'], preferredFx: ['divine rays'], preferredWeapons: ['quarterstaff carved with runes'], preferredArmor: ['plain monastery cloth'], preferredPoses: ['ready stance on a cracked dungeon tile'], preferredSilhouettes: ['compact and nimble'], visualDetails: ['patched master cloak', 'old training scars'], weight: 5 },
@@ -1592,7 +1614,7 @@ export const buildTemplates: Array<WeightedOption<BuildTemplate>> = [
     preferredArchetypeTags: ['mage', 'academy', 'arcane', 'void', 'scholar', 'cartographer'],
     allowedArmor: ['embroidered arcane robes', 'travel-worn cloth layers', 'plain monastery cloth', 'moon-thread sleep robes', 'sleep-warded travel cloak', 'padded dream shawl over soft robes'],
     allowedWeapons: ['oak spell staff', 'crystal orb focus', 'silver wand focus', 'weathered spellbook', 'scroll case and compass', 'crystal focus', 'floating spellbook', 'brass astrolabe', 'bone-carved wand', 'ink-stained grimoire', 'celestial chart cylinder', 'unreadable dream journal focus', 'silver sleep lantern focus', 'moon glass dream vial focus', 'sleep-warded charm cord'],
-    allowedPoses: ['casting with both hands in a spiral gesture', 'tracing a glowing sigil in the air', 'studying a map under candlelight', 'ritual prep around carefully arranged instruments', 'ready stance on a cracked dungeon tile', 'adjusting floating pages', 'drawing a sigil circle', 'consulting star charts', 'turning a brass astrolabe toward the light', 'opening a floating grimoire mid-spell', 'holding a silver sleep lantern at chest height', 'touching a sleep mask while listening inward', 'tracing abstract dream glyphs over an unreadable journal', 'pouring moonlight from a dream vial', 'standing half-awake as moon-thread charms drift'],
+    allowedPoses: ['casting with both hands in a spiral gesture', 'tracing a glowing sigil in the air', 'studying a map under candlelight', 'ritual prep around carefully arranged instruments', 'ready stance on a cracked dungeon tile', 'staff planted on the ground', 'speaking a spell softly', 'one hand extended in subtle magic, not full sigil', 'book held closed under one arm', 'adjusting floating pages', 'drawing a sigil circle', 'consulting star charts', 'turning a brass astrolabe toward the light', 'opening a floating grimoire mid-spell', 'holding a silver sleep lantern at chest height', 'touching a sleep mask while listening inward', 'tracing abstract dream glyphs over an unreadable journal', 'pouring moonlight from a dream vial', 'standing half-awake as moon-thread charms drift'],
     allowedSilhouettes: ['tall robed column', 'asymmetrical cloak profile', 'lean and sharp-edged', 'compact and nimble'],
     allowedMoods: ['arcane study wonder', 'void-cursed omen', 'haunted midnight ritual', 'soft oneiric focus', 'sleep-warded calm', 'nightmare kept at bay'],
     allowedLights: ['blue arcane glyph light', 'cold moon rim light', 'void glow from below', 'candlelit map glow', 'moonlight through half-closed curtains', 'silver bedside candle glow', 'pale dawn after a dream'],
@@ -1608,7 +1630,7 @@ export const buildTemplates: Array<WeightedOption<BuildTemplate>> = [
     preferredArchetypeTags: ['holy', 'oathkeeper', 'fallen', 'battlefield'],
     allowedArmor: ['scale mail with heraldic sash', 'half plate with campaign dents', 'chain mail under a weathered tabard', 'full plate with engraved pauldrons'],
     allowedWeapons: ['mace and holy shield', 'longsword and round shield', 'ritual warhammer', 'silver holy symbol and staff', 'relic censer', 'sun-forged mace', 'banner spear', 'reliquary shield', 'pilgrim staff'],
-    allowedPoses: ['shield braced against incoming sparks', 'guarded stance behind a raised shield', 'weapon raised in a decisive challenge', 'kneeling prayer as holy light gathers', 'casting with both hands in a spiral gesture', 'ready stance on a cracked dungeon tile', 'raising a relic censer in prayer', 'planting a banner spear before the charge', 'guarding behind a reliquary shield', 'blessing a pilgrim staff before battle', 'swinging a sun-forged mace in a warding arc'],
+    allowedPoses: ['shield braced against incoming sparks', 'guarded stance behind a raised shield', 'protective stance with shield lowered', 'weapon raised in a decisive challenge', 'kneeling prayer as holy light gathers', 'casting with both hands in a spiral gesture', 'ready stance on a cracked dungeon tile', 'raising a relic censer in prayer', 'planting a banner spear before the charge', 'guarding behind a reliquary shield', 'blessing a pilgrim staff before battle', 'swinging a sun-forged mace in a warding arc'],
     allowedSilhouettes: ['stocky shield-forward stance', 'broad heroic triangle', 'tall robed column', 'compact and nimble'],
     allowedMoods: ['radiant temple resolve', 'battlefield benediction', 'battle-scarred epic'],
     allowedLights: ['golden divine rays', 'warm sunrise halo', 'storm lightning silhouette'],
@@ -1640,7 +1662,7 @@ export const buildTemplates: Array<WeightedOption<BuildTemplate>> = [
     preferredArchetypeTags: ['streetwise', 'hunter', 'shadow', 'pirate'],
     allowedArmor: ['patched leather armor', 'studded leather with hidden knives', 'travel cloak over leather'],
     allowedWeapons: ['paired daggers', 'rapier with jeweled guard', 'shortbow and scout knife', 'hunting longbow', 'dual ranger blades', 'annotated map and compass', 'scroll case and compass', 'assassin stiletto', 'folding crossbow', 'trap toolkit', 'rope launcher', 'relic thief satchel'],
-    allowedPoses: ['ready stance on a cracked dungeon tile', 'turning mid-stride as cloak whips around', 'forward rapier thrust', 'duelist turn with one foot sliding back', 'aiming down a rain-darkened arrow', 'drawing a bowstring with held breath', 'studying a map under candlelight', 'ritual prep around carefully arranged instruments', 'picking a lock with a stiletto ready', 'studying stolen plans in an alley', 'crouched rooftop observation', 'setting a compact trap toolkit', 'firing a rope launcher across a gap'],
+    allowedPoses: ['ready stance on a cracked dungeon tile', 'standing calmly with weapon lowered', 'dagger half-drawn under cloak', 'turning mid-stride as cloak whips around', 'forward rapier thrust', 'duelist turn with one foot sliding back', 'aiming down a rain-darkened arrow', 'drawing a bowstring with held breath', 'studying a map under candlelight', 'ritual prep around carefully arranged instruments', 'picking a lock with a stiletto ready', 'studying stolen plans in an alley', 'crouched rooftop observation', 'setting a compact trap toolkit', 'firing a rope launcher across a gap'],
     allowedSilhouettes: ['lean and sharp-edged', 'compact and nimble', 'asymmetrical cloak profile'],
     allowedMoods: ['grim dungeon hunt', 'rainy alley ambush', 'haunted midnight ritual'],
     allowedLights: ['warm torchlight from below', 'low lantern light', 'cold moon rim light', 'candlelit map glow'],
@@ -1672,7 +1694,7 @@ export const buildTemplates: Array<WeightedOption<BuildTemplate>> = [
     preferredArchetypeTags: ['noble', 'battlefield', 'pirate', 'streetwise', 'hunter'],
     allowedArmor: ['travel-worn cloth layers', 'patched leather armor', 'travel cloak over leather', 'studded leather with hidden knives'],
     allowedWeapons: ['lute reinforced as a dueling club', 'rapier with jeweled guard', 'paired daggers', 'shortbow and scout knife'],
-    allowedPoses: ['performing a playful fey flourish', 'turning mid-stride as cloak whips around', 'weapon raised in a decisive challenge', 'duelist turn with one foot sliding back', 'ready stance on a cracked dungeon tile', 'performing before an unseen audience', 'writing notes into a songbook', 'tuning a magical instrument', 'unfurling a memory scroll mid-song', 'striking a rune-carved lute chord'],
+    allowedPoses: ['performing a playful fey flourish', 'holding an instrument at rest', 'quiet storytelling stance with one hand raised', 'courtly flourish with rapier lowered', 'turning mid-stride as cloak whips around', 'weapon raised in a decisive challenge', 'duelist turn with one foot sliding back', 'ready stance on a cracked dungeon tile', 'performing before an unseen audience', 'writing notes into a songbook', 'tuning a magical instrument', 'unfurling a memory scroll mid-song', 'striking a rune-carved lute chord'],
     allowedSilhouettes: ['asymmetrical cloak profile', 'compact and nimble', 'lean and sharp-edged'],
     allowedMoods: ['rainy alley ambush', 'battle-scarred epic', 'salt-stained relic dive'],
     allowedLights: ['low lantern light', 'warm torchlight from below', 'storm lightning silhouette'],
@@ -1688,7 +1710,7 @@ export const buildTemplates: Array<WeightedOption<BuildTemplate>> = [
     preferredArchetypeTags: ['battlefield', 'hunter', 'frontier', 'draconic'],
     allowedArmor: ['half plate with campaign dents', 'scale mail with heraldic sash', 'chain mail under a weathered tabard', 'reinforced artificer coat', 'full plate with engraved pauldrons', 'small fitted chain shirt', 'compact leather harness', 'light ceremonial half-plate'],
     allowedWeapons: ['longsword and round shield', 'heavy greatsword', 'spear and torn banner', 'dual ranger blades', 'ritual warhammer'],
-    allowedPoses: ['ready stance on a cracked dungeon tile', 'weapon raised in a decisive challenge', 'overhead strike with a heavy blade', 'ground slam sending dust through the scene', 'guarded stance behind a raised shield', 'dual slash from a low stance', 'close-quarters ready stance', 'planting a banner spear before the charge', 'dragging a maul through battlefield dust', 'planting a spear in a victory roar', 'charging out of flying embers', 'circling with a handaxe low'],
+    allowedPoses: ['ready stance on a cracked dungeon tile', 'standing calmly with weapon lowered', 'resting one hand on weapon pommel', 'weapon raised in a decisive challenge', 'overhead strike with a heavy blade', 'ground slam sending dust through the scene', 'guarded stance behind a raised shield', 'dual slash from a low stance', 'close-quarters ready stance', 'planting a banner spear before the charge', 'dragging a maul through battlefield dust', 'planting a spear in a victory roar', 'charging out of flying embers', 'circling with a handaxe low'],
     allowedSilhouettes: ['broad heroic triangle', 'stocky shield-forward stance', 'lean and sharp-edged', 'compact and nimble'],
     allowedMoods: ['battle-scarred epic', 'grim dungeon hunt', 'battlefield benediction'],
     allowedLights: ['storm lightning silhouette', 'warm torchlight from below', 'low lantern light'],
@@ -1704,7 +1726,7 @@ export const buildTemplates: Array<WeightedOption<BuildTemplate>> = [
     preferredArchetypeTags: ['scholar', 'academy', 'arcane', 'cartographer', 'noble'],
     allowedArmor: ['travel-worn cloth layers', 'embroidered arcane robes', 'travel cloak over leather', 'small travel cloak'],
     allowedWeapons: ['lute reinforced as a dueling club', 'enchanted flute focus', 'rapier with jeweled guard', 'song-scroll case', 'annotated performance notes', 'small spellbook', 'annotated songbook', 'enchanted flute', 'memory scroll case', 'storykeeper satchel', 'rune-carved lute'],
-    allowedPoses: ['performing a playful fey flourish', 'tracing a glowing sigil in the air', 'ritual prep around carefully arranged instruments', 'duelist turn with one foot sliding back', 'turning mid-stride as cloak whips around', 'performing before an unseen audience', 'writing notes into a songbook', 'tuning a magical instrument', 'unfurling a memory scroll mid-song', 'striking a rune-carved lute chord'],
+    allowedPoses: ['performing a playful fey flourish', 'holding an instrument at rest', 'quiet storytelling stance with one hand raised', 'courtly flourish with rapier lowered', 'ritual prep around carefully arranged instruments', 'duelist turn with one foot sliding back', 'turning mid-stride as cloak whips around', 'performing before an unseen audience', 'writing notes into a songbook', 'tuning a magical instrument', 'unfurling a memory scroll mid-song', 'striking a rune-carved lute chord'],
     allowedSilhouettes: ['asymmetrical cloak profile', 'compact and nimble', 'lean and sharp-edged', 'tall robed column'],
     allowedMoods: ['arcane study wonder', 'rainy alley ambush', 'haunted midnight ritual'],
     allowedLights: ['candlelit map glow', 'blue arcane glyph light', 'low lantern light'],
@@ -1752,7 +1774,7 @@ export const buildTemplates: Array<WeightedOption<BuildTemplate>> = [
     preferredArchetypeTags: ['frontier', 'scout', 'hunter', 'nature'],
     allowedArmor: ['patched leather armor', 'studded leather with hidden knives', 'fur-lined hide armor', 'half plate with campaign dents'],
     allowedWeapons: ['hunting longbow', 'shortbow and scout knife', 'ranger spear', 'handaxe and tracking cord', 'dual ranger blades', 'annotated map and compass', 'scroll case and compass', 'hunting spear', 'bone bow', 'trap kit', 'tracking lantern', 'beastcaller horn'],
-    allowedPoses: ['aiming down a rain-darkened arrow', 'drawing a bowstring with held breath', 'tracking footprints with cloak pulled low', 'ready stance on a cracked dungeon tile', 'turning mid-stride as cloak whips around', 'studying a map under candlelight', 'ritual prep around carefully arranged instruments', 'inspecting tracks with a lantern low', 'preparing a hunting trap', 'listening to distant sounds with horn lowered', 'bracing a hunting spear in tall grass', 'drawing a bone bow at dusk'],
+    allowedPoses: ['aiming down a rain-darkened arrow', 'drawing a bowstring with held breath', 'bow held lowered after tracking', 'tracking footprints with cloak pulled low', 'ready stance on a cracked dungeon tile', 'turning mid-stride as cloak whips around', 'studying a map under candlelight', 'ritual prep around carefully arranged instruments', 'inspecting tracks with a lantern low', 'preparing a hunting trap', 'listening to distant sounds with horn lowered', 'bracing a hunting spear in tall grass', 'drawing a bone bow at dusk'],
     allowedSilhouettes: ['lean and sharp-edged', 'compact and nimble', 'asymmetrical cloak profile', 'broad heroic triangle'],
     allowedMoods: ['wild frontier dusk', 'grim dungeon hunt', 'rainy alley ambush'],
     allowedLights: ['golden sunset through trees', 'warm torchlight from below', 'low lantern light', 'candlelit map glow'],

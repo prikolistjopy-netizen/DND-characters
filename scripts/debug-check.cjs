@@ -176,6 +176,17 @@ let tagCharmClusterOveruseCount = 0;
 let repeatedHighImpactPoseWithinFiveCount = 0;
 let repeatedPoseSameClassWithinTenCount = 0;
 let emotionPoseMismatchCount = 0;
+let bardAsWizardRiskCount = 0;
+let bardWithoutPerformerAnchorCount = 0;
+let fairyFullPlateCount = 0;
+let fairyHeavyShieldCount = 0;
+let tinyHeavyHolyWarriorRiskCount = 0;
+let imagePromptBackgroundHintFullBodyCount = 0;
+let imagePromptCompressedDetailTotal = 0;
+let repeatedExactPoseWithinEightCount = 0;
+let casterPoseTotal = 0;
+let casterActiveCastingPoseCount = 0;
+const recentExactPoseWindow = [];
 let runeMotifGroundedNonArcaneCount = 0;
 const recentPoseWindow = [];
 const recentPoseClassWindow = [];
@@ -218,6 +229,9 @@ const aasimarCelestialPattern = /celestial|radiant skin|halo|divine mark|birthma
 const aasimarEyePattern = /luminous .*eyes|radiant eyes|silver eyes|star-like pupils|reflective eyes/i;
 const aasimarHaloMarkPattern = /halo|birthmark|divine mark|celestial scars|tear marks/i;
 const genericAasimarRiskPattern = /generic human|ordinary human|human with only/i;
+const bardPerformerAnchorPattern = /lute|flute|instrument|song|skald|perform|story|rapier|stage|bard|music|courtly|flourish/i;
+const bardWizardRiskPattern = /(?:small|weathered|generic)?\s*spellbook|grimoire|tracing a glowing sigil|sigil trace/i;
+const activeCasterPosePattern = /tracing|casting with both hands|sigil|spell gesture|speaking a spell|extended in subtle magic/i;
 const highImpactPoseNames = new Set(['shield braced against incoming sparks', 'flying kick with prayer beads suspended midair', 'kneeling prayer as holy light gathers', 'performing a playful fey flourish', 'ready stance on a cracked dungeon tile', 'tracing a glowing sigil in the air', 'studying a map under candlelight']);
 function poseCategory(seed) {
   const text = `${seed.pose.name} ${(seed.pose.tags ?? []).join(' ')}`.toLowerCase();
@@ -418,6 +432,9 @@ for (let index = 0; index < sampleSize; index += 1) {
     if (genericAasimarRiskPattern.test(raceSentence) || !aasimarCelestialPattern.test(raceSentence)) aasimarGenericRiskCount += 1;
   }
   const imageDetailText = extractImageDetailText(imagePrompt);
+  const imageDetailItems = imageDetailText ? imageDetailText.split(/,\s*/).filter(Boolean) : [];
+  imagePromptCompressedDetailTotal += imageDetailItems.length;
+  if (seed.compositionMode === 'full_body_character_art' && /subtle background hint/i.test(imagePrompt)) imagePromptBackgroundHintFullBodyCount += 1;
   noisyDetailTotal += countMatches(imageDetailText, new RegExp(noisyDetailPattern.source, 'gi'));
   if (countMatchingDetailItems(imageDetailText, new RegExp(paperRecordPattern.source, 'i')) > 1) paperOverusePromptCount += 1;
   if (spyglassPattern.test(imageDetailText) && !spyglassAllowedThemes.has(seed.visualTheme.id) && !hasAny(seed.archetype.tags, ['scout', 'frontier', 'hunter'])) spyglassOutsideAllowedCount += 1;
@@ -430,6 +447,22 @@ for (let index = 0; index < sampleSize; index += 1) {
   if ((seed.characterBoundDetails?.length ?? 0) < (seed.sceneProps?.length ?? 0) && seed.compositionMode !== 'cinematic_splash_art') {
     failures.push(`character-bound details should dominate scene props :: ${summary}`);
   }
+  if (seed.primaryClass === 'bard') {
+    const bardReadText = [seed.weapon.name, seed.weaponLanguage?.label ?? '', seed.armor.name, seed.armorLanguage?.label ?? '', seed.pose.name, seed.visualTheme?.label ?? '', imagePrompt].join(' ');
+    if (!bardPerformerAnchorPattern.test(bardReadText)) bardWithoutPerformerAnchorCount += 1;
+    if (bardWizardRiskPattern.test(`${seed.weapon.name} ${seed.pose.name}`)) bardAsWizardRiskCount += 1;
+  }
+  if (seed.race.name === 'fairy' && /full plate/i.test(seed.armor.name)) fairyFullPlateCount += 1;
+  if (seed.race.name === 'fairy' && (seed.weapon.tags.includes('shield') || /shield-forward/i.test(seed.silhouette.name))) fairyHeavyShieldCount += 1;
+  if (seed.race.name === 'fairy' && ['holy_warrior', 'martial_veteran'].includes(seed.buildTemplate.id) && (seed.armor.tags.includes('heavy') || seed.weapon.tags.includes('shield') || /shield-forward/i.test(seed.silhouette.name))) tinyHeavyHolyWarriorRiskCount += 1;
+  if (['wizard', 'sorcerer', 'warlock'].includes(seed.primaryClass) || seed.buildTemplate.id === 'arcane_caster') {
+    casterPoseTotal += 1;
+    if (activeCasterPosePattern.test(seed.pose.name)) casterActiveCastingPoseCount += 1;
+  }
+  if (recentExactPoseWindow.includes(seed.pose.name)) repeatedExactPoseWithinEightCount += 1;
+  recentExactPoseWindow.push(seed.pose.name);
+  if (recentExactPoseWindow.length > 8) recentExactPoseWindow.shift();
+
   if (seed.classes.length > 2) tripleMulticlassCount += 1;
   if (seed.mode === 'curated multiclass') {
     if (!seed.curatedMulticlassProfile || !curatedProfileIds.has(seed.curatedMulticlassProfile.id)) randomMulticlassCount += 1;
@@ -745,6 +778,10 @@ const dreamWalkerRate = dreamWalkerCount / sampleSize;
 if (dreamWalkerRate > 0.10) failures.push(`dream_walker activation dominated distribution: ${(dreamWalkerRate * 100).toFixed(1)}%`);
 if (dreamWalkerCount > 0 && dreamWalkerScenePropTotal / dreamWalkerCount > 1.2) failures.push(`dream_walker scene prop average too high: ${(dreamWalkerScenePropTotal / dreamWalkerCount).toFixed(2)}`);
 if (dreamWalkerCount > 0 && dreamWalkerIconicCount / dreamWalkerCount > 0.20) failures.push(`dream_walker iconic/legendary detail rate too high: ${((dreamWalkerIconicCount / dreamWalkerCount) * 100).toFixed(1)}%`);
+if (imagePromptWordMax > 400) failures.push(`image prompt max word count should stay under 400: ${imagePromptWordMax}`);
+if (imagePromptBackgroundHintFullBodyCount > 0) failures.push(`full-body image prompts with background hints: ${imagePromptBackgroundHintFullBodyCount}`);
+if (bardWithoutPerformerAnchorCount > 0) failures.push(`bard without performer anchor count: ${bardWithoutPerformerAnchorCount}`);
+if (fairyFullPlateCount > 0) failures.push(`fairy full plate count: ${fairyFullPlateCount}`);
 if (imagePromptOver450Count > 0) failures.push(`image prompts over 450 words: ${imagePromptOver450Count}/${sampleSize}`);
 if (imagePromptNoReadableTextCount !== sampleSize) failures.push(`image prompt no readable text phrase missing: ${sampleSize - imagePromptNoReadableTextCount}/${sampleSize}`);
 if (imagePromptNoTextPhraseCount !== 0) failures.push(`image prompt forbidden no text phrase count: ${imagePromptNoTextPhraseCount}`);
@@ -873,7 +910,9 @@ console.log(`Image Prompts with class readability phrase: ${imagePromptClassRead
 console.log(`Image Prompts with quality rules: ${imagePromptQualityRulesCount}/${sampleSize} (${((imagePromptQualityRulesCount / sampleSize) * 100).toFixed(1)}%)`);
 console.log(`Image Prompts with negative prompt: ${imagePromptNegativePromptCount}/${sampleSize} (${((imagePromptNegativePromptCount / sampleSize) * 100).toFixed(1)}%)`);
 console.log(`Average scene props in Image Prompt: ${(imagePromptScenePropTotal / sampleSize).toFixed(2)}`);
-console.log(`Average character-bound details in Image Prompt: ${(imagePromptCharacterBoundTotal / sampleSize).toFixed(2)}`);
+console.log(`Average raw character-bound details before compression: ${(imagePromptCharacterBoundTotal / sampleSize).toFixed(2)}`);
+console.log(`Average compressed character-bound details in Image Prompt: ${(imagePromptCompressedDetailTotal / sampleSize).toFixed(2)}`);
+console.log(`Full-body prompts with background hints: ${imagePromptBackgroundHintFullBodyCount}`);
 console.log(`Old prompt template as Image Prompt: ${oldPromptTemplateAsImagePromptCount}`);
 console.log(`Full Generation Output missing: ${fullGenerationMissingCount}`);
 console.log(`Full Generation Output missing seed header: ${fullGenerationMissingSeedHeaderCount}`);
@@ -895,9 +934,18 @@ console.log(`Prompts with >1 paper/document item: ${paperOverusePromptCount}`);
 console.log(`Spyglass outside allowed themes: ${spyglassOutsideAllowedCount}`);
 console.log(`Ledger/license/inventory outside allowed themes: ${ledgerOutsideAllowedCount}`);
 console.log(`Prompts with >1 tag/charm cluster: ${tagCharmClusterOveruseCount}`);
+console.log('Bard readability statistics');
+console.log(`Bard as wizard risk: ${bardAsWizardRiskCount}`);
+console.log(`Bard without performer anchor: ${bardWithoutPerformerAnchorCount}`);
+console.log('Tiny/small race loadout statistics');
+console.log(`Fairy full plate count: ${fairyFullPlateCount}`);
+console.log(`Fairy heavy shield fantasy count: ${fairyHeavyShieldCount}`);
+console.log(`Tiny heavy holy-warrior risk count: ${tinyHeavyHolyWarriorRiskCount}`);
 console.log('Pose cooldown and emotion coherence statistics');
+console.log(`Repeated exact pose within last 8: ${repeatedExactPoseWithinEightCount}`);
 console.log(`Repeated high-impact pose within last 5: ${repeatedHighImpactPoseWithinFiveCount}`);
 console.log(`Repeated pose + same class within last 10: ${repeatedPoseSameClassWithinTenCount}`);
+console.log(`Caster active casting pose rate: ${casterActiveCastingPoseCount}/${Math.max(1, casterPoseTotal)} (${((casterActiveCastingPoseCount / Math.max(1, casterPoseTotal)) * 100).toFixed(1)}%)`);
 console.log(`Emotion-pose mismatch count: ${emotionPoseMismatchCount}`);
 console.log(`Rune motif on grounded non-arcane count: ${runeMotifGroundedNonArcaneCount}`);
 console.log('Mismatch statistics');
