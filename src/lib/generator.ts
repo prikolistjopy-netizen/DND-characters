@@ -215,6 +215,7 @@ const highImpactPoseNames = new Set([
   'ready stance on a cracked dungeon tile',
   'tracing a glowing sigil in the air',
   'studying a map under candlelight',
+  'overhead strike with a heavy blade',
 ]);
 const groundedNonArcaneThemeIds = new Set(['bounty_hunter', 'pirate_raider', 'urban_assassin', 'mercenary_captain', 'arena_champion', 'royal_guard', 'duel_saint']);
 const runeFriendlyThemeIds = new Set(['academy_mage', 'rune_scholar', 'battle_mage', 'void_oracle', 'dream_walker', 'forbidden_researcher', 'pact_scholar', 'star_seer', 'clockwork_sapper', 'battle_engineer', 'spell_duelist']);
@@ -901,15 +902,18 @@ function selectBuildTemplate(primaryClass: CharacterClass, archetype: ArchetypeO
     .filter((entry) => entry.score > 1);
 
   if (scored.length > 0) {
-    const smartScoredWithoutScholar = context.useSmartPool && !isCartographerLike(archetype) && scored.some((entry) => entry.template.id !== 'divine_scholar')
-      ? scored.filter((entry) => entry.template.id !== 'divine_scholar')
+    const sizeSafeScored = race.name === 'fairy' && scored.some((entry) => entry.template.id !== 'savage_berserker')
+      ? scored.filter((entry) => entry.template.id !== 'savage_berserker')
       : scored;
+    const smartScoredWithoutScholar = context.useSmartPool && !isCartographerLike(archetype) && sizeSafeScored.some((entry) => entry.template.id !== 'divine_scholar')
+      ? sizeSafeScored.filter((entry) => entry.template.id !== 'divine_scholar')
+      : sizeSafeScored;
     const smartScored = context.useSmartPool && primaryClass !== 'ranger' && smartScoredWithoutScholar.some((entry) => entry.template.id !== 'frontier_hunter')
       ? smartScoredWithoutScholar.filter((entry) => entry.template.id !== 'frontier_hunter')
       : smartScoredWithoutScholar;
     const baselinePick = () => {
-      const bestScore = Math.max(...scored.map((entry) => entry.score));
-      const best = scored.filter((entry) => entry.score === bestScore).map((entry) => ({ ...entry.template, weight: entry.template.weight }));
+      const bestScore = Math.max(...sizeSafeScored.map((entry) => entry.score));
+      const best = sizeSafeScored.filter((entry) => entry.score === bestScore).map((entry) => ({ ...entry.template, weight: entry.template.weight }));
       return weightedPick(best);
     };
     const template = smartSelect(
@@ -946,7 +950,11 @@ function selectVisualTheme(template: BuildTemplate, archetype: ArchetypeOption, 
     return false;
   });
 
-  const pool = forcedByArchetype.length > 0 ? forcedByArchetype : candidates;
+  const basePool = forcedByArchetype.length > 0 ? forcedByArchetype : candidates;
+  const bulkyFairyThemes = new Set(['raider_king', 'arena_champion', 'tribal_champion', 'storm_warrior', 'monster_slayer_veteran']);
+  const pool = race.name === 'fairy' && basePool.some((theme) => !bulkyFairyThemes.has(theme.id))
+    ? basePool.filter((theme) => !bulkyFairyThemes.has(theme.id))
+    : basePool;
   const scored = pool.map((theme) => {
     let score = theme.weight + 35;
     const reasons = [`template ${template.id}`];
@@ -1167,7 +1175,7 @@ function constrainedArmorOptions(template: BuildTemplate, archetype: ArchetypeOp
 
 function constrainedWeaponOptions(template: BuildTemplate, archetype: ArchetypeOption, size: SizeCategory, race: RaceOption, primaryClass: CharacterClass, theme?: VisualTheme) {
   const names = themeNames((theme?.preferredWeapons ?? []).filter((name) => template.allowedWeapons.includes(name)), template.allowedWeapons);
-  const sizeFilter = (weapon: WeightedOption<WeaponOption>) => !((['tiny', 'small'].includes(size) || race.tags.includes('fey')) && (weapon.tags.includes('oversized') || weapon.tags.includes('greataxe')));
+  const sizeFilter = (weapon: WeightedOption<WeaponOption>) => !((['tiny', 'small'].includes(size) || race.tags.includes('fey')) && (weapon.tags.includes('oversized') || weapon.tags.includes('greataxe') || weapon.tags.includes('greatsword') || /heavy greatsword|oversized maul/i.test(weapon.name)));
   const preferredOptions = templateOptions(weapons, names).filter(sizeFilter);
   const templateAllowed = templateOptions(weapons, template.allowedWeapons).filter(sizeFilter);
   const options = preferredOptions.length > 0 ? preferredOptions : templateAllowed;
@@ -1409,6 +1417,9 @@ function smartPickPose(options: Array<WeightedOption<PoseOption>>, weapon: Weapo
     scoredOptions.map((pose) => {
       let score = pose.weight + 20;
       const reasons: string[] = [];
+      if (['tracing a glowing sigil in the air', 'ready stance on a cracked dungeon tile', 'overhead strike with a heavy blade'].includes(pose.name)) { score -= 90; reasons.push('high-impact pose reduced'); }
+      if (['shield braced against incoming sparks', 'kneeling prayer as holy light gathers'].includes(pose.name)) { score -= 60; reasons.push('ritual/defensive high-impact reduced'); }
+      if (pose.name === 'weapon raised in a decisive challenge') { score -= 35; reasons.push('challenge pose softened'); }
       if (hasAny(weapon.tags, ['bow', 'longbow', 'shortbow']) && pose.tags.includes('bow')) { score += 40; reasons.push('bow pose fits weapon'); }
       if (weapon.tags.includes('shield') && pose.tags.includes('shield')) { score += 40; reasons.push('shield pose fits weapon'); }
       if (weapon.tags.includes('dual-blades') && pose.tags.includes('dual-blades')) { score += 40; reasons.push('dual-blades pose fits weapon'); }
@@ -1418,6 +1429,8 @@ function smartPickPose(options: Array<WeightedOption<PoseOption>>, weapon: Weapo
       if (hasAny(weapon.tags, ['tool', 'mechanical-focus', 'map', 'compass', 'scroll']) && hasAny(pose.tags, ['tools', 'map'])) { score += 30; reasons.push('tool pose fit'); }
       if (isCartographerLike(archetype) && hasAny(pose.tags, ['map', 'tools'])) { score += 100; reasons.push('cartographer pose fit'); }
       if (hasAny(archetype.tags, ['frontier', 'scout', 'hunter']) && hasAny(pose.tags, ['tracking', 'bow', 'general'])) { score += 10; reasons.push('archetype pose fit'); }
+      if (['staff planted on the ground', 'speaking a spell softly', 'one hand extended in subtle magic, not full sigil', 'book held closed under one arm'].includes(pose.name)) { score += 45; reasons.push('calm caster pose preference'); }
+      if (['standing calmly with weapon lowered', 'resting one hand on weapon pommel', 'bow held lowered after tracking', 'close-quarters ready stance'].includes(pose.name)) { score += 35; reasons.push('stable full-body pose preference'); }
       const cooldown = recentPosePenalty(pose, poseContext.primaryClass, poseContext.visualTheme);
       score += cooldown.score;
       reasons.push(...cooldown.reasons);
@@ -1655,6 +1668,7 @@ function silhouetteCompatible(profile: SilhouetteProfile, theme: VisualTheme, se
   if (profile.compatibleThemes && profile.compatibleThemes.length > 0 && !profile.compatibleThemes.includes(theme.id) && seed.mode !== 'chaos' && ['companion', 'mounted'].includes(profile.category) && !companion) return false;
   if (profile.forbiddenClasses?.includes(seed.primaryClass)) return false;
   if (seed.mode !== 'chaos' && ['tiny', 'small'].includes(seed.size) && ['wide', 'mounted'].includes(profile.category)) return false;
+  if (seed.mode !== 'chaos' && ['tiny', 'small'].includes(seed.size) && ['arena_colossus', 'siege_breaker_profile', 'banner_commander'].includes(profile.id)) return false;
   if (['companion', 'mounted'].includes(profile.category) && !companion) return false;
   if (profile.id === 'falconer_profile' && !(companion && companion.companionType === 'bird')) return false;
   if (profile.id === 'dragon_warden_profile' && !(isDragonLike(companion) || theme.id.includes('dragon'))) return false;
@@ -2749,7 +2763,7 @@ function formatPrompt(seed: CharacterSeed): string {
     multiclassLine,
     `Appearance: ${seed.appearanceProfile.promptFragment}.`,
     `Build template: ${seed.buildTemplate.label}; fantasy pillar: ${seed.fantasyPillar.label}; visual theme: ${seed.visualTheme.label} (${seed.visualFantasy}); theme variant: ${seed.visualThemeVariant.label}.`,
-    `Silhouette: ${seed.silhouetteProfile.label}, ${seed.silhouetteProfile.promptFragment}.`,
+    `Silhouette: ${sanitizeSilhouetteForImagePrompt(seed)}.`,
     `Armor: ${seed.armor.name}; armor language: ${seed.armorLanguage.promptFragments.join(', ')}; finish: ${seed.equipmentFinish.promptFragments.slice(0, 1).join(', ')}.`,
     `Weapon or tool: ${seed.weapon.name}; weapon language: ${seed.weaponLanguage.promptFragments.join(', ')}${seed.enchantmentIntensity !== 'none' ? `; enchantment: ${seed.equipmentEnchantment.promptFragments.slice(0, 1).join(', ')}` : ''}.`,
     `Pose: ${seed.pose.name}; expression: ${seed.emotion}.`,
@@ -2992,6 +3006,7 @@ function sanitizeWeaponNameForImagePrompt(seed: CharacterSeed): string {
 }
 
 function sanitizeWeaponLanguageForImagePrompt(seed: CharacterSeed): string {
+  if (/banner|pennant/i.test(seed.weapon.name)) return 'clean spear silhouette';
   const source = seed.weaponLanguage.promptFragments[0] ?? seed.weaponLanguage.label;
   return sanitizeAccessoryWording(source || seed.weapon.name, seed, 'weapon') || 'clean weapon silhouette';
 }
@@ -3004,6 +3019,60 @@ function sanitizeFinishForImagePrompt(seed: CharacterSeed): string {
 function stylePresetForSeed(seed: CharacterSeed): StylePreset {
   if (seed.stylePreset !== 'heroic_dnd_concept_art') return seed.stylePreset;
   return 'heroic_dnd_concept_art';
+}
+
+
+function sanitizePoseForImagePrompt(seed: CharacterSeed): string {
+  return seed.pose.name
+    .replace(/planting a banner spear before the charge/gi, 'planting a spear before the charge')
+    .replace(/banner spear/gi, 'spear')
+    .replace(/giant flag|large flag|battlefield flags?|background banners?|framed by banners/gi, 'clean battlefield presence')
+    .replace(/hovering grimoire|floating grimoire|scroll cascade|cascade of scrolls/gi, 'controlled focus')
+    .trim();
+}
+
+function sanitizeSilhouetteForImagePrompt(seed: CharacterSeed): string {
+  const weaponText = normalizeText(seed.weapon.name);
+  const hasBookTool = /book|grimoire|journal/.test(weaponText) || hasAny(seed.weapon.tags, ['book']);
+  const hasStaffOrFocus = hasAny(seed.weapon.tags, ['staff', 'orb', 'wand', 'magic-focus', 'holy-focus']) && !hasBookTool;
+  const raw = `${seed.silhouetteProfile.label}, ${seed.silhouetteProfile.promptFragment}`;
+  let clean = raw;
+  if (/saint with banners|framed by banners|banner commander|torn banner|banners?|flags?|pennants?/i.test(clean)) {
+    clean = 'saintly wide silhouette with a broad tabard and halo-like shoulder shape';
+  }
+  if (/floating grimoire|hovering grimoire|living library|book-heavy|book shapes|chained tomes/i.test(clean)) {
+    clean = hasBookTool
+      ? 'clean caster silhouette with one held grimoire and strong robe panels'
+      : 'clean caster silhouette with strong robe panels and one controlled arcane focus';
+  }
+  if (/spell scroll cascade|cascade of scrolls|scroll cascade|scrolls around/i.test(clean)) {
+    clean = 'vertical caster silhouette with layered robe panels';
+  }
+  if (/reliquary bearer|relic-bearing|many relics|relic clusters|sacred relic carried/i.test(clean)) {
+    clean = 'sacred guardian silhouette with one compact relic focus';
+  }
+  if (/tool clusters|tools and glyphs|astronomy tools|maps and expedition equipment|satchels and coils|rope lines|chain shapes|wraps and talismans|dangerous texts|sleep charms|moon-thread ribbons/i.test(clean)) {
+    clean = clean
+      .replace(/ringed by astronomy tools/gi, 'defined by a clean star-seer outline')
+      .replace(/made of tools and glyphs/gi, 'with restrained angular robe geometry')
+      .replace(/with maps and expedition equipment/gi, 'with a clean explorer cloak shape')
+      .replace(/with satchels and coils/gi, 'with a salt-worn cloak shape')
+      .replace(/with rope lines/gi, 'with a practical travel outline')
+      .replace(/with chain shapes/gi, 'with a shadowed cloak edge')
+      .replace(/with wraps and talismans/gi, 'with a bound cloak shape')
+      .replace(/carrying dangerous texts/gi, 'with severe scholar robe panels')
+      .replace(/with a lantern, sleep charms, and soft robe layers/gi, 'with a lantern and soft robe layers')
+      .replace(/with drifting moon-thread ribbons/gi, 'with a soft moonlit cloak edge');
+  }
+  if (hasStaffOrFocus) {
+    clean = clean.replace(/one held grimoire|hovering grimoire|book-heavy|book shapes/gi, 'one controlled arcane focus');
+  }
+  return clean
+    .replace(/\b(banners?|flags?|pennants?|scroll cascade|cascade of scrolls|hovering grimoire|floating grimoire|book stack|book-heavy|chained tomes|many charms|tool clusters|many relics|relic clusters)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s*,\s*/g, ', ')
+    .replace(/^,\s*|,\s*$/g, '')
+    .trim() || 'clean readable silhouette with large costume shapes';
 }
 
 function formatImagePrompt(seed: CharacterSeed): string {
@@ -3032,11 +3101,11 @@ function formatImagePrompt(seed: CharacterSeed): string {
     `Race appearance: ${raceAppearanceForImagePrompt(seed)}.`,
     `Class and build fantasy: ${seed.archetype.name}, ${seed.buildTemplate.label}, ${multiclassInfluence(seed)}`,
     `Visual theme: ${seed.visualTheme.label}, theme variant: ${seed.visualThemeVariant.label}.`,
-    `Silhouette: ${seed.silhouetteProfile.label}, ${seed.silhouetteProfile.promptFragment}.`,
+    `Silhouette: ${sanitizeSilhouetteForImagePrompt(seed)}.`,
     `Armor and clothing: ${seed.armor.name}, with ${armorFragments}.`,
     `Weapon and tool: ${weaponName}, with ${weaponFragments}.`,
     enchantmentLine,
-    `Pose and expression: ${seed.pose.name}, ${seed.emotion}, ${seed.mood.name}.`,
+    `Pose and expression: ${sanitizePoseForImagePrompt(seed)}, ${seed.emotion}, ${seed.mood.name}.`,
     `Character-bound visual details: ${compressCharacterDetails(seed.characterBoundDetails, seed)}.`,
     sceneProps ? `Limited scene props: ${sceneProps}.` : null,
     companionLine,
@@ -3146,6 +3215,45 @@ function sanitizeTinyFairyLoadout(seed: CharacterSeed, context: SmartSelectionCo
   if (seed.race.name !== 'fairy') return seed;
 
   let nextSeed = seed;
+  if (nextSeed.buildTemplate.id === 'savage_berserker') {
+    context.trace.push('Tiny fairy fantasy repair: rerolling away from bulky savage_berserker template.');
+    nextSeed = rerollLayer(nextSeed, 'template', context);
+    if (nextSeed.buildTemplate.id !== 'savage_berserker') {
+      nextSeed = rerollLayer(rerollLayer(rerollLayer(refreshVisualLibraryLayers(nextSeed, context), 'mood', context), 'light', context), 'fx', context);
+    }
+    if (nextSeed.buildTemplate.id === 'savage_berserker') {
+      const lightFallback = buildTemplates.find((template) => template.id === (nextSeed.primaryClass === 'barbarian' ? 'frontier_hunter' : 'fey_trickster'));
+      if (lightFallback) {
+        const visualTheme = selectVisualTheme(lightFallback, nextSeed.archetype, nextSeed.race, context);
+        const visualThemeVariant = selectVisualThemeVariant(visualTheme, context, lightFallback.allowedFx);
+        const motifSelection = selectNarrativeMotif({ ...nextSeed, buildTemplate: lightFallback, visualTheme }, context);
+        const narrativeVariant = selectNarrativeVariant(motifSelection.motif, context, lightFallback.allowedFx);
+        const armor = smartPickArmor(constrainedArmorOptions(lightFallback, nextSeed.archetype, nextSeed.primaryClass, nextSeed.size, visualTheme), nextSeed.primaryClass, context);
+        const weaponOptions = constrainedWeaponOptions(lightFallback, nextSeed.archetype, nextSeed.size, nextSeed.race, nextSeed.primaryClass, visualTheme);
+        const weapon = smartPickWeapon(weaponOptions, nextSeed.primaryClass, nextSeed.archetype, context);
+        nextSeed = {
+          ...nextSeed,
+          buildTemplate: lightFallback,
+          templateReason: 'tiny fairy light-fantasy fallback',
+          visualTheme,
+          visualThemeVariant,
+          narrativeMotif: motifSelection.motif,
+          narrativeVariant,
+          motifReason: motifSelection.reason,
+          storyDetails: pickStoryDetails(motifSelection.motif, narrativeVariant),
+          promptFragments: [...motifSelection.motif.promptFragments, ...narrativeVariant.promptFragments, ...visualThemeVariant.promptFragments],
+          armor,
+          weapon,
+          silhouette: smartPickSimpleOption('Silhouette', constrainedSilhouetteOptions(lightFallback, nextSeed, visualTheme), getClassAnchor(nextSeed.primaryClass).poseTags, context),
+          pose: smartPickPose(constrainedPoseOptions(lightFallback, nextSeed.archetype, weapon, visualTheme), weapon, nextSeed.archetype, context, { primaryClass: nextSeed.primaryClass, visualTheme }),
+          mood: smartPickSimpleOption('Mood', constrainedMoodOptions(lightFallback, nextSeed.archetype, visualTheme, motifSelection.motif, narrativeVariant), nextSeed.archetype.tags, context),
+          light: smartPickSimpleOption('Light', constrainedLightOptions(lightFallback, nextSeed.archetype, visualTheme), nextSeed.archetype.tags, context),
+          fx: smartPickSimpleOption('FX', constrainedFxOptions(lightFallback, nextSeed.archetype, visualTheme, motifSelection.motif, visualThemeVariant, narrativeVariant), [...nextSeed.archetype.tags, ...visualTheme.archetypeTags], context),
+        };
+        nextSeed = refreshVisualLibraryLayers(nextSeed, context);
+      }
+    }
+  }
   if (nextSeed.armor.name === 'full plate with engraved pauldrons' || nextSeed.armor.tags.includes('heavy')) {
     const lightArmorOptions = constrainedArmorOptions(nextSeed.buildTemplate, nextSeed.archetype, nextSeed.primaryClass, nextSeed.size, nextSeed.visualTheme)
       .filter((armor) => !armor.tags.includes('heavy') && armor.name !== 'full plate with engraved pauldrons');
@@ -3166,6 +3274,10 @@ function sanitizeTinyFairyLoadout(seed: CharacterSeed, context: SmartSelectionCo
       const pose = smartPickPose(constrainedPoseOptions(nextSeed.buildTemplate, nextSeed.archetype, weapon, nextSeed.visualTheme), weapon, nextSeed.archetype, context, { primaryClass: nextSeed.primaryClass, visualTheme: nextSeed.visualTheme });
       nextSeed = ensureEmotionCoherence({ ...nextSeed, weapon, pose }, context);
     }
+  }
+
+  if (['arena_colossus', 'siege_breaker_profile', 'banner_commander'].includes(nextSeed.silhouetteProfile.id)) {
+    nextSeed = rerollLayer(nextSeed, 'silhouette', context);
   }
 
   if (nextSeed.silhouette.name === 'stocky shield-forward stance') {
