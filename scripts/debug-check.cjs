@@ -226,6 +226,20 @@ let highImpactPoseCount = 0;
 let casterSigilPoseCount = 0;
 let positiveNegativeContradictionCount = 0;
 const poseUsageCounts = new Map();
+const poseFamilyCounts = new Map();
+let repeatedPoseFamilyWithinEightCount = 0;
+let classPoseRepetitionCount = 0;
+let weaponPoseRepetitionCount = 0;
+let primaryReadMissingRace = 0;
+let primaryReadMissingClass = 0;
+let primaryReadMissingSilhouette = 0;
+let primaryReadMissingWeapon = 0;
+let primaryReadMissingPose = 0;
+let primaryReadMissingPoseFamily = 0;
+let flavorStackDominatesPromptCount = 0;
+const recentPoseFamilyWindow = [];
+const recentClassPoseFamilyWindow = [];
+const recentWeaponPoseFamilyWindow = [];
 const recentExactPoseWindow = [];
 let runeMotifGroundedNonArcaneCount = 0;
 const recentPoseWindow = [];
@@ -254,6 +268,12 @@ function extractImageDetailText(prompt) {
 function countMatches(text, pattern) {
   const matches = text.match(pattern);
   return matches ? matches.length : 0;
+}
+function entropyFromCounts(counts) {
+  const total = [...counts.values()].reduce((sum, count) => sum + count, 0);
+  if (total === 0 || counts.size <= 1) return { entropy: 0, normalized: 0 };
+  const entropy = [...counts.values()].reduce((sum, count) => { const p = count / total; return sum - p * Math.log2(p); }, 0);
+  return { entropy, normalized: entropy / Math.log2(counts.size) };
 }
 function countMatchingDetailItems(text, pattern) {
   return text.split(/,\s*/).filter((item) => pattern.test(item)).length;
@@ -310,6 +330,37 @@ function poseCategory(seed) {
   if (/shield|guard|deflect|block|braced|defensive/.test(text)) return 'defensive_combat';
   if (/strike|kick|attack|greatsword|axe|swing|duel|rapier|bow/.test(text)) return 'offensive_combat';
   return 'calm_portrait';
+}
+
+function poseFamily(seed) {
+  const text = `${seed.pose.name} ${(seed.pose.tags ?? []).join(' ')}`.toLowerCase();
+  if (/instrument|song|story|perform|flourish|lute|flute/.test(text)) return 'performance_pose';
+  if (/dagger|crouch|ambush|stealth|cloak|stiletto|lock/.test(text)) return 'stealth_motion';
+  if (/shield|guard|protective|warding|reliquary/.test(text)) return 'protective_stance';
+  if (/staff planted|focus close|orb close|spell softly|one-handed spell|subtle magic|focus lowered/.test(text)) return 'subtle_casting';
+  if (/ritual|prayer|holy symbol|blessing|meditating|kneeling|relic censer/.test(text)) return 'ritual_pose';
+  if (/tracking|travel|walking|cloak held|wind|boots|road|bow held lowered|tracks|lantern low/.test(text)) return 'travel_pose';
+  if (/pommel|weapon grounded|checking blade|raised|greatsword|greataxe|maul|spear|bow|rapier|blade|weapon display/.test(text)) return 'weapon_display';
+  if (/ready stance|ready but not|braced|combat|close-quarters/.test(text)) return 'combat_ready';
+  if (/wound|survivor|after battle|battlefield|scar/.test(text)) return 'wounded_survivor';
+  if (/quiet authority|courtly|noble|portrait/.test(text)) return 'noble_portrait';
+  if (/tinkering|calibrating|adjusting|bracer|tool|device|gauntlet/.test(text)) return 'class_specific_idle';
+  if (/laughing|social|storytelling|unseen audience/.test(text)) return 'social_pose';
+  if (/ground slam|overhead|flying kick|charging|howling|leaping|mid-air/.test(text)) return 'grounded_power_stance';
+  return 'calm_presence';
+}
+function poseIsHighImpact(seed) {
+  return /tracing a glowing sigil|ready stance on a cracked dungeon tile|overhead strike|shield braced|kneeling prayer|flying kick|ground slam|charging|mid-air|leaping/i.test(seed.pose.name);
+}
+function promptHasPrimaryRead(prompt, seed) {
+  return {
+    race: prompt.includes('Race appearance:'),
+    classRead: prompt.includes('Class and build fantasy:') && prompt.includes(seed.primaryClass),
+    silhouette: prompt.includes('Silhouette:'),
+    weapon: prompt.includes('Weapon and tool:'),
+    pose: prompt.includes('Pose and expression:'),
+    poseFamily: Boolean(poseFamily(seed)),
+  };
 }
 function emotionPoseMismatch(seed) {
   const category = poseCategory(seed);
@@ -546,8 +597,30 @@ for (let index = 0; index < sampleSize; index += 1) {
   if (['tiny', 'small'].includes(seed.size) && oversizedWeaponPattern.test(seed.weapon.name)) smallRaceOversizedWeaponRisk += 1;
   if (/no giant flags|no oversized banners|no wearable library|no symbol-covered fabric|no chain clutter/i.test(imagePrompt) && /Silhouette:[^.]+(?:banner|flag|hovering grimoire|floating grimoire|wearable library|symbol-covered|chain shapes)/i.test(imagePrompt)) positiveNegativeContradictionCount += 1;
   poseUsageCounts.set(seed.pose.name, (poseUsageCounts.get(seed.pose.name) ?? 0) + 1);
-  if (highImpactPoseNames.has(seed.pose.name)) highImpactPoseCount += 1;
+  const family = poseFamily(seed);
+  poseFamilyCounts.set(family, (poseFamilyCounts.get(family) ?? 0) + 1);
+  if (recentPoseFamilyWindow.includes(family)) repeatedPoseFamilyWithinEightCount += 1;
+  if (recentClassPoseFamilyWindow.some((entry) => entry.primaryClass === seed.primaryClass && entry.family === family)) classPoseRepetitionCount += 1;
+  const weaponFamily = (seed.weapon.tags ?? [])[0] ?? seed.weapon.name;
+  if (recentWeaponPoseFamilyWindow.some((entry) => entry.weaponFamily === weaponFamily && entry.family === family)) weaponPoseRepetitionCount += 1;
+  recentPoseFamilyWindow.push(family);
+  if (recentPoseFamilyWindow.length > 8) recentPoseFamilyWindow.shift();
+  recentClassPoseFamilyWindow.push({ primaryClass: seed.primaryClass, family });
+  if (recentClassPoseFamilyWindow.length > 12) recentClassPoseFamilyWindow.shift();
+  recentWeaponPoseFamilyWindow.push({ weaponFamily, family });
+  if (recentWeaponPoseFamilyWindow.length > 12) recentWeaponPoseFamilyWindow.shift();
+  if (poseIsHighImpact(seed)) highImpactPoseCount += 1;
   if (casterSigilPosePattern.test(seed.pose.name) && (['wizard', 'sorcerer', 'warlock'].includes(seed.primaryClass) || seed.buildTemplate.id === 'arcane_caster')) casterSigilPoseCount += 1;
+  const primaryRead = promptHasPrimaryRead(imagePrompt, seed);
+  if (!primaryRead.race) primaryReadMissingRace += 1;
+  if (!primaryRead.classRead) primaryReadMissingClass += 1;
+  if (!primaryRead.silhouette) primaryReadMissingSilhouette += 1;
+  if (!primaryRead.weapon) primaryReadMissingWeapon += 1;
+  if (!primaryRead.pose) primaryReadMissingPose += 1;
+  if (!primaryRead.poseFamily) primaryReadMissingPoseFamily += 1;
+  const firstFlavorIndex = imagePrompt.indexOf('Visual theme:');
+  const weaponIndex = imagePrompt.indexOf('Weapon and tool:');
+  if (firstFlavorIndex !== -1 && weaponIndex !== -1 && firstFlavorIndex < weaponIndex) flavorStackDominatesPromptCount += 1;
   if (weaponAccessoryOverloadPattern.test(positiveForAccessoryStats)) weaponAccessoryOverloadRisk += 1;
   if (armorAccessoryOverloadPattern.test(positiveForAccessoryStats)) armorAccessoryOverloadRisk += 1;
   if (seed.compositionMode === 'full_body_character_art' && /subtle background hint/i.test(imagePrompt)) imagePromptBackgroundHintFullBodyCount += 1;
@@ -926,6 +999,13 @@ if (tinyBulkyMartialRisk > 0) failures.push(`tiny bulky martial risk: ${tinyBulk
 if (smallRaceOverscaleSilhouetteRisk > 0) failures.push(`small race overscale silhouette risk: ${smallRaceOverscaleSilhouetteRisk}`);
 if (smallRaceOversizedWeaponRisk > 0) failures.push(`small race oversized weapon risk: ${smallRaceOversizedWeaponRisk}`);
 if (positiveNegativeContradictionCount > 0) failures.push(`positive/negative contradiction count: ${positiveNegativeContradictionCount}`);
+if (primaryReadMissingRace > 0) failures.push(`primary read missing race: ${primaryReadMissingRace}`);
+if (primaryReadMissingClass > 0) failures.push(`primary read missing class: ${primaryReadMissingClass}`);
+if (primaryReadMissingSilhouette > 0) failures.push(`primary read missing silhouette: ${primaryReadMissingSilhouette}`);
+if (primaryReadMissingWeapon > 0) failures.push(`primary read missing weapon: ${primaryReadMissingWeapon}`);
+if (primaryReadMissingPose > 0) failures.push(`primary read missing pose: ${primaryReadMissingPose}`);
+if (primaryReadMissingPoseFamily > 0) failures.push(`primary read missing pose family: ${primaryReadMissingPoseFamily}`);
+if (flavorStackDominatesPromptCount > 0) failures.push(`flavor stack dominates prompt count: ${flavorStackDominatesPromptCount}`);
 if (bardWithoutPerformerAnchorCount > 0) failures.push(`bard without performer anchor count: ${bardWithoutPerformerAnchorCount}`);
 if (fairyFullPlateCount > 0) failures.push(`fairy full plate count: ${fairyFullPlateCount}`);
 if (imagePromptOver450Count > 0) failures.push(`image prompts over 450 words: ${imagePromptOver450Count}/${sampleSize}`);
@@ -1116,10 +1196,15 @@ console.log(`Staff plus book silhouette risk: ${staffPlusBookSilhouetteRisk}`);
 console.log(`Positive/negative contradiction count: ${positiveNegativeContradictionCount}`);
 const topPoseCount = Math.max(0, ...poseUsageCounts.values());
 const topPoseShare = topPoseCount / sampleSize;
+const topPoseFamilyCount = Math.max(0, ...poseFamilyCounts.values());
+const topPoseFamilyShare = topPoseFamilyCount / sampleSize;
+const poseFamilyEntropy = entropyFromCounts(poseFamilyCounts);
 const highImpactPoseRate = highImpactPoseCount / sampleSize;
 const casterSigilPoseRate = casterPoseTotal === 0 ? 0 : casterSigilPoseCount / casterPoseTotal;
 console.log('Silhouette and pose QA statistics');
 console.log(`Top pose share: ${(topPoseShare * 100).toFixed(1)}%`);
+console.log(`Top pose family share: ${(topPoseFamilyShare * 100).toFixed(1)}%`);
+console.log(`Pose family entropy: ${poseFamilyEntropy.entropy.toFixed(3)} bits (${(poseFamilyEntropy.normalized * 100).toFixed(1)}% normalized)`);
 console.log(`High-impact pose rate: ${(highImpactPoseRate * 100).toFixed(1)}%`);
 console.log(`Caster sigil pose rate: ${(casterSigilPoseRate * 100).toFixed(1)}%`);
 console.log(`Fairy savage berserker risk: ${fairySavageBerserkerRisk}`);
@@ -1128,6 +1213,20 @@ console.log(`Fairy arena colossus risk: ${fairyArenaColossusRisk}`);
 console.log(`Tiny bulky martial risk: ${tinyBulkyMartialRisk}`);
 console.log(`Small race overscale silhouette risk: ${smallRaceOverscaleSilhouetteRisk}`);
 console.log(`Small race oversized weapon risk: ${smallRaceOversizedWeaponRisk}`);
+console.log('Pose family distribution');
+for (const [family, count] of [...poseFamilyCounts.entries()].sort((a, b) => b[1] - a[1])) console.log(`${String(count).padStart(4)}  ${family}`);
+console.log('Primary read stack statistics');
+console.log(`Primary read coverage: ${(((sampleSize - primaryReadMissingRace - primaryReadMissingClass - primaryReadMissingSilhouette - primaryReadMissingWeapon - primaryReadMissingPose - primaryReadMissingPoseFamily) / sampleSize) * 100).toFixed(1)}% strict aggregate`);
+console.log(`Primary read missing race: ${primaryReadMissingRace}`);
+console.log(`Primary read missing class: ${primaryReadMissingClass}`);
+console.log(`Primary read missing silhouette: ${primaryReadMissingSilhouette}`);
+console.log(`Primary read missing weapon: ${primaryReadMissingWeapon}`);
+console.log(`Primary read missing pose: ${primaryReadMissingPose}`);
+console.log(`Primary read missing pose family: ${primaryReadMissingPoseFamily}`);
+console.log(`Flavor stack dominates prompt count: ${flavorStackDominatesPromptCount}`);
+console.log(`Repeated pose family within last 8: ${repeatedPoseFamilyWithinEightCount}`);
+console.log(`Class pose repetition count: ${classPoseRepetitionCount}`);
+console.log(`Weapon pose repetition count: ${weaponPoseRepetitionCount}`);
 console.log('Bard readability statistics');
 console.log(`Bard as wizard risk: ${bardAsWizardRiskCount}`);
 console.log(`Bard without performer anchor: ${bardWithoutPerformerAnchorCount}`);
