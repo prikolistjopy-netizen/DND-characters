@@ -2773,12 +2773,12 @@ function compositionImagePromptPhrase(compositionMode: CompositionMode): string 
 }
 
 function qualityRulesForMode(compositionMode: CompositionMode): string {
-  if (compositionMode === 'character_concept_portrait') return 'Quality rules: readable face, clear race identity, clear class identity, strong upper-body silhouette, clean accessories, character is the main focus.';
-  return 'Quality rules: full body visible, entire character fits in frame, clear race identity, clear class identity, strong silhouette, clean accessories, character is the main focus.';
+  if (compositionMode === 'character_concept_portrait') return 'Quality rules: readable face, clear race and class identity, clean accessories, character focus.';
+  return 'Quality rules: full body visible, clear race and class identity, strong silhouette, clean accessories.';
 }
 
 function negativePromptForImage(): string {
-  return 'Negative prompt: no cropped body, no missing or extra limbs, no malformed hands, no distorted or unreadable face, no childlike proportions unless explicit, no modern clothing, no sci-fi, no guns, no logo, no watermark, no cluttered background, no floor props, no tables, no altars, no map desks, no duplicate weapons, no inconsistent armor, no excessive belts, no hanging tags, no loose papers, no item clutter, no stacks of books, no floating unreadable pages, no random banners, no giant flags, no background banners, no multiple pennants, no anime, no chibi, no cartoon, no readable text, only abstract marks or illegible symbols if papers or books appear.';
+  return 'Negative prompt: no cropped body, no extra limbs, no malformed hands, no unreadable face, no modern clothing, no guns, no logo, no watermark, no cluttered background, no floor props, no duplicate weapons, no excessive belts, no chain clutter, no dangling ornaments, no crowded waist gear, no loose papers, no item clutter, no stacks of books, no wearable library, no overdesigned staff, no symbol-covered fabric, no oversized banners, no giant flags, no readable text, only abstract marks or illegible symbols if papers or books appear.';
 }
 
 function sentenceJoin(parts: Array<string | null | undefined | false>): string {
@@ -2813,17 +2813,20 @@ type ImageDetailCategory =
 const paperClutterPattern = /battle reports?|field orders?|campaign maps?|\bmaps?\b|records?|ledgers?|inventory|license tags?|\btags?\b|labels?|bookmarks?|loose pages?|loose papers?|documents?|notes?|scrolls?|orders?|thesis fragments?|charts?|astronomical charts?|tally papers?|wanted posters?|poster fragments?|pamphlets?/i;
 const bookClutterPattern = /stacked books?|stacked academy books?|book stacks?|multiple books?|chained books?|\bacademy books?\b|\bbooks?\b|library stamps?|library records?|wax seals?|hanging pages?/i;
 const bannerClutterPattern = /flags?|banners?|banner fragments?|first company banner|pennant cords?|background banners?/i;
-const chainCharmClutterPattern = /hanging chains?|many chains?|many belts?|excessive straps?|dangling charms?|many medallions?|many talismans?|many ribbons?|trophy loops?|many trophies?|tokens?|coins?|necklaces?/i;
+const chainCharmClutterPattern = /\bchains?\b|cords?|hanging chains?|many chains?|many belts?|excessive straps?|straps?|dangling charms?|charms?|ornaments?|many medallions?|medallions?|many talismans?|talismans?|many ribbons?|ribbons?|trophy loops?|many trophies?|tokens?|coins?|necklaces?/i;
 const symbolClutterPattern = /glyph fragments?|floating symbols?|floating glyphs?|formula bands?/i;
 const objectClutterPattern = new RegExp(`${paperClutterPattern.source}|${bookClutterPattern.source}|${bannerClutterPattern.source}|${chainCharmClutterPattern.source}|${symbolClutterPattern.source}`, 'i');
 const objectLikeDetailPattern = /\b(book|grimoire|map|scroll|paper|journal|ledger|record|poster|tag|label|seal|banner|flag|pennant|chain|belt|charm|medallion|talisman|trophy|glyph|symbol|page|document|note|report|chart|order|token|coin|necklace)\b/i;
+const accessoryClutterPattern = /many belts?|excessive belts?|multiple straps?|hanging chains?|dangling chains?|chain clusters?|many medallions?|multiple amulets?|many pouches?|hanging tags?|dangling ornaments?|trophy loops?|many trophies?|many ribbons?|torn strips everywhere|excessive cloth strips?|long hanging scroll strips?|symbol-covered fabric|many small metal charms?|multiple tassels?|crowded waist gear|overloaded belt gear|layered trinkets?|excessive buckles?|overdesigned staff ornaments?|overdesigned spear decorations?|giant banners?|large flags?|multiple pennants?/i;
+const scholarLibraryRiskPattern = /stacked books?|multiple books?|loose pages?|hanging scrolls?|many wax seals?|archive labels?|formula bands? all over|symbol-covered robes?|wearable librar/i;
+const largeBannerRiskPattern = /giant banners?|large flags?|full-size banner|battlefield flags?|huge flag|background banners?|multiple pennants?|command pennant cords?|first company banner fragment/i;
 
 function classifyImagePromptDetail(detail: string): ImageDetailCategory {
   const text = normalizeText(detail);
   if (bookClutterPattern.test(text)) return 'book_clutter';
   if (bannerClutterPattern.test(text)) return 'banner_clutter';
   if (paperClutterPattern.test(text)) return 'paper_clutter';
-  if (chainCharmClutterPattern.test(text) || symbolClutterPattern.test(text)) return 'chain_charm_clutter';
+  if (chainCharmClutterPattern.test(text) || symbolClutterPattern.test(text) || accessoryClutterPattern.test(text)) return 'chain_charm_clutter';
   if (/birthmark|scar|tattoo|eyes|horn|wing|scale|beard|hair|tusk|halo|celestial|body mark|pact stain/.test(text)) return 'body_mark';
   if (/fur|hide|leather|metal|bronze|cloth|velvet|silk|linen|wool|bark|bone|scale texture|weathered|dented|scarred|burned|patched/.test(text)) return 'material_texture';
   if (/weapon grip|pommel|focus glow|staff head|blade edge|instrument shape|shield face|holy symbol|pact focus/.test(text)) return 'main_tool_detail';
@@ -2836,18 +2839,18 @@ function transformObjectClutterDetail(detail: string, seed: CharacterSeed): stri
   const text = normalizeText(detail);
   const weaponText = normalizeText(seed.weapon.name);
   if (/battle reports?|field orders?|campaign maps?|campaign|reports?|orders?/.test(text)) return seed.primaryClass === 'fighter' ? 'campaign-worn officer trim' : 'weathered command markings on armor';
-  if (/first company banner|banner fragment|torn banner|pennant cords?|flags?|banners?/.test(text)) {
-    if (/banner|pennant/.test(weaponText)) return 'small torn command pennant near the spearhead';
-    return 'faded company colors on cloak lining';
+  if (/first company banner|banner fragment|torn banner|pennant cords?|flags?|banners?|large flags?|giant banners?|multiple pennants?/.test(text)) {
+    if (/banner|pennant/.test(weaponText)) return 'small torn pennant near the spearhead';
+    return 'faded company color on cloak lining';
   }
   if (/stacked books?|book stacks?|multiple books?|chained books?|academy books?|\bbooks?\b|library records?|library stamps?/.test(text)) return seed.primaryClass === 'wizard' ? 'scholar-layered robe panels' : 'archive-style embroidery';
   if (/wax seals?|archive labels?|labels?/.test(text)) return 'wax-red robe clasp';
-  if (/prayer strips?|many ribbons?|ribbons?/.test(text)) return 'sacred cloth trim';
+  if (/prayer strips?|many ribbons?|ribbons?|torn strips everywhere|excessive cloth strips?|long hanging scroll strips?/.test(text)) return 'clean sacred sash';
   if (/trophy loops?|many trophies?|trophies/.test(text)) return seed.primaryClass === 'barbarian' ? 'beast-scarred mantle' : 'trophy-scarred armor texture';
-  if (/glyph fragments?|floating symbols?|floating glyphs?|formula bands?/.test(text)) return hasAny(seed.weapon.tags, ['magic-focus', 'staff', 'orb', 'wand', 'book']) ? 'controlled glow on the focus' : 'subtle etched trim';
-  if (/hanging chains?|many chains?|many medallions?|many talismans?|tokens?|coins?|necklaces?/.test(text)) return seed.primaryClass === 'paladin' || seed.primaryClass === 'cleric' ? 'oath-shaped tabard trim' : 'reinforced metal trim';
-  if (/many belts?|excessive straps?/.test(text)) return 'clean fitted gear seams';
-  if (/dangling charms?|bookmarks?|loose pages?|loose papers?|documents?|notes?|scrolls?|charts?|thesis fragments?|wanted posters?|poster fragments?|pamphlets?|tally papers?|records?|ledgers?|inventory|license/.test(text)) {
+  if (/glyph fragments?|floating symbols?|floating glyphs?|formula bands?|symbol-covered fabric|symbol-covered robes?/.test(text)) return hasAny(seed.weapon.tags, ['magic-focus', 'staff', 'orb', 'wand', 'book']) ? 'controlled glow on the focus' : 'restrained embroidered trim';
+  if (/\bchains?\b|cords?|hanging chains?|dangling chains?|chain clusters?|many chains?|many medallions?|multiple amulets?|medallions?|many talismans?|talismans?|charms?|ornaments?|tokens?|coins?|necklaces?/.test(text)) return seed.primaryClass === 'paladin' || seed.primaryClass === 'cleric' ? 'one oath medallion' : 'metal collar trim';
+  if (/many belts?|excessive belts?|multiple straps?|excessive straps?|\bstraps?\b|crowded waist gear|overloaded belt gear|excessive buckles?/.test(text)) return 'practical armor fastening';
+  if (/dangling charms?|dangling ornaments?|many small metal charms?|multiple tassels?|layered trinkets?|bookmarks?|loose pages?|loose papers?|documents?|notes?|scrolls?|charts?|thesis fragments?|wanted posters?|poster fragments?|pamphlets?|tally papers?|records?|ledgers?|inventory|license/.test(text)) {
     if (seed.primaryClass === 'rogue' || seed.primaryClass === 'ranger') return 'single practical utility pouch';
     if (seed.primaryClass === 'wizard' || seed.primaryClass === 'sorcerer' || seed.primaryClass === 'warlock') return 'clean robe panels';
     return 'subtle costume trim';
@@ -2948,6 +2951,56 @@ function multiclassInfluence(seed: CharacterSeed): string {
   return `clearly readable as ${seed.primaryClass} first, with subtle ${seed.curatedMulticlassProfile.secondaryClass} influence in ${secondaryDetails}.`;
 }
 
+
+function sanitizeAccessoryWording(text: string, seed: CharacterSeed, context: 'armor' | 'weapon' | 'detail' | 'finish'): string {
+  const isBannerWeapon = /banner|pennant/i.test(seed.weapon.name);
+  let clean = text
+    .replace(/spear and torn banner|banner spear|spear with torn banner/gi, 'spear with a small torn pennant near the blade')
+    .replace(/command pennant cords?|first company banner fragment|battlefield flags?|huge flag behind the character|full-size banner cloth|large banner|giant banner|multiple pennants?/gi, isBannerWeapon ? 'small torn pennant' : 'faded cloak color')
+    .replace(/many belts?|excessive belts?|multiple straps?|\bstraps?\b|crowded waist gear|overloaded belt gear|excessive buckles?/gi, context === 'armor' ? 'practical armor fastening' : 'clean silhouette')
+    .replace(/\bchains?\b|cords?|hanging chains?|dangling chains?|chain clusters?|many chains?/gi, 'metal collar trim')
+    .replace(/many medallions?|medallions?|multiple amulets?|many talismans?|talismans?|layered trinkets?/gi, 'one simple clasp')
+    .replace(/many pouches?|hanging tags?|dangling ornaments?|ornaments?|many small metal charms?|charms?|multiple tassels?|tabs?/gi, 'single clean accent')
+    .replace(/trophy loops?|many trophies?/gi, seed.primaryClass === 'barbarian' ? 'scarred hide shoulder' : 'trophy-scarred armor texture')
+    .replace(/many ribbons?|prayer strips?|torn strips everywhere|excessive cloth strips?|long hanging scroll strips?/gi, 'clean sacred sash')
+    .replace(/symbol-covered fabric|symbol-covered robes?|glyph fragments?|floating symbols?|floating glyphs?|formula bands?/gi, 'restrained embroidered trim')
+    .replace(/overdesigned staff ornaments?|staff with many tags, ribbons, chains, carved symbols/gi, 'plain staff with one carved focus')
+    .replace(/overdesigned spear decorations?/gi, 'clean spear silhouette')
+    .replace(/stacked books?|multiple books?|loose pages?|hanging scrolls?|many wax seals?|archive labels?/gi, 'clean robe panels');
+  if (context === 'weapon' && /\b(staff|wand|orb|focus)\b/i.test(seed.weapon.name)) {
+    clean = clean.replace(/orbiting rings?|floating|covered in symbols|many carved symbols/gi, 'controlled');
+  }
+  return clean
+    .replace(/\s*,\s*(?:clean silhouette|single clean accent)(?=\s*,|$)/gi, '')
+    .replace(/\b(?:many|multiple|excessive|dangling|hanging|crowded|overloaded|overdesigned)\b\s*/gi, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s*,\s*/g, ', ')
+    .replace(/(?:,\s*){2,}/g, ', ')
+    .replace(/^,\s*|,\s*$/g, '')
+    .trim();
+}
+
+function sanitizeArmorLanguageForImagePrompt(seed: CharacterSeed): string {
+  const source = seed.armorLanguage.promptFragments[0] ?? seed.armorLanguage.label;
+  return sanitizeAccessoryWording(source || seed.armor.name, seed, 'armor') || 'large readable armor shape';
+}
+
+function sanitizeWeaponNameForImagePrompt(seed: CharacterSeed): string {
+  if (/banner|pennant/i.test(seed.weapon.name)) return 'spear with a small torn pennant near the blade';
+  if (/staff/i.test(seed.weapon.name) && /ornament|tag|ribbon|chain|symbol/i.test(seed.weapon.name)) return 'plain ritual staff with one carved focus';
+  return sanitizeAccessoryWording(seed.weapon.name, seed, 'weapon') || seed.weapon.name;
+}
+
+function sanitizeWeaponLanguageForImagePrompt(seed: CharacterSeed): string {
+  const source = seed.weaponLanguage.promptFragments[0] ?? seed.weaponLanguage.label;
+  return sanitizeAccessoryWording(source || seed.weapon.name, seed, 'weapon') || 'clean weapon silhouette';
+}
+
+function sanitizeFinishForImagePrompt(seed: CharacterSeed): string {
+  const source = seed.equipmentFinish.promptFragments[0] ?? seed.equipmentFinish.label;
+  return sanitizeAccessoryWording(source || 'grounded fantasy material finish', seed, 'finish') || 'grounded fantasy material finish';
+}
+
 function stylePresetForSeed(seed: CharacterSeed): StylePreset {
   if (seed.stylePreset !== 'heroic_dnd_concept_art') return seed.stylePreset;
   return 'heroic_dnd_concept_art';
@@ -2956,37 +3009,35 @@ function stylePresetForSeed(seed: CharacterSeed): StylePreset {
 function formatImagePrompt(seed: CharacterSeed): string {
   const stylePreset = stylePresets[stylePresetForSeed(seed)];
   const compactStyle = stylePresetForSeed(seed) === 'heroic_dnd_concept_art'
-    ? 'heroic D&D character concept art, realistic high-end RPG production art, dark heroic fantasy, painterly digital illustration, detailed but readable gear, grounded fantasy materials'
+    ? 'heroic D&D concept art, realistic high-end RPG production art, painterly dark fantasy, large readable costume shapes, restrained accessories, few bold details, clean silhouette, no accessory clutter'
     : stylePreset.phrase;
   const identity = seed.curatedMulticlassProfile
     ? `Create a ${seed.size} ${seed.race.name} ${seed.primaryClass} primary character, ${seed.primaryClass} / ${seed.curatedMulticlassProfile.secondaryClass} curated multiclass.`
     : `Create a ${seed.size} ${seed.race.name} ${seed.primaryClass} character.`;
-  const armorFragments = shortList(seed.armorLanguage.promptFragments, 2);
-  const weaponFragments = shortList(seed.weaponLanguage.promptFragments, 2);
-  const finishFragments = shortList(seed.equipmentFinish.promptFragments, 1);
+  const armorFragments = sanitizeArmorLanguageForImagePrompt(seed);
+  const weaponName = sanitizeWeaponNameForImagePrompt(seed);
+  const weaponFragments = sanitizeWeaponLanguageForImagePrompt(seed);
+  const finishFragments = sanitizeFinishForImagePrompt(seed);
   const enchantmentLine = seed.enchantmentIntensity === 'none'
     ? null
-    : `Equipment enchantment: ${seed.equipmentEnchantment.label}, ${shortList(seed.equipmentEnchantment.promptFragments, seed.enchantmentIntensity === 'legendary' ? 1 : 2)}.`;
+    : `Equipment enchantment: ${seed.equipmentEnchantment.label}.`;
   const sceneProps = seed.compositionMode === 'cinematic_splash_art' && seed.sceneProps.length > 0 ? shortList(seed.sceneProps, 2) : '';
   const companionLine = seed.companion ? `Companion: ${seed.companion.label}, ${seed.companion.promptFragment}, visually subordinate to the character.` : null;
-  const cultureLine = seed.cultureDetails.length > 0 ? `Culture details: ${seed.culturalOrigin.label} influence in ${shortList(seed.cultureDetails, 1)}.` : null;
 
   return sentenceJoin([
     compositionImagePromptPhrase(seed.compositionMode) + '.',
     compactStyle + '.',
-    'Clean character design: minimal accessories, no loose papers, no item clutter.',
+    'Clean character design: minimal belts, minimal chains, no dangling ornaments, no trinket clutter.',
     identity,
     `Race appearance: ${raceAppearanceForImagePrompt(seed)}.`,
     `Class and build fantasy: ${seed.archetype.name}, ${seed.buildTemplate.label}, ${multiclassInfluence(seed)}`,
     `Visual theme: ${seed.visualTheme.label}, theme variant: ${seed.visualThemeVariant.label}.`,
     `Silhouette: ${seed.silhouetteProfile.label}, ${seed.silhouetteProfile.promptFragment}.`,
-    `Armor and clothing: ${seed.armor.name}, with ${armorFragments || seed.armorLanguage.label}.`,
-    `Weapon and tool: ${seed.weapon.name}, with ${weaponFragments || seed.weaponLanguage.label}.`,
-    `Equipment finish: ${seed.equipmentFinish.label}, ${finishFragments || 'grounded fantasy surface treatment'}.`,
+    `Armor and clothing: ${seed.armor.name}, with ${armorFragments}.`,
+    `Weapon and tool: ${weaponName}, with ${weaponFragments}.`,
     enchantmentLine,
     `Pose and expression: ${seed.pose.name}, ${seed.emotion}, ${seed.mood.name}.`,
     `Character-bound visual details: ${compressCharacterDetails(seed.characterBoundDetails, seed)}.`,
-    cultureLine,
     sceneProps ? `Limited scene props: ${sceneProps}.` : null,
     companionLine,
     `Lighting: ${seed.light.name}.`,
