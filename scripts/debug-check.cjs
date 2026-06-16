@@ -32,7 +32,7 @@ run(
 );
 writeFileSync(path.join(outDir, 'package.json'), JSON.stringify({ type: 'commonjs' }));
 
-const { generateCharacterSeed, validateGeneratedSeed, resetSmartCandidatePoolMemory, resolveArtDirection } = require(path.join(outDir, 'lib/generator.js'));
+const { generateCharacterSeed, validateGeneratedSeed, resetSmartCandidatePoolMemory, resolveArtDirection, validateArtDirectionBrief } = require(path.join(outDir, 'lib/generator.js'));
 const { visualThemes, visualThemeVariants, narrativeMotifs, narrativeVariants, culturalOrigins, themeContentProfiles, raceAppearanceRules, curatedMulticlassProfiles, dreamWalkerCompatibilityAliases, dreamWalkerRejectedCompatibilityTags } = require(path.join(outDir, 'data/seedData.js'));
 const raceRulesById = new Map(raceAppearanceRules.map((rule) => [rule.raceId, rule]));
 const curatedProfileIds = new Set(curatedMulticlassProfiles.map((profile) => profile.id));
@@ -254,6 +254,29 @@ let genericRuneFxAfterArtDirectionCount = 0;
 let magicModeClassMismatchCount = 0;
 let artDirectionPrimaryReadRegressionCount = 0;
 const magicManifestationModeCounts = new Map();
+let dominantReadClassDriftCount = 0;
+let dominantReadThemeOverridesClassCount = 0;
+let dominantReadWrongRoleNounCount = 0;
+let dominantReadPrimaryClassCoverageCount = 0;
+let artDirectionRepairCount = 0;
+let dominantReadRepairCount = 0;
+let poseDirectiveRepairCount = 0;
+let secondaryFlavorDemotionCount = 0;
+let conflictingFlavorSuppressedCount = 0;
+const magicModeDistributionByClass = new Map();
+const casterBodyMagicTotals = new Map();
+const casterBodyMagicCounts = new Map();
+let environmentMagicGenericCount = 0;
+let bardOrbCasterReadCount = 0;
+let holySymbolNonDivineReadCount = 0;
+let imagePromptWordCountAfterArtDirectionCompressionTotal = 0;
+let artDirectionCompressionRemovedFlavorCount = 0;
+let primaryReadLostAfterCompressionCount = 0;
+let artistBriefMissingDominantRead = 0;
+let artistBriefMissingClass = 0;
+let artistBriefMissingPose = 0;
+let artistBriefTooLong = 0;
+let artistBriefSuppressionMissing = 0;
 let runeMotifGroundedNonArcaneCount = 0;
 const recentPoseWindow = [];
 const recentPoseClassWindow = [];
@@ -275,7 +298,7 @@ function oldPromptTemplate(text) {
   return /^Detailed fantasy concept art portrait of/i.test(text);
 }
 function extractImageDetailText(prompt) {
-  const match = prompt.match(/Character-bound visual details: (.*?)(?:\. Culture details:|\. Magic and FX:|\. Limited scene props:|\. Companion:|\. Lighting:)/);
+  const match = prompt.match(/Character-bound visual details: (.*?)(?:\. Culture details:|\. Magic and FX:|\. Limited scene props:|\. Companion:|\. Light:)/);
   return match ? match[1] : '';
 }
 function countMatches(text, pattern) {
@@ -312,7 +335,7 @@ const imagePromptBookStackPattern = /stacked books?|stacked academy books?|book 
 const imagePromptBannerClutterPattern = /flags?|banners?|banner fragments?|first company banner|pennant cords?|background banners?|giant flags?|multiple pennants?/i;
 const imagePromptChainCharmClutterPattern = /hanging chains?|many chains?|many belts?|excessive straps?|dangling charms?|many medallions?|many talismans?|many ribbons?|trophy loops?|many trophies?|glyph fragments?|floating symbols?/i;
 const objectLikeDetailPattern = /\b(book|grimoire|map|scroll|paper|journal|ledger|record|poster|tag|label|seal|banner|flag|pennant|chain|belt|charm|medallion|talisman|trophy|glyph|symbol|page|document|note|report|chart|order|token|coin|necklace)\b/i;
-const antiClutterControlPattern = /Clean character design:[^.]+\.|Negative prompt:.+$/gi;
+const antiClutterControlPattern = /Clean character design:[^.]+\.|Clean design:[^.]+\.|Negative prompt:.+$/gi;
 const accessoryClutterPhrasePattern = /many belts?|excessive belts?|multiple straps?|hanging chains?|dangling chains?|chain clusters?|many medallions?|multiple amulets?|many pouches?|hanging tags?|dangling ornaments?|trophy loops?|many trophies?|many ribbons?|torn strips everywhere|excessive cloth strips?|long hanging scroll strips?|symbol-covered fabric|many small metal charms?|multiple tassels?|crowded waist gear|overloaded belt gear|layered trinkets?|excessive buckles?|overdesigned staff ornaments?|overdesigned spear decorations?|giant banners?|large flags?|multiple pennants?/i;
 const beltPhrasePattern = /many belts?|excessive belts?|multiple straps?|crowded waist gear|overloaded belt gear|excessive buckles?/i;
 const chainPhrasePattern = /hanging chains?|dangling chains?|chain clusters?|many chains?|chain clutter/i;
@@ -538,6 +561,12 @@ for (let index = 0; index < sampleSize; index += 1) {
   if (!fullGenerationText.includes(result.imagePrompt ?? '')) fullGenerationImageMismatchCount += 1;
   if (/Debug \/ Generation Trace|Generation Trace|Final validation status/i.test(fullGenerationText)) fullGenerationContainsTraceCount += 1;
   if (oldPromptTemplate(fullGenerationText)) fullGenerationOldPromptCount += 1;
+  const artistBriefSentence = (result.promptDraft ?? '').match(/Artist brief: .*?(?= Create a D&D character concept art portrait| Appearance:)/)?.[0] ?? '';
+  if (!artistBriefSentence.includes('Artist brief:')) artistBriefMissingDominantRead += 1;
+  if (!new RegExp(`\\b${seed.primaryClass}\\b`, 'i').test(artistBriefSentence) || !new RegExp(`\\b${seed.race.name}\\b`, 'i').test(artistBriefSentence)) artistBriefMissingClass += 1;
+  if (!/Pose:/i.test(artistBriefSentence)) artistBriefMissingPose += 1;
+  if (wordCount(artistBriefSentence) > 55) artistBriefTooLong += 1;
+  if (!/Avoid:/i.test(artistBriefSentence)) artistBriefSuppressionMissing += 1;
   const imagePrompt = result.imagePrompt ?? '';
   const imageWords = wordCount(imagePrompt);
   imagePromptWordTotal += imageWords;
@@ -583,6 +612,26 @@ for (let index = 0; index < sampleSize; index += 1) {
   if (suppressedLeakTerms.some((term) => new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(positiveImagePrompt))) suppressedElementLeakCount += 1;
   if (/subtle magical runes|generic runes|floating symbols|glyph fragments/i.test(positiveImagePrompt)) genericRuneFxAfterArtDirectionCount += 1;
   if (artDirection.magicManifestationMode === 'none' && ['wizard', 'sorcerer', 'warlock', 'cleric', 'druid', 'bard', 'artificer'].includes(seed.primaryClass)) magicModeClassMismatchCount += 1;
+  const artValidation = validateArtDirectionBrief(seed, artDirection);
+  if (artValidation.classDrift) dominantReadClassDriftCount += 1;
+  if (artValidation.themeOverridesClass) dominantReadThemeOverridesClassCount += 1;
+  if (artValidation.wrongRoleNoun) dominantReadWrongRoleNounCount += 1;
+  if (new RegExp(`\\b${seed.primaryClass}\\b`, 'i').test(artDirection.dominantRead)) dominantReadPrimaryClassCoverageCount += 1;
+  artDirectionRepairCount += artDirection.repairStats?.artDirectionRepairCount ?? 0;
+  dominantReadRepairCount += artDirection.repairStats?.dominantReadRepairCount ?? 0;
+  poseDirectiveRepairCount += artDirection.repairStats?.poseDirectiveRepairCount ?? 0;
+  secondaryFlavorDemotionCount += artDirection.repairStats?.secondaryFlavorDemotionCount ?? 0;
+  conflictingFlavorSuppressedCount += artDirection.repairStats?.conflictingFlavorSuppressedCount ?? 0;
+  increment(magicModeDistributionByClass, `${seed.primaryClass}:${artDirection.magicManifestationMode}`);
+  if (['wizard', 'sorcerer', 'warlock'].includes(seed.primaryClass)) {
+    increment(casterBodyMagicTotals, seed.primaryClass);
+    if (artDirection.magicManifestationMode === 'body') increment(casterBodyMagicCounts, seed.primaryClass);
+  }
+  if (artDirection.magicManifestationMode === 'environment' && /generic mist|generic|swirling mist shown as restrained air/i.test(positiveImagePrompt)) environmentMagicGenericCount += 1;
+  if (seed.primaryClass === 'bard' && /orb|generic wizard|focused scholar-adventurer/i.test(artDirection.dominantRead)) bardOrbCasterReadCount += 1;
+  if (!['cleric', 'paladin'].includes(seed.primaryClass) && /holy symbol guardian|holy guardian/i.test(artDirection.dominantRead)) holySymbolNonDivineReadCount += 1;
+  imagePromptWordCountAfterArtDirectionCompressionTotal += imageWords;
+  if (!/secondary flavor: .*?, .*?,/i.test(imagePrompt)) artDirectionCompressionRemovedFlavorCount += 1;
   const imageDetailText = extractImageDetailText(imagePrompt);
   const imageDetailItems = imageDetailText ? imageDetailText.split(/,\s*/).filter(Boolean) : [];
   imagePromptCompressedDetailTotal += imageDetailItems.length;
@@ -648,6 +697,7 @@ for (let index = 0; index < sampleSize; index += 1) {
   if (!primaryRead.weapon) primaryReadMissingWeapon += 1;
   if (!primaryRead.pose) primaryReadMissingPose += 1;
   if (!primaryRead.poseFamily) primaryReadMissingPoseFamily += 1;
+  if (!primaryRead.race || !primaryRead.classRead || !primaryRead.silhouette || !primaryRead.weapon || !primaryRead.pose) primaryReadLostAfterCompressionCount += 1;
   if (!primaryRead.race || !primaryRead.classRead || !primaryRead.silhouette || !primaryRead.weapon || !primaryRead.pose) artDirectionPrimaryReadRegressionCount += 1;
   const firstFlavorIndex = imagePrompt.indexOf('Visual theme:');
   const weaponIndex = imagePrompt.indexOf('Weapon and tool:');
@@ -1001,6 +1051,9 @@ if (dreamWalkerCount > 0 && dreamWalkerIconicCount / dreamWalkerCount > 0.20) fa
 if (artDirectionGeneratedCount !== sampleSize) failures.push(`art direction generated count mismatch: ${artDirectionGeneratedCount}/${sampleSize}`);
 if (dominantReadMissingClassCount !== 0 || dominantReadMissingRaceCount !== 0 || dominantReadTooLongCount !== 0) failures.push(`art direction dominant read issues: missing class ${dominantReadMissingClassCount}, missing race ${dominantReadMissingRaceCount}, too long ${dominantReadTooLongCount}`);
 if (secondaryFlavorOverBudgetCount !== 0 || storyShorthandClutterRiskCount !== 0 || suppressedElementLeakCount !== 0 || magicModeClassMismatchCount !== 0 || artDirectionPrimaryReadRegressionCount !== 0) failures.push(`art direction QA issues: secondary over budget ${secondaryFlavorOverBudgetCount}, shorthand clutter ${storyShorthandClutterRiskCount}, suppressed leaks ${suppressedElementLeakCount}, magic mismatch ${magicModeClassMismatchCount}, primary regression ${artDirectionPrimaryReadRegressionCount}`);
+if (dominantReadClassDriftCount !== 0 || dominantReadThemeOverridesClassCount !== 0 || dominantReadWrongRoleNounCount !== 0 || dominantReadPrimaryClassCoverageCount !== sampleSize) failures.push(`class-authoritative dominant read issues: drift ${dominantReadClassDriftCount}, theme overrides ${dominantReadThemeOverridesClassCount}, wrong role ${dominantReadWrongRoleNounCount}, class coverage ${dominantReadPrimaryClassCoverageCount}/${sampleSize}`);
+if (bardOrbCasterReadCount !== 0 || holySymbolNonDivineReadCount !== 0 || primaryReadLostAfterCompressionCount !== 0) failures.push(`art direction coherence issues: bard orb ${bardOrbCasterReadCount}, holy non-divine ${holySymbolNonDivineReadCount}, primary lost ${primaryReadLostAfterCompressionCount}`);
+if (artistBriefMissingDominantRead !== 0 || artistBriefMissingClass !== 0 || artistBriefMissingPose !== 0 || artistBriefSuppressionMissing !== 0) failures.push(`artist brief quality issues: missing dominant ${artistBriefMissingDominantRead}, class ${artistBriefMissingClass}, pose ${artistBriefMissingPose}, suppression ${artistBriefSuppressionMissing}`);
 if (imagePromptWordMax > 400) failures.push(`image prompt max word count should stay under 400: ${imagePromptWordMax}`);
 if (imagePromptBackgroundHintFullBodyCount > 0) failures.push(`full-body image prompts with background hints: ${imagePromptBackgroundHintFullBodyCount}`);
 if (imagePromptCompressedDetailTotal / sampleSize > 2.2) failures.push(`average Image Prompt details above 2.2: ${(imagePromptCompressedDetailTotal / sampleSize).toFixed(2)}`);
@@ -1197,6 +1250,31 @@ for (const [key, count] of topEntries(magicManifestationModeCounts, 10)) console
 console.log(`Generic rune FX after art direction count: ${genericRuneFxAfterArtDirectionCount}`);
 console.log(`Magic mode class mismatch count: ${magicModeClassMismatchCount}`);
 console.log(`Art direction primary read regression count: ${artDirectionPrimaryReadRegressionCount}`);
+console.log(`Dominant read class drift count: ${dominantReadClassDriftCount}`);
+console.log(`Dominant read theme overrides class count: ${dominantReadThemeOverridesClassCount}`);
+console.log(`Dominant read wrong role noun count: ${dominantReadWrongRoleNounCount}`);
+console.log(`Dominant read primary class coverage: ${dominantReadPrimaryClassCoverageCount}/${sampleSize} (${((dominantReadPrimaryClassCoverageCount / sampleSize) * 100).toFixed(1)}%)`);
+console.log(`Art direction repair count: ${artDirectionRepairCount}`);
+console.log(`Dominant read repair count: ${dominantReadRepairCount}`);
+console.log(`Pose directive repair count: ${poseDirectiveRepairCount}`);
+console.log(`Secondary flavor demotion count: ${secondaryFlavorDemotionCount}`);
+console.log(`Conflicting flavor suppressed count: ${conflictingFlavorSuppressedCount}`);
+console.log('Magic mode distribution by class');
+for (const [key, count] of topEntries(magicModeDistributionByClass, 30)) console.log(`${key}: ${count}`);
+console.log('Body magic rate by caster class');
+for (const className of ['wizard', 'sorcerer', 'warlock']) console.log(`${className}: ${casterBodyMagicCounts.get(className) ?? 0}/${casterBodyMagicTotals.get(className) ?? 0}`);
+console.log(`Environment magic generic count: ${environmentMagicGenericCount}`);
+console.log(`Bard orb caster read count: ${bardOrbCasterReadCount}`);
+console.log(`Holy symbol non-divine read count: ${holySymbolNonDivineReadCount}`);
+console.log(`Image Prompt word count after Art Direction compression: ${(imagePromptWordCountAfterArtDirectionCompressionTotal / sampleSize).toFixed(1)}`);
+console.log(`Art Direction compression removed flavor count: ${artDirectionCompressionRemovedFlavorCount}`);
+console.log(`Primary read lost after compression count: ${primaryReadLostAfterCompressionCount}`);
+console.log('Artist brief quality statistics');
+console.log(`Artist brief missing dominant read: ${artistBriefMissingDominantRead}`);
+console.log(`Artist brief missing class/race: ${artistBriefMissingClass}`);
+console.log(`Artist brief missing pose: ${artistBriefMissingPose}`);
+console.log(`Artist brief too long: ${artistBriefTooLong}`);
+console.log(`Artist brief suppression missing: ${artistBriefSuppressionMissing}`);
 console.log('Aasimar readability statistics');
 console.log(`Aasimar prompts: ${aasimarPromptCount}`);
 console.log(`Aasimar celestial marker phrase: ${aasimarCelestialMarkerCount}/${aasimarPromptCount || 1} (${((aasimarCelestialMarkerCount / (aasimarPromptCount || 1)) * 100).toFixed(1)}%)`);
