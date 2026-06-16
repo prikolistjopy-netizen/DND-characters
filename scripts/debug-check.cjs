@@ -32,7 +32,7 @@ run(
 );
 writeFileSync(path.join(outDir, 'package.json'), JSON.stringify({ type: 'commonjs' }));
 
-const { generateCharacterSeed, validateGeneratedSeed, resetSmartCandidatePoolMemory } = require(path.join(outDir, 'lib/generator.js'));
+const { generateCharacterSeed, validateGeneratedSeed, resetSmartCandidatePoolMemory, resolveArtDirection } = require(path.join(outDir, 'lib/generator.js'));
 const { visualThemes, visualThemeVariants, narrativeMotifs, narrativeVariants, culturalOrigins, themeContentProfiles, raceAppearanceRules, curatedMulticlassProfiles, dreamWalkerCompatibilityAliases, dreamWalkerRejectedCompatibilityTags } = require(path.join(outDir, 'data/seedData.js'));
 const raceRulesById = new Map(raceAppearanceRules.map((rule) => [rule.raceId, rule]));
 const curatedProfileIds = new Set(curatedMulticlassProfiles.map((profile) => profile.id));
@@ -241,6 +241,19 @@ const recentPoseFamilyWindow = [];
 const recentClassPoseFamilyWindow = [];
 const recentWeaponPoseFamilyWindow = [];
 const recentExactPoseWindow = [];
+let artDirectionGeneratedCount = 0;
+let dominantReadMissingClassCount = 0;
+let dominantReadMissingRaceCount = 0;
+let dominantReadTooLongCount = 0;
+let primaryVisualReadCoverageTotal = 0;
+let secondaryFlavorOverBudgetCount = 0;
+let suppressedElementLeakCount = 0;
+let storyShorthandTotal = 0;
+let storyShorthandClutterRiskCount = 0;
+let genericRuneFxAfterArtDirectionCount = 0;
+let magicModeClassMismatchCount = 0;
+let artDirectionPrimaryReadRegressionCount = 0;
+const magicManifestationModeCounts = new Map();
 let runeMotifGroundedNonArcaneCount = 0;
 const recentPoseWindow = [];
 const recentPoseClassWindow = [];
@@ -262,7 +275,7 @@ function oldPromptTemplate(text) {
   return /^Detailed fantasy concept art portrait of/i.test(text);
 }
 function extractImageDetailText(prompt) {
-  const match = prompt.match(/Character-bound visual details: (.*?)(?:\. Culture details:|\. Limited scene props:|\. Companion:|\. Lighting:)/);
+  const match = prompt.match(/Character-bound visual details: (.*?)(?:\. Culture details:|\. Magic and FX:|\. Limited scene props:|\. Companion:|\. Lighting:)/);
   return match ? match[1] : '';
 }
 function countMatches(text, pattern) {
@@ -553,6 +566,23 @@ for (let index = 0; index < sampleSize; index += 1) {
   const positiveImagePrompt = imagePrompt.split('Negative prompt:')[0];
   const promptForAccessoryStats = imagePrompt.replace(antiClutterControlPattern, '');
   const positiveForAccessoryStats = positiveImagePrompt.replace(antiClutterControlPattern, '');
+  const artDirection = resolveArtDirection(seed);
+  artDirectionGeneratedCount += 1;
+  increment(magicManifestationModeCounts, artDirection.magicManifestationMode);
+  const dominantReadWords = wordCount(artDirection.dominantRead);
+  if (!new RegExp(`\\b${seed.primaryClass}\\b`, 'i').test(artDirection.dominantRead)) dominantReadMissingClassCount += 1;
+  if (!new RegExp(`\\b${seed.race.name}\\b`, 'i').test(artDirection.dominantRead)) dominantReadMissingRaceCount += 1;
+  if (dominantReadWords > 22) dominantReadTooLongCount += 1;
+  const primaryVisualReadRequired = [seed.race.name, seed.primaryClass, seed.armor.name, seed.weapon.name, seed.pose.name];
+  const primaryVisualHits = primaryVisualReadRequired.filter((item) => artDirection.primaryVisualRead.join(' ').toLowerCase().includes(String(item).toLowerCase())).length;
+  primaryVisualReadCoverageTotal += primaryVisualHits / primaryVisualReadRequired.length;
+  if (artDirection.secondaryFlavor.length > 3) secondaryFlavorOverBudgetCount += 1;
+  storyShorthandTotal += artDirection.storyShorthand.length;
+  if (artDirection.storyShorthand.length > 2 || artDirection.storyShorthand.some((detail) => imagePromptObjectClutterPattern.test(detail) || accessoryClutterPhrasePattern.test(detail))) storyShorthandClutterRiskCount += 1;
+  const suppressedLeakTerms = artDirection.suppressedElements.flatMap((item) => item.split(/\s+or\s+|,\s*/)).map((item) => item.trim()).filter((item) => item.length > 4 && !/^extra |^flavor |^irrelevant|^accessory clutter$|^object clutter$/.test(item));
+  if (suppressedLeakTerms.some((term) => new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(positiveImagePrompt))) suppressedElementLeakCount += 1;
+  if (/subtle magical runes|generic runes|floating symbols|glyph fragments/i.test(positiveImagePrompt)) genericRuneFxAfterArtDirectionCount += 1;
+  if (artDirection.magicManifestationMode === 'none' && ['wizard', 'sorcerer', 'warlock', 'cleric', 'druid', 'bard', 'artificer'].includes(seed.primaryClass)) magicModeClassMismatchCount += 1;
   const imageDetailText = extractImageDetailText(imagePrompt);
   const imageDetailItems = imageDetailText ? imageDetailText.split(/,\s*/).filter(Boolean) : [];
   imagePromptCompressedDetailTotal += imageDetailItems.length;
@@ -618,6 +648,7 @@ for (let index = 0; index < sampleSize; index += 1) {
   if (!primaryRead.weapon) primaryReadMissingWeapon += 1;
   if (!primaryRead.pose) primaryReadMissingPose += 1;
   if (!primaryRead.poseFamily) primaryReadMissingPoseFamily += 1;
+  if (!primaryRead.race || !primaryRead.classRead || !primaryRead.silhouette || !primaryRead.weapon || !primaryRead.pose) artDirectionPrimaryReadRegressionCount += 1;
   const firstFlavorIndex = imagePrompt.indexOf('Visual theme:');
   const weaponIndex = imagePrompt.indexOf('Weapon and tool:');
   if (firstFlavorIndex !== -1 && weaponIndex !== -1 && firstFlavorIndex < weaponIndex) flavorStackDominatesPromptCount += 1;
@@ -967,6 +998,9 @@ const dreamWalkerRate = dreamWalkerCount / sampleSize;
 if (dreamWalkerRate > 0.10) failures.push(`dream_walker activation dominated distribution: ${(dreamWalkerRate * 100).toFixed(1)}%`);
 if (dreamWalkerCount > 0 && dreamWalkerScenePropTotal / dreamWalkerCount > 1.2) failures.push(`dream_walker scene prop average too high: ${(dreamWalkerScenePropTotal / dreamWalkerCount).toFixed(2)}`);
 if (dreamWalkerCount > 0 && dreamWalkerIconicCount / dreamWalkerCount > 0.20) failures.push(`dream_walker iconic/legendary detail rate too high: ${((dreamWalkerIconicCount / dreamWalkerCount) * 100).toFixed(1)}%`);
+if (artDirectionGeneratedCount !== sampleSize) failures.push(`art direction generated count mismatch: ${artDirectionGeneratedCount}/${sampleSize}`);
+if (dominantReadMissingClassCount !== 0 || dominantReadMissingRaceCount !== 0 || dominantReadTooLongCount !== 0) failures.push(`art direction dominant read issues: missing class ${dominantReadMissingClassCount}, missing race ${dominantReadMissingRaceCount}, too long ${dominantReadTooLongCount}`);
+if (secondaryFlavorOverBudgetCount !== 0 || storyShorthandClutterRiskCount !== 0 || suppressedElementLeakCount !== 0 || magicModeClassMismatchCount !== 0 || artDirectionPrimaryReadRegressionCount !== 0) failures.push(`art direction QA issues: secondary over budget ${secondaryFlavorOverBudgetCount}, shorthand clutter ${storyShorthandClutterRiskCount}, suppressed leaks ${suppressedElementLeakCount}, magic mismatch ${magicModeClassMismatchCount}, primary regression ${artDirectionPrimaryReadRegressionCount}`);
 if (imagePromptWordMax > 400) failures.push(`image prompt max word count should stay under 400: ${imagePromptWordMax}`);
 if (imagePromptBackgroundHintFullBodyCount > 0) failures.push(`full-body image prompts with background hints: ${imagePromptBackgroundHintFullBodyCount}`);
 if (imagePromptCompressedDetailTotal / sampleSize > 2.2) failures.push(`average Image Prompt details above 2.2: ${(imagePromptCompressedDetailTotal / sampleSize).toFixed(2)}`);
@@ -1148,6 +1182,21 @@ console.log(`Full Generation Output contains debug trace: ${fullGenerationContai
 console.log(`Image Prompt missing composition phrase: ${imagePromptMissingCompositionPhraseCount}`);
 console.log(`Image Prompt missing Race appearance: ${imagePromptMissingRaceAppearanceCount}`);
 console.log(`Image Prompt missing Class and build fantasy: ${imagePromptMissingClassReadabilityCount}`);
+console.log('Art Direction Resolver statistics');
+console.log(`Art direction generated count: ${artDirectionGeneratedCount}`);
+console.log(`Dominant read missing class: ${dominantReadMissingClassCount}`);
+console.log(`Dominant read missing race: ${dominantReadMissingRaceCount}`);
+console.log(`Dominant read too long: ${dominantReadTooLongCount}`);
+console.log(`Primary visual read coverage: ${((primaryVisualReadCoverageTotal / sampleSize) * 100).toFixed(1)}%`);
+console.log(`Secondary flavor over budget: ${secondaryFlavorOverBudgetCount}`);
+console.log(`Suppressed element leak count: ${suppressedElementLeakCount}`);
+console.log(`Average story shorthand count: ${(storyShorthandTotal / sampleSize).toFixed(2)}`);
+console.log(`Story shorthand clutter risk count: ${storyShorthandClutterRiskCount}`);
+console.log('Magic manifestation mode distribution');
+for (const [key, count] of topEntries(magicManifestationModeCounts, 10)) console.log(`${key}: ${count}/${sampleSize} (${((count / sampleSize) * 100).toFixed(1)}%)`);
+console.log(`Generic rune FX after art direction count: ${genericRuneFxAfterArtDirectionCount}`);
+console.log(`Magic mode class mismatch count: ${magicModeClassMismatchCount}`);
+console.log(`Art direction primary read regression count: ${artDirectionPrimaryReadRegressionCount}`);
 console.log('Aasimar readability statistics');
 console.log(`Aasimar prompts: ${aasimarPromptCount}`);
 console.log(`Aasimar celestial marker phrase: ${aasimarCelestialMarkerCount}/${aasimarPromptCount || 1} (${((aasimarCelestialMarkerCount / (aasimarPromptCount || 1)) * 100).toFixed(1)}%)`);

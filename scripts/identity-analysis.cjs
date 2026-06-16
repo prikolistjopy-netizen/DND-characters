@@ -35,7 +35,7 @@ run(
 );
 writeFileSync(path.join(outDir, 'package.json'), JSON.stringify({ type: 'commonjs' }));
 
-const { generateCharacterSeed, resetSmartCandidatePoolMemory, validateGeneratedSeed } = require(path.join(outDir, 'lib/generator.js'));
+const { generateCharacterSeed, resetSmartCandidatePoolMemory, validateGeneratedSeed, resolveArtDirection } = require(path.join(outDir, 'lib/generator.js'));
 const { visualThemes, silhouetteProfiles, visualMotifs, armorLanguages, weaponLanguages, themeContentProfiles, dreamWalkerCompatibilityAliases, dreamWalkerRejectedCompatibilityTags } = require(path.join(outDir, 'data/seedData.js'));
 
 function increment(map, key, amount = 1) {
@@ -70,7 +70,7 @@ function startsWithCompositionPhrase(text) {
 }
 function oldPromptTemplate(text) { return /^Detailed fantasy concept art portrait of/i.test(text); }
 function extractImageDetailText(prompt) {
-  const match = prompt.match(/Character-bound visual details: (.*?)(?:\. Culture details:|\. Limited scene props:|\. Companion:|\. Lighting:)/);
+  const match = prompt.match(/Character-bound visual details: (.*?)(?:\. Culture details:|\. Magic and FX:|\. Limited scene props:|\. Companion:|\. Lighting:)/);
   return match ? match[1] : '';
 }
 function countMatches(text, pattern) { const matches = text.match(pattern); return matches ? matches.length : 0; }
@@ -78,6 +78,7 @@ function countMatchingDetailItems(text, pattern) {
   return text.split(/,\s*/).filter((item) => pattern.test(item)).length;
 }
 const noisyDetailPattern = /spyglass|wanted poster|ledger|records?|license|black-market relic tags?|wax-sealed inventory|trap maps?|coffin tags?|\btag\b|\btags\b|paper|scroll|journal|map|poster|inventory|trinket|tiny charm|hanging charm/i;
+const artDirectionClutterPattern = /many charms|cool necklace|mysterious token|several scrolls|decorative belts|extra pouches|random symbols|battle reports?|campaign maps?|stacked books?|banner fragments?|trophy loops?|formula bands?|chain clutter|dangling ornaments?/i;
 const paperRecordPattern = /ledger|records?|license|inventory|poster|map|scroll|journal|letter|contract|paper|notes|registry|writ/i;
 const spyglassPattern = /spyglass/i;
 const ledgerPattern = /ledger|license|inventory/i;
@@ -306,6 +307,19 @@ function analyze(label, useSmartPool) {
   let primaryReadMissingWeapon = 0;
   let primaryReadMissingPose = 0;
   let flavorStackDominatesPromptCount = 0;
+  let artDirectionGeneratedCount = 0;
+  let dominantReadMissingClassCount = 0;
+  let dominantReadMissingRaceCount = 0;
+  let dominantReadTooLongCount = 0;
+  let primaryVisualReadCoverageTotal = 0;
+  let secondaryFlavorOverBudgetCount = 0;
+  let suppressedElementLeakCount = 0;
+  let storyShorthandTotal = 0;
+  let storyShorthandClutterRiskCount = 0;
+  let genericRuneFxAfterArtDirectionCount = 0;
+  let magicModeClassMismatchCount = 0;
+  let artDirectionPrimaryReadRegressionCount = 0;
+  const magicManifestationModeCounts = new Map();
   const recentPoseFamilyWindow = [];
   const recentClassPoseFamilyWindow = [];
   const recentWeaponPoseFamilyWindow = [];
@@ -459,6 +473,23 @@ function analyze(label, useSmartPool) {
       if (aasimarHaloMarkPattern.test(raceSentence)) aasimarHaloMarkCount += 1;
       if (genericAasimarRiskPattern.test(raceSentence) || !aasimarCelestialPattern.test(raceSentence)) aasimarGenericRiskCount += 1;
     }
+    const positiveImagePrompt = imagePrompt.split('Negative prompt:')[0];
+    const artDirection = resolveArtDirection(seed);
+    artDirectionGeneratedCount += 1;
+    increment(magicManifestationModeCounts, artDirection.magicManifestationMode);
+    if (!new RegExp(`\\b${seed.primaryClass}\\b`, 'i').test(artDirection.dominantRead)) dominantReadMissingClassCount += 1;
+    if (!new RegExp(`\\b${seed.race.name}\\b`, 'i').test(artDirection.dominantRead)) dominantReadMissingRaceCount += 1;
+    if (wordCount(artDirection.dominantRead) > 22) dominantReadTooLongCount += 1;
+    const primaryVisualReadRequired = [seed.race.name, seed.primaryClass, seed.armor.name, seed.weapon.name, seed.pose.name];
+    const primaryVisualHits = primaryVisualReadRequired.filter((item) => artDirection.primaryVisualRead.join(' ').toLowerCase().includes(String(item).toLowerCase())).length;
+    primaryVisualReadCoverageTotal += primaryVisualHits / primaryVisualReadRequired.length;
+    if (artDirection.secondaryFlavor.length > 3) secondaryFlavorOverBudgetCount += 1;
+    storyShorthandTotal += artDirection.storyShorthand.length;
+    if (artDirection.storyShorthand.length > 2 || artDirection.storyShorthand.some((detail) => artDirectionClutterPattern.test(detail))) storyShorthandClutterRiskCount += 1;
+    const suppressedLeakTerms = artDirection.suppressedElements.flatMap((item) => item.split(/\s+or\s+|,\s*/)).map((item) => item.trim()).filter((item) => item.length > 4 && !/^extra |^flavor |^irrelevant|^accessory clutter$|^object clutter$/.test(item));
+    if (suppressedLeakTerms.some((term) => new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(positiveImagePrompt))) suppressedElementLeakCount += 1;
+    if (/subtle magical runes|generic runes|floating symbols|glyph fragments/i.test(positiveImagePrompt)) genericRuneFxAfterArtDirectionCount += 1;
+    if (artDirection.magicManifestationMode === 'none' && ['wizard', 'sorcerer', 'warlock', 'cleric', 'druid', 'bard', 'artificer'].includes(seed.primaryClass)) magicModeClassMismatchCount += 1;
     const imageDetailText = extractImageDetailText(imagePrompt);
     noisyDetailTotal += countMatches(imageDetailText, new RegExp(noisyDetailPattern.source, 'gi'));
     if (countMatchingDetailItems(imageDetailText, new RegExp(paperRecordPattern.source, 'i')) > 1) paperOverusePromptCount += 1;
@@ -556,6 +587,7 @@ function analyze(label, useSmartPool) {
     if (!imagePrompt.includes('Silhouette:')) primaryReadMissingSilhouette += 1;
     if (!imagePrompt.includes('Weapon and tool:')) primaryReadMissingWeapon += 1;
     if (!imagePrompt.includes('Pose and expression:')) primaryReadMissingPose += 1;
+    if (!imagePrompt.includes('Race appearance:') || !imagePrompt.includes('Class and build fantasy:') || !imagePrompt.includes('Silhouette:') || !imagePrompt.includes('Weapon and tool:') || !imagePrompt.includes('Pose and expression:')) artDirectionPrimaryReadRegressionCount += 1;
     const firstFlavorIndex = imagePrompt.indexOf('Visual theme:');
     const weaponIndex = imagePrompt.indexOf('Weapon and tool:');
     if (firstFlavorIndex !== -1 && weaponIndex !== -1 && firstFlavorIndex < weaponIndex) flavorStackDominatesPromptCount += 1;
@@ -746,6 +778,19 @@ function analyze(label, useSmartPool) {
     primaryReadMissingWeapon,
     primaryReadMissingPose,
     flavorStackDominatesPromptCount,
+    artDirectionGeneratedCount,
+    dominantReadMissingClassCount,
+    dominantReadMissingRaceCount,
+    dominantReadTooLongCount,
+    primaryVisualReadCoverage: primaryVisualReadCoverageTotal / sampleSize,
+    secondaryFlavorOverBudgetCount,
+    suppressedElementLeakCount,
+    storyShorthandAverage: storyShorthandTotal / sampleSize,
+    storyShorthandClutterRiskCount,
+    magicManifestationModeCounts,
+    genericRuneFxAfterArtDirectionCount,
+    magicModeClassMismatchCount,
+    artDirectionPrimaryReadRegressionCount,
     emotionPoseMismatchCount,
     runeMotifGroundedNonArcaneCount,
     appearanceDistribution,
@@ -874,6 +919,21 @@ console.log(`Full Generation Output contains debug trace: ${smart.fullGeneration
 console.log(`Image Prompt missing composition phrase: ${smart.imagePromptMissingCompositionPhraseCount}`);
 console.log(`Image Prompt missing Race appearance: ${smart.imagePromptMissingRaceAppearanceCount}`);
 console.log(`Image Prompt missing Class and build fantasy: ${smart.imagePromptMissingClassReadabilityCount}`);
+console.log('Art Direction Resolver statistics');
+console.log(`Art direction generated count: ${smart.artDirectionGeneratedCount}`);
+console.log(`Dominant read missing class: ${smart.dominantReadMissingClassCount}`);
+console.log(`Dominant read missing race: ${smart.dominantReadMissingRaceCount}`);
+console.log(`Dominant read too long: ${smart.dominantReadTooLongCount}`);
+console.log(`Primary visual read coverage: ${formatPercent(smart.primaryVisualReadCoverage * 100)}`);
+console.log(`Secondary flavor over budget: ${smart.secondaryFlavorOverBudgetCount}`);
+console.log(`Suppressed element leak count: ${smart.suppressedElementLeakCount}`);
+console.log(`Average story shorthand count: ${smart.storyShorthandAverage.toFixed(2)}`);
+console.log(`Story shorthand clutter risk count: ${smart.storyShorthandClutterRiskCount}`);
+console.log('Magic manifestation mode distribution');
+printTop(smart.magicManifestationModeCounts, 10);
+console.log(`Generic rune FX after art direction count: ${smart.genericRuneFxAfterArtDirectionCount}`);
+console.log(`Magic mode class mismatch count: ${smart.magicModeClassMismatchCount}`);
+console.log(`Art direction primary read regression count: ${smart.artDirectionPrimaryReadRegressionCount}`);
 console.log('Aasimar readability statistics');
 console.log(`Aasimar prompts: ${smart.aasimarPromptCount}`);
 console.log(`Aasimar celestial marker phrase: ${smart.aasimarCelestialMarkerCount}/${smart.aasimarPromptCount || 1} (${formatPercent((smart.aasimarCelestialMarkerCount / (smart.aasimarPromptCount || 1)) * 100)})`);

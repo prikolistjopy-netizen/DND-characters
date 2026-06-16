@@ -188,6 +188,20 @@ export type GenerationResult = {
   trace: string[];
 };
 
+type MagicManifestationMode = 'none' | 'body' | 'weapon' | 'environment' | 'light' | 'companion' | 'subtle_aura';
+
+export type ArtDirectionBrief = {
+  dominantRead: string;
+  primaryVisualRead: string[];
+  secondaryFlavor: string[];
+  suppressedElements: string[];
+  poseDirective: string;
+  magicManifestationMode: MagicManifestationMode;
+  storyShorthand: string[];
+  promptPriorityOrder: string[];
+  imagePromptGuidance: string[];
+};
+
 type SimilarityReport = {
   score: number;
   tooSimilar: boolean;
@@ -2881,11 +2895,13 @@ function formatSeed(seed: CharacterSeed): string {
 }
 
 function formatPrompt(seed: CharacterSeed): string {
+  const artDirection = resolveArtDirection(seed);
   const multiclassLine = seed.curatedMulticlassProfile
     ? `Create a D&D character concept art portrait of a ${seed.race.name} ${seed.primaryClass} primary (${seed.primaryClass} / ${seed.curatedMulticlassProfile.secondaryClass}), built around the curated fantasy: ${seed.curatedMulticlassProfile.label}. ${seed.curatedMulticlassProfile.promptHint}.`
     : `Create a D&D character concept art portrait of a ${seed.race.name} ${seed.primaryClass}.`;
   return [
     compositionPrompt(seed.compositionMode),
+    `Artist brief: ${artDirection.dominantRead}. Pose: ${artDirection.poseDirective}. Story shorthand: ${artDirection.storyShorthand.join('; ') || 'none'}. Avoid: ${artDirection.suppressedElements.slice(0, 4).join(', ')}.`,
     multiclassLine,
     `Appearance: ${seed.appearanceProfile.promptFragment}.`,
     `Build template: ${seed.buildTemplate.label}; fantasy pillar: ${seed.fantasyPillar.label}; visual theme: ${seed.visualTheme.label} (${seed.visualFantasy}); theme variant: ${seed.visualThemeVariant.label}.`,
@@ -2978,17 +2994,18 @@ function classifyImagePromptDetail(detail: string): ImageDetailCategory {
 function transformObjectClutterDetail(detail: string, seed: CharacterSeed): string | null {
   const text = normalizeText(detail);
   const weaponText = normalizeText(seed.weapon.name);
-  if (/battle reports?|field orders?|campaign maps?|campaign|reports?|orders?/.test(text)) return seed.primaryClass === 'fighter' ? 'campaign-worn officer trim' : 'weathered command markings on armor';
+  if (/battle reports?|field orders?|campaign maps?|campaign|reports?|orders?|inheritance letters?|letters?|coded travel record|weathered road journal|worn treasure map|maps?|journals?/.test(text)) return seed.primaryClass === 'fighter' ? 'campaign-worn officer trim' : seed.primaryClass === 'ranger' || seed.primaryClass === 'druid' ? 'mud-stained boots from long trail work' : 'weathered travel wear from old obligations';
   if (/first company banner|banner fragment|torn banner|pennant cords?|flags?|banners?|large flags?|giant banners?|multiple pennants?/.test(text)) {
     if (/banner|pennant/.test(weaponText)) return 'small torn cloth near the spearhead';
     return 'faded company color on cloak lining';
   }
   if (/stacked books?|book stacks?|multiple books?|chained books?|academy books?|\bbooks?\b|library records?|library stamps?/.test(text)) return seed.primaryClass === 'wizard' ? 'scholar-layered robe panels' : 'archive-style embroidery';
+  if (/broken signet ring|signet|noble crest|crest/.test(text)) return 'faded noble crest on cloak lining';
   if (/wax seals?|archive labels?|labels?/.test(text)) return 'wax-red robe clasp';
   if (/prayer strips?|many ribbons?|ribbons?|torn strips everywhere|excessive cloth strips?|long hanging scroll strips?/.test(text)) return 'clean sacred sash';
   if (/trophy loops?|many trophies?|trophies/.test(text)) return seed.primaryClass === 'barbarian' ? 'beast-scarred mantle' : 'trophy-scarred armor texture';
   if (/glyph fragments?|floating symbols?|floating glyphs?|formula bands?|symbol-covered fabric|symbol-covered robes?/.test(text)) return hasAny(seed.weapon.tags, ['magic-focus', 'staff', 'orb', 'wand', 'book']) ? 'controlled glow on the focus' : 'restrained embroidered trim';
-  if (/\bchains?\b|cords?|hanging chains?|dangling chains?|chain clusters?|many chains?|many medallions?|multiple amulets?|medallions?|many talismans?|talismans?|charms?|ornaments?|tokens?|coins?|necklaces?/.test(text)) return seed.primaryClass === 'paladin' || seed.primaryClass === 'cleric' ? 'one oath medallion' : 'metal collar trim';
+  if (/\bchains?\b|cords?|hanging chains?|dangling chains?|chain clusters?|many chains?|many medallions?|multiple amulets?|medallions?|many talismans?|talismans?|charms?|ornaments?|tokens?|coins?|necklaces?|keys?/.test(text)) return seed.primaryClass === 'paladin' || seed.primaryClass === 'cleric' ? 'worn sacred trim dulled by travel and vigil' : 'subtle material wear at the collar';
   if (/many belts?|excessive belts?|multiple straps?|excessive straps?|\bstraps?\b|crowded waist gear|overloaded belt gear|excessive buckles?/.test(text)) return 'practical armor fastening';
   if (/dangling charms?|dangling ornaments?|many small metal charms?|multiple tassels?|layered trinkets?|bookmarks?|loose pages?|loose papers?|documents?|notes?|scrolls?|charts?|thesis fragments?|wanted posters?|poster fragments?|pamphlets?|tally papers?|records?|ledgers?|inventory|license/.test(text)) {
     if (seed.primaryClass === 'rogue' || seed.primaryClass === 'ranger') return 'single practical utility pouch';
@@ -3154,6 +3171,8 @@ function sanitizePoseForImagePrompt(seed: CharacterSeed): string {
     .replace(/banner spear/gi, 'spear')
     .replace(/giant flag|large flag|battlefield flags?|background banners?|framed by banners/gi, 'clean battlefield presence')
     .replace(/hovering grimoire|floating grimoire|scroll cascade|cascade of scrolls/gi, 'controlled focus')
+    .replace(/tinkering with sparking tools at a workbench/gi, 'adjusting a sparking tool at chest height')
+    .replace(/workbench|table|altar|map desk/gi, 'clean standing stance')
     .trim();
 }
 
@@ -3201,6 +3220,159 @@ function sanitizeSilhouetteForImagePrompt(seed: CharacterSeed): string {
     .trim() || 'clean readable silhouette with large costume shapes';
 }
 
+
+function rolePhraseForArtDirection(seed: CharacterSeed): string {
+  const themeText = normalizeText(`${seed.visualTheme.id} ${seed.visualTheme.label} ${seed.archetype.name} ${seed.narrativeMotif.label}`);
+  if (/grave|fallen|oath|saint|warden|burial/.test(themeText)) return 'grave oath guardian';
+  if (/pirate|sea|coast|relic diver/.test(themeText)) return 'salt-worn relic seeker';
+  if (/void|warlock|pact|cursed|forbidden|dream/.test(themeText)) return 'controlled occult visionary';
+  if (/academy|scholar|archive|lore|book|cartographer|map/.test(themeText)) return 'focused scholar-adventurer';
+  if (/fey|trickster|jester|bard|performer|song/.test(themeText)) return 'performer trickster';
+  if (/frontier|hunter|scout|tracker|trail/.test(themeText)) return 'trail-tested hunter';
+  if (/temple|monk|martial|master|avenger/.test(themeText)) return 'disciplined martial wanderer';
+  if (/storm|berserk|raider|beast|blood|savage/.test(themeText)) return 'battle-scarred survivor';
+  if (/engineer|artificer|clockwork|alchemist|device/.test(themeText)) return 'practical arcane engineer';
+  return seed.visualTheme.label.toLowerCase();
+}
+
+function poseDirectiveForArtDirection(seed: CharacterSeed): string {
+  const metadata = poseMetadata(seed.pose);
+  const scale = seed.size === 'tiny' || seed.size === 'small' ? 'compact, scale-aware ' : '';
+  if (metadata.poseFamily === 'performance_pose') return `${scale}performer-readable pose: ${sanitizePoseForImagePrompt(seed)}`;
+  if (metadata.poseFamily === 'subtle_casting') return `${scale}restrained magic pose: ${sanitizePoseForImagePrompt(seed)}`;
+  if (metadata.poseFamily === 'ritual_pose') return `${scale}quiet ritual pose: ${sanitizePoseForImagePrompt(seed)}`;
+  if (metadata.poseFamily === 'weapon_display') return `${scale}weapon-first pose: ${sanitizePoseForImagePrompt(seed)}`;
+  if (metadata.poseFamily === 'protective_stance') return `${scale}protective pose: ${sanitizePoseForImagePrompt(seed)}`;
+  if (metadata.poseFamily === 'stealth_motion') return `${scale}stealth-read pose: ${sanitizePoseForImagePrompt(seed)}`;
+  if (metadata.poseFamily === 'travel_pose') return `${scale}travel-worn pose: ${sanitizePoseForImagePrompt(seed)}`;
+  if (metadata.poseFamily === 'grounded_power_stance') return `${scale}grounded power pose: ${sanitizePoseForImagePrompt(seed)}`;
+  return `${scale}clear full-body pose: ${sanitizePoseForImagePrompt(seed)}`;
+}
+
+function inferMagicManifestationMode(seed: CharacterSeed): MagicManifestationMode {
+  const text = normalizeText(`${seed.primaryClass} ${seed.buildTemplate.id} ${seed.visualTheme.id} ${seed.visualTheme.label} ${seed.archetype.name} ${seed.fx.name} ${seed.light.name} ${seed.weapon.name}`);
+  if (seed.companion && /companion|familiar|spirit/.test(text)) return 'companion';
+  if (/cleric|paladin|holy|divine|saint|oath|temple|radiant|halo/.test(text)) return 'light';
+  if (/druid|ranger|fey|forest|frontier|swamp|petal|mist|leaves|storm/.test(text)) return 'environment';
+  if (/warlock|void|dream|cursed|pact|oracle|shadow/.test(text)) return 'subtle_aura';
+  if (/bard|song|performer|instrument|lute|flute|voice/.test(text)) return /rapier|songblade|weapon|blade/.test(text) ? 'weapon' : 'body';
+  if (['wizard', 'sorcerer', 'artificer'].includes(seed.primaryClass)) return /staff|orb|wand|focus|book|device/.test(text) ? 'weapon' : 'body';
+  if (seed.enchantmentIntensity !== 'none') return 'weapon';
+  return 'none';
+}
+
+function magicManifestationPhrase(seed: CharacterSeed, artDirection: ArtDirectionBrief): string {
+  const fx = seed.fx.name;
+  switch (artDirection.magicManifestationMode) {
+    case 'none':
+      return 'no large magic effect; rely on silhouette, materials, and expression';
+    case 'body':
+      return `${fx} expressed close to the face, hands, breath, or posture, restrained and anatomical`;
+    case 'weapon':
+      return `${fx} held inside the main weapon or focus, one controlled glow only`;
+    case 'environment':
+      return `${fx} shown as restrained air, dust, leaves, mist, or ground reaction near the body`;
+    case 'light':
+      return `${fx} expressed through rim light, halo warmth, or weapon-edge light, not extra objects`;
+    case 'companion':
+      return `${fx} tied to the companion relationship while the character remains dominant`;
+    case 'subtle_aura':
+      return `${fx} as a close subtle aura near eyes, shoulders, or hands, no symbol cloud`;
+  }
+}
+
+function causalStoryDetail(seed: CharacterSeed, source: string): string | null {
+  const text = normalizeText(source);
+  if (!source || objectClutterPattern.test(source) || accessoryClutterPattern.test(source) || /letter|ring|necklace|token|key|journal|map|record|coin|case|charm|cord/i.test(source)) return null;
+  if (/scar|burn|ash|dented|patched|repaired|salt|mud|weathered|worn|stained|polished|frayed|chipped|cracked|soot|blood|rain/.test(text)) {
+    return cleanPromptDetail(source);
+  }
+  return null;
+}
+
+function selectStoryShorthand(seed: CharacterSeed, artDirection?: Pick<ArtDirectionBrief, 'magicManifestationMode'>): string[] {
+  const candidates = [
+    ...seed.storyDetails,
+    ...seed.visualDetails,
+    ...seed.characterBoundDetails,
+    ...seed.cultureDetails,
+    sanitizeFinishForImagePrompt(seed),
+  ];
+  const selected: string[] = [];
+  const motifKeys = new Set<string>();
+  for (const candidate of candidates) {
+    const causal = causalStoryDetail(seed, candidate) ?? transformObjectClutterDetail(candidate, seed);
+    if (!causal) continue;
+    const clean = cleanPromptDetail(causal);
+    if (!clean || objectClutterPattern.test(clean) || accessoryClutterPattern.test(clean)) continue;
+    const key = detailMotifKey(clean);
+    if (!key || motifKeys.has(key)) continue;
+    selected.push(clean);
+    motifKeys.add(key);
+    if (selected.length >= 2) break;
+  }
+  if (selected.length === 0) {
+    if (seed.primaryClass === 'bard') selected.push('repaired performer fabric from many road shows');
+    else if (seed.primaryClass === 'ranger') selected.push('mud-stained boots from long trail work');
+    else if (seed.primaryClass === 'barbarian') selected.push('old scar lines across exposed shoulders');
+    else if (seed.primaryClass === 'wizard' || seed.primaryClass === 'sorcerer' || seed.primaryClass === 'warlock') selected.push(artDirection?.magicManifestationMode === 'subtle_aura' ? 'sleep-deprived eyes with faint occult strain' : 'one polished focus grip from daily spell practice');
+    else if (seed.primaryClass === 'cleric' || seed.primaryClass === 'paladin') selected.push('worn sacred trim dulled by travel and vigil');
+  }
+  return selected.slice(0, 2);
+}
+
+export function resolveArtDirection(seed: CharacterSeed): ArtDirectionBrief {
+  const role = rolePhraseForArtDirection(seed);
+  const poseDirective = poseDirectiveForArtDirection(seed);
+  const magicManifestationMode = inferMagicManifestationMode(seed);
+  const storyShorthand = selectStoryShorthand(seed, { magicManifestationMode });
+  const secondaryFlavor = [
+    seed.narrativeMotif.label,
+    seed.culturalOrigin.label,
+    magicManifestationPhrase(seed, { magicManifestationMode } as ArtDirectionBrief),
+  ].filter(Boolean).slice(0, 3);
+  const suppressedElements = [
+    'extra books',
+    'extra banners',
+    'extra relics',
+    'duplicate weapons',
+    'excessive runes',
+    'cathedral overload',
+    'accessory clutter',
+    'object clutter',
+    'irrelevant story details',
+    'flavor that competes with class or race read',
+  ];
+  if (!/book|grimoire|journal/i.test(seed.weapon.name)) suppressedElements.push('secondary books', 'hovering grimoires');
+  if (!/banner|pennant/i.test(seed.weapon.name)) suppressedElements.push('literal banners', 'literal flags');
+  if (seed.size === 'tiny' || seed.size === 'small') suppressedElements.push('bulky oversized heroic framing');
+  const dominantRead = `${seed.size} ${seed.race.name} ${seed.primaryClass} as ${role}, ${sanitizePoseForImagePrompt(seed)}`;
+  return {
+    dominantRead,
+    primaryVisualRead: [
+      `${seed.size} ${seed.race.name}`,
+      seed.primaryClass,
+      seed.buildTemplate.label,
+      sanitizeSilhouetteForImagePrompt(seed),
+      seed.armor.name,
+      sanitizeWeaponNameForImagePrompt(seed),
+      sanitizePoseForImagePrompt(seed),
+    ],
+    secondaryFlavor,
+    suppressedElements,
+    poseDirective,
+    magicManifestationMode,
+    storyShorthand,
+    promptPriorityOrder: ['race appearance', 'primary class', 'silhouette', 'armor or clothing', 'primary weapon or tool', 'pose', 'light and FX', 'story shorthand', 'negative controls'],
+    imagePromptGuidance: [
+      'primary read wins over flavor',
+      'keep story shorthand causal and low clutter',
+      'express magic through the selected manifestation mode',
+      'omit suppressed elements from the final image prompt',
+    ],
+  };
+}
+
 type PrimaryReadStack = {
   identity: string;
   raceAppearance: string;
@@ -3213,19 +3385,19 @@ type PrimaryReadStack = {
 
 type FlavorStack = {
   theme: string;
-  enchantment: string | null;
   details: string;
   companion: string | null;
   sceneProps: string;
+  magic: string;
 };
 
-function buildPrimaryReadStack(seed: CharacterSeed): PrimaryReadStack {
+function buildPrimaryReadStack(seed: CharacterSeed, artDirection: ArtDirectionBrief): PrimaryReadStack {
   const weaponName = sanitizeWeaponNameForImagePrompt(seed);
   const weaponFragments = sanitizeWeaponLanguageForImagePrompt(seed);
   const armorFragments = sanitizeArmorLanguageForImagePrompt(seed);
   const identity = seed.curatedMulticlassProfile
-    ? `Create a ${seed.size} ${seed.race.name} ${seed.primaryClass} primary character, ${seed.primaryClass} / ${seed.curatedMulticlassProfile.secondaryClass} curated multiclass.`
-    : `Create a ${seed.size} ${seed.race.name} ${seed.primaryClass} character.`;
+    ? `Art direction: ${artDirection.dominantRead}. Create a ${seed.size} ${seed.race.name} ${seed.primaryClass} primary character, ${seed.primaryClass} / ${seed.curatedMulticlassProfile.secondaryClass} curated multiclass.`
+    : `Art direction: ${artDirection.dominantRead}. Create a ${seed.size} ${seed.race.name} ${seed.primaryClass} character.`;
   return {
     identity,
     raceAppearance: `Race appearance: ${raceAppearanceForImagePrompt(seed)}.`,
@@ -3233,17 +3405,18 @@ function buildPrimaryReadStack(seed: CharacterSeed): PrimaryReadStack {
     silhouette: `Silhouette: ${sanitizeSilhouetteForImagePrompt(seed)}.`,
     armor: `Armor and clothing: ${seed.armor.name}, with ${armorFragments}.`,
     weapon: `Weapon and tool: ${weaponName}, with ${weaponFragments}.`,
-    pose: `Pose and expression: ${sanitizePoseForImagePrompt(seed)}, ${seed.emotion}, ${seed.mood.name}.`,
+    pose: `Pose and expression: ${artDirection.poseDirective}, ${seed.emotion}, ${seed.mood.name}.`,
   };
 }
 
-function buildFlavorStack(seed: CharacterSeed): FlavorStack {
+function buildFlavorStack(seed: CharacterSeed, artDirection: ArtDirectionBrief): FlavorStack {
+  const details = shortList(sanitizeImagePromptDetails(seed, [...artDirection.storyShorthand, ...seed.characterBoundDetails]), 2);
   return {
-    theme: `Visual theme: ${seed.visualTheme.label}, theme variant: ${seed.visualThemeVariant.label}.`,
-    enchantment: seed.enchantmentIntensity === 'none' ? null : `Equipment enchantment: ${seed.equipmentEnchantment.label}.`,
-    details: `Character-bound visual details: ${compressCharacterDetails(seed.characterBoundDetails, seed)}.`,
+    theme: `Visual theme: ${seed.visualTheme.label}; secondary flavor: ${shortList(artDirection.secondaryFlavor, 3)}.`,
+    details: `Character-bound visual details: ${details}.`,
     companion: seed.companion ? `Companion: ${seed.companion.label}, ${seed.companion.promptFragment}, visually subordinate to the character.` : null,
     sceneProps: seed.compositionMode === 'cinematic_splash_art' && seed.sceneProps.length > 0 ? shortList(seed.sceneProps, 2) : '',
+    magic: `Magic and FX: ${magicManifestationPhrase(seed, artDirection)}.`,
   };
 }
 
@@ -3264,19 +3437,19 @@ function composeImagePromptFromStacks(seed: CharacterSeed, primaryRead: PrimaryR
     primaryRead.weapon,
     primaryRead.pose,
     flavor.theme,
-    flavor.enchantment,
     flavor.details,
+    flavor.magic,
     flavor.sceneProps ? `Limited scene props: ${flavor.sceneProps}.` : null,
     flavor.companion,
     `Lighting: ${seed.light.name}.`,
-    `FX: ${seed.fx.name}; accents only, do not cover anatomy.`,
     qualityRulesForMode(seed.compositionMode),
     negativePromptForImage(),
-  ]).replace(/\s+/g, ' ').trim();
+  ]).replace(/subtle magical runes/gi, 'controlled focus shimmer').replace(/generic runes/gi, 'controlled focus shimmer').replace(/\s+/g, ' ').trim();
 }
 
 function formatImagePrompt(seed: CharacterSeed): string {
-  return composeImagePromptFromStacks(seed, buildPrimaryReadStack(seed), buildFlavorStack(seed));
+  const artDirection = resolveArtDirection(seed);
+  return composeImagePromptFromStacks(seed, buildPrimaryReadStack(seed, artDirection), buildFlavorStack(seed, artDirection));
 }
 
 
@@ -3591,6 +3764,8 @@ export function generateCharacterSeed(options: GenerationOptions = {}): Generati
   trace.push(`Final Class Anchor Score: ${resolvedSeed.classAnchorScore}/5.`);
   trace.push(`Final motif compatibility filters: template ${resolvedSeed.buildTemplate.id}, theme ${resolvedSeed.visualTheme.id}, class ${resolvedSeed.primaryClass}, race ${resolvedSeed.race.name}, tags ${resolvedSeed.archetype.tags.join(', ')}.`);
 
+  const artDirection = resolveArtDirection(resolvedSeed);
+  trace.push(`[Stage resolveArtDirection] ${artDirection.dominantRead}; magic ${artDirection.magicManifestationMode}; shorthand ${artDirection.storyShorthand.join(' | ') || 'none'}.`);
   const seedOutput = formatSeed(resolvedSeed);
   const promptDraft = formatPrompt(resolvedSeed);
   const imagePrompt = formatImagePrompt(resolvedSeed);
