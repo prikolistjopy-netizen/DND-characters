@@ -189,6 +189,15 @@ export type GenerationResult = {
 };
 
 type MagicManifestationMode = 'none' | 'body' | 'weapon' | 'environment' | 'light' | 'companion' | 'subtle_aura';
+type RaceClassPlausibilityLevel = 'strong_default' | 'normal_default' | 'rare_reinterpreted' | 'chaos_only' | 'blocked_default';
+type DivineLightMode = 'none' | 'candlelit_ritual' | 'field_healer_lantern' | 'wounded_mercy_light' | 'cold_judgement_rim' | 'relic_glow' | 'hand_light' | 'weapon_edge_sacred_light' | 'shield_edge_light' | 'dusty_battlefield_sun' | 'muted_oath_light' | 'sepulchral_lamp' | 'lantern_fog' | 'dawn_slash_rare' | 'sunrise_halo_rare' | 'cathedral_rays_iconic_only';
+
+export type ThemeClassOverrideRisk = {
+  level: 0 | 1 | 2 | 3 | 4;
+  reasons: string[];
+  action: 'safe' | 'downgrade_to_flavor' | 'reinterpret_through_class' | 'suppress_class_stealing_signals';
+  unresolvedOverride: boolean;
+};
 
 export type ArtDirectionBrief = {
   dominantRead: string;
@@ -197,6 +206,11 @@ export type ArtDirectionBrief = {
   suppressedElements: string[];
   poseDirective: string;
   magicManifestationMode: MagicManifestationMode;
+  divineLightMode: DivineLightMode;
+  raceClassPlausibility: RaceClassPlausibilityLevel;
+  raceClassReinterpretation: string | null;
+  themeClassRisk: ThemeClassOverrideRisk;
+  renderTextureHygiene: string[];
   storyShorthand: string[];
   promptPriorityOrder: string[];
   imagePromptGuidance: string[];
@@ -2055,11 +2069,13 @@ function calculateClassAnchorScore(seed: Pick<CharacterSeed, 'primaryClass' | 'w
 function createSeed(context: SmartSelectionContext): CharacterSeed {
   const pickedMode = weightedPick(modeWeights).name;
   const mode: Mode = pickedMode === 'chaos' ? 'ordinary class' : pickedMode;
-  const race = weightedPick(races);
-  const size = getRaceSize(race);
-  const curatedMulticlassProfile = mode === 'curated multiclass' ? selectCuratedMulticlassProfile(race, size, context) : null;
+  const initialRace = weightedPick(races);
+  const initialSize = getRaceSize(initialRace);
+  const curatedMulticlassProfile = mode === 'curated multiclass' ? selectCuratedMulticlassProfile(initialRace, initialSize, context) : null;
   const classes = curatedMulticlassProfile ? [curatedMulticlassProfile.primaryClass, curatedMulticlassProfile.secondaryClass] : pickClasses(mode);
   const primaryClass = classes[0];
+  const race = curatedMulticlassProfile ? initialRace : choosePlausibleRaceForClass(initialRace, primaryClass, mode, context);
+  const size = getRaceSize(race);
   const archetype = curatedMulticlassProfile ? pickCuratedArchetype(curatedMulticlassProfile, primaryClass, context) : pickArchetype(classes, primaryClass);
   const curatedTemplate = curatedMulticlassProfile ? buildTemplates.find((template) => template.id === curatedMulticlassProfile.buildTemplateId) : undefined;
   const templateSelection = curatedTemplate
@@ -2941,7 +2957,7 @@ function qualityRulesForMode(compositionMode: CompositionMode): string {
 }
 
 function negativePromptForImage(): string {
-  return 'Negative prompt: no cropped body, no extra limbs, no malformed hands, no unreadable face, no modern clothing, no logo, no watermark, no cluttered background, no floor props, no duplicate weapons, no excessive belts, no chain clutter, no dangling ornaments, no loose papers, no item clutter, no stacks of books, no wearable library, no overdesigned staff, no oversized banners, no giant flags, no readable text, only abstract marks or illegible symbols if papers or books appear.';
+  return 'Negative prompt: no cropped body, no extra limbs, no malformed hands, no unreadable face, no modern clothing, no logo, no watermark, no cluttered background, no floor props, no duplicate weapons, no excessive belts, no chain clutter, no dangling ornaments, no loose papers, no item clutter, no stacks of books, no wearable library, no oversized banners, no giant flags, no repeating grid texture, no diamond pattern artifacts, no mosaic texture, no checker texture, no lattice artifact, no overpatterned fabric, no scale-like noise unless dragonborn, no readable text, only abstract marks or illegible symbols if papers or books appear.';
 }
 
 function sentenceJoin(parts: Array<string | null | undefined | false>): string {
@@ -3151,12 +3167,19 @@ function sanitizeArmorLanguageForImagePrompt(seed: CharacterSeed): string {
 
 function sanitizeWeaponNameForImagePrompt(seed: CharacterSeed): string {
   if (/banner|pennant/i.test(seed.weapon.name)) return 'spear with a small torn cloth near the blade';
+  if (seed.primaryClass === 'rogue' && !seed.classes.includes('bard') && /lute|flute|instrument|songbook|song-scroll|song scroll/i.test(seed.weapon.name)) return 'hidden blade and slim duelist knife';
+  if (seed.primaryClass === 'druid' && !seed.classes.includes('bard') && /lute|flute|instrument|songbook|rapier|cane sword/i.test(seed.weapon.name)) return 'organic staff and natural focus';
+  if (seed.primaryClass === 'ranger' && /map|compass|scroll case|journal/i.test(seed.weapon.name)) return 'hunting bow and scout knife';
+  if (seed.primaryClass === 'bard' && /orb|crystal orb|generic focus/i.test(seed.weapon.name)) return 'voice-led performance focus';
   if (/staff/i.test(seed.weapon.name) && /ornament|tag|ribbon|chain|symbol/i.test(seed.weapon.name)) return 'plain ritual staff with one carved focus';
   return sanitizeAccessoryWording(seed.weapon.name, seed, 'weapon') || seed.weapon.name;
 }
 
 function sanitizeWeaponLanguageForImagePrompt(seed: CharacterSeed): string {
   if (/banner|pennant/i.test(seed.weapon.name)) return 'clean spear silhouette';
+  if (seed.primaryClass === 'rogue' && !seed.classes.includes('bard') && /lute|flute|instrument|song|performer/i.test(seed.weapon.name + ' ' + seed.weaponLanguage.label)) return 'quiet hidden-blade silhouette';
+  if (seed.primaryClass === 'druid' && !seed.classes.includes('bard') && /lute|flute|instrument|song|performer|rapier/i.test(seed.weapon.name + ' ' + seed.weaponLanguage.label)) return 'organic focus silhouette';
+  if (seed.primaryClass === 'ranger' && /map|compass|scroll|journal/i.test(seed.weapon.name + ' ' + seed.weaponLanguage.label)) return 'field-ready hunting weapon';
   const source = seed.weaponLanguage.promptFragments[0] ?? seed.weaponLanguage.label;
   return sanitizeAccessoryWording(source || seed.weapon.name, seed, 'weapon') || 'clean weapon silhouette';
 }
@@ -3250,6 +3273,100 @@ const classArtDirectionRoles: Record<CharacterClass, ClassArtDirectionRole> = {
   artificer: { role: 'practical battle engineer', allowed: ['inventor', 'battle engineer', 'tool master', 'relic mechanic', 'alchemist'], forbidden: /generic wizard|barbarian warrior|berserker|holy guardian/i },
 };
 
+type ClassFantasyBibleEntry = {
+  coreFantasy: string;
+  visualVerbs: string[];
+  bodyLanguage: string;
+  silhouetteGrammar: string;
+  costumeGrammar: string;
+  weaponToolGrammar: string;
+  magicManifestationPreferences: MagicManifestationMode[];
+  lightPreferences: DivineLightMode[];
+  storyShorthandPatterns: string[];
+  commonArchetypes: string[];
+  forbiddenDrift: string[];
+  preferredPoseFamilies: string[];
+  forbiddenPoseFamilies: string[];
+  classSpecificSuppressionRules: string[];
+  promptDo: string[];
+  promptDont: string[];
+};
+
+export const classFantasyBible: Record<CharacterClass, ClassFantasyBibleEntry> = {
+  fighter: { coreFantasy: 'professional combatant, weapon master, battlefield survivor', visualVerbs: ['grounds', 'guards', 'measures'], bodyLanguage: 'balanced weapon handling and practical stance', silhouetteGrammar: 'readable armor mass and weapon line', costumeGrammar: 'believable armor, dents, rank colors', weaponToolGrammar: 'martial weapon first, no staff-primary read', magicManifestationPreferences: ['none', 'weapon', 'light'], lightPreferences: ['muted_oath_light', 'dusty_battlefield_sun', 'weapon_edge_sacred_light', 'shield_edge_light'], storyShorthandPatterns: ['notched armor', 'worn weapon grip'], commonArchetypes: ['veteran', 'duelist', 'captain'], forbiddenDrift: ['paladin halo', 'healer', 'scholar', 'performer'], preferredPoseFamilies: ['weapon_display', 'grounded_power_stance', 'combat_ready'], forbiddenPoseFamilies: ['ritual_pose', 'performance_pose'], classSpecificSuppressionRules: ['suppress halo and cathedral light unless curated divine multiclass'], promptDo: ['weapon-first fighter read'], promptDont: ['do not make fighter read as paladin'] },
+  barbarian: { coreFantasy: 'primal force in a body, rage, endurance, survival', visualVerbs: ['endures', 'breaks', 'survives'], bodyLanguage: 'mass, scars, exposed power, weathered endurance', silhouetteGrammar: 'broad impact shape without silly scale mismatch', costumeGrammar: 'hide, fur, travel cloth, damaged materials', weaponToolGrammar: 'heavy/simple martial weapon, no scholar tool primary', magicManifestationPreferences: ['none', 'weapon', 'body'], lightPreferences: ['dusty_battlefield_sun', 'lantern_fog'], storyShorthandPatterns: ['old scar lines', 'weathered hide edge'], commonArchetypes: ['berserker', 'raider', 'beast slayer'], forbiddenDrift: ['scholar', 'academic magic', 'tiny brute default'], preferredPoseFamilies: ['grounded_power_stance', 'weapon_display'], forbiddenPoseFamilies: ['ritual_pose', 'performance_pose'], classSpecificSuppressionRules: ['reinterpret small barbarians as scrappers'], promptDo: ['body and impact first'], promptDont: ['no delicate jewelry or scholar hands'] },
+  paladin: { coreFantasy: 'frontline oath power', visualVerbs: ['protects', 'judges', 'swears'], bodyLanguage: 'burdened protective stance', silhouetteGrammar: 'armored oath silhouette, weapon or shield edge', costumeGrammar: 'tabard, plate, sacred trim', weaponToolGrammar: 'weapon, shield, holy focus as support', magicManifestationPreferences: ['light', 'weapon', 'body'], lightPreferences: ['weapon_edge_sacred_light', 'shield_edge_light', 'cold_judgement_rim', 'muted_oath_light'], storyShorthandPatterns: ['worn sacred trim', 'oath-scarred edge'], commonArchetypes: ['oathkeeper', 'sun knight', 'gravewarden'], forbiddenDrift: ['generic glowing saint', 'constant halo', 'prayer-staff default'], preferredPoseFamilies: ['protective_stance', 'weapon_display'], forbiddenPoseFamilies: ['performance_pose'], classSpecificSuppressionRules: ['keep halo rare'], promptDo: ['armor and oath read first'], promptDont: ['no saint poster every time'] },
+  cleric: { coreFantasy: 'divine mediator, ritual, faith, healing, service', visualVerbs: ['channels', 'serves', 'mends'], bodyLanguage: 'ritual authority and service posture', silhouetteGrammar: 'holy symbol, hand-channel, relic or medicine read', costumeGrammar: 'vestments, medium armor, service cloth', weaponToolGrammar: 'holy symbol, mace, staff, relic, shield as support', magicManifestationPreferences: ['light', 'body', 'weapon'], lightPreferences: ['candlelit_ritual', 'field_healer_lantern', 'wounded_mercy_light', 'relic_glow', 'hand_light', 'sepulchral_lamp'], storyShorthandPatterns: ['ash in armor seams', 'travel-worn sacred trim'], commonArchetypes: ['priest', 'battle chaplain', 'divine scholar'], forbiddenDrift: ['paladin charge', 'generic saint halo'], preferredPoseFamilies: ['ritual_pose', 'protective_stance'], forbiddenPoseFamilies: ['performance_pose'], classSpecificSuppressionRules: ['differentiate from paladin with hand/relic/candle light'], promptDo: ['ritual/service read'], promptDont: ['no constant golden rays'] },
+  wizard: { coreFantasy: 'scholarly arcane control', visualVerbs: ['studies', 'controls', 'calculates'], bodyLanguage: 'deliberate controlled posture', silhouetteGrammar: 'structured robe and controlled focus', costumeGrammar: 'robe construction, clean panels', weaponToolGrammar: 'staff, wand, orb, one book or focus', magicManifestationPreferences: ['weapon', 'body', 'environment'], lightPreferences: ['relic_glow', 'lantern_fog'], storyShorthandPatterns: ['polished focus grip', 'structured robe wear'], commonArchetypes: ['academy mage', 'ritualist', 'oracle'], forbiddenDrift: ['bard performance cues', 'saint light', 'generic purple rune spam'], preferredPoseFamilies: ['subtle_casting', 'class_specific_idle'], forbiddenPoseFamilies: ['performance_pose'], classSpecificSuppressionRules: ['avoid holy symbol primary'], promptDo: ['controlled arcane focus'], promptDont: ['no wearable library'] },
+  sorcerer: { coreFantasy: 'innate magic embodied', visualVerbs: ['channels', 'flares', 'contains'], bodyLanguage: 'body-as-source: eyes, breath, hands, bloodline', silhouetteGrammar: 'human body carrying magic pressure', costumeGrammar: 'clothing reacts to body magic', weaponToolGrammar: 'focus optional; body read first', magicManifestationPreferences: ['body', 'subtle_aura', 'weapon'], lightPreferences: ['hand_light', 'lantern_fog'], storyShorthandPatterns: ['old burn lines', 'glowing eyes'], commonArchetypes: ['storm-blooded', 'dream-touched', 'void-touched'], forbiddenDrift: ['academic spellbook logic', 'warlock pact marks unless themed'], preferredPoseFamilies: ['subtle_casting', 'calm_presence'], forbiddenPoseFamilies: ['performance_pose'], classSpecificSuppressionRules: ['body magic over book logic'], promptDo: ['embodied magic'], promptDont: ['no wizard classroom read'] },
+  warlock: { coreFantasy: 'otherworldly bargain made visible', visualVerbs: ['binds', 'whispers', 'bears'], bodyLanguage: 'patron consequence and unsettling elegance', silhouetteGrammar: 'occult edge close to body', costumeGrammar: 'pact robe or blade elegance', weaponToolGrammar: 'pact focus, blade, staff, mark', magicManifestationPreferences: ['subtle_aura', 'body', 'weapon'], lightPreferences: ['cold_judgement_rim', 'lantern_fog'], storyShorthandPatterns: ['pact stain', 'shadow under fingernails'], commonArchetypes: ['pact bearer', 'void oracle', 'cursed emissary'], forbiddenDrift: ['generic wizard', 'holy priest', 'clean academic mage'], preferredPoseFamilies: ['subtle_casting', 'class_specific_idle'], forbiddenPoseFamilies: ['performance_pose'], classSpecificSuppressionRules: ['avoid holy guardian'], promptDo: ['patron consequence'], promptDont: ['no generic wizard read'] },
+  bard: { coreFantasy: 'performative catalyst, social power, story, charm, music or voice', visualVerbs: ['performs', 'charms', 'provokes'], bodyLanguage: 'social gesture and stage-aware posture', silhouetteGrammar: 'performer coat, instrument, voice or dueling flair', costumeGrammar: 'elegant performer layers', weaponToolGrammar: 'instrument, voice, songblade, rapier, performance focus', magicManifestationPreferences: ['body', 'light', 'weapon'], lightPreferences: ['hand_light', 'muted_oath_light'], storyShorthandPatterns: ['repaired performer fabric', 'worn instrument edge'], commonArchetypes: ['skald', 'storyteller', 'court duelist'], forbiddenDrift: ['wizard caster', 'orb mage', 'generic scholar'], preferredPoseFamilies: ['performance_pose', 'social_pose'], forbiddenPoseFamilies: ['ritual_pose'], classSpecificSuppressionRules: ['suppress orb caster read'], promptDo: ['performer anchor'], promptDont: ['no wizard spellbook default'] },
+  rogue: { coreFantasy: 'subtle violence and problem-solving', visualVerbs: ['infiltrates', 'angles', 'strikes'], bodyLanguage: 'stealth body, precision and concealment', silhouetteGrammar: 'cloak angle, hidden blade, compact threat', costumeGrammar: 'fitted gear and quiet materials', weaponToolGrammar: 'dagger, rapier, hidden blade, tools, shortbow', magicManifestationPreferences: ['none', 'environment', 'weapon'], lightPreferences: ['lantern_fog', 'cold_judgement_rim'], storyShorthandPatterns: ['soft-soled boots', 'worn knife grip'], commonArchetypes: ['spy', 'assassin', 'relic thief'], forbiddenDrift: ['bard instrument dominance', 'ranger wilderness dominance', 'holy guardian'], preferredPoseFamilies: ['stealth_motion', 'weapon_display'], forbiddenPoseFamilies: ['performance_pose', 'ritual_pose'], classSpecificSuppressionRules: ['suppress instrument-dominant bard read'], promptDo: ['precision tool and stealth body'], promptDont: ['no bard or ranger takeover'] },
+  ranger: { coreFantasy: 'hunter of the margin, tracker, pathfinder, watch warden', visualVerbs: ['tracks', 'watches', 'guides'], bodyLanguage: 'terrain-ready travel posture', silhouetteGrammar: 'bow, spear, blade and trail gear', costumeGrammar: 'leather, cloak, boots, field wear', weaponToolGrammar: 'bow, spear, blade, scout knife', magicManifestationPreferences: ['none', 'environment', 'weapon'], lightPreferences: ['lantern_fog', 'dusty_battlefield_sun'], storyShorthandPatterns: ['mud-stained boots', 'weathered cloak edge'], commonArchetypes: ['hunter', 'tracker', 'monster hunter'], forbiddenDrift: ['ritual druid props', 'bard flair', 'generic rogue crouch'], preferredPoseFamilies: ['travel_pose', 'weapon_display'], forbiddenPoseFamilies: ['performance_pose', 'ritual_pose'], classSpecificSuppressionRules: ['map/compass as flavor, not primary weapon'], promptDo: ['terrain readiness'], promptDont: ['no ritual altar read'] },
+  druid: { coreFantasy: 'primal mediator of nature', visualVerbs: ['listens', 'grows', 'wards'], bodyLanguage: 'relationship with land, weather, creature', silhouetteGrammar: 'organic material and land connection', costumeGrammar: 'organic cloth, bark, moss, hide', weaponToolGrammar: 'staff, sickle, spear, branch, natural focus', magicManifestationPreferences: ['environment', 'body'], lightPreferences: ['lantern_fog', 'relic_glow'], storyShorthandPatterns: ['mud at hem', 'moss along staff grip'], commonArchetypes: ['nature guardian', 'wild seer'], forbiddenDrift: ['bard performer', 'wizard diagrams', 'generic shrub costume'], preferredPoseFamilies: ['ritual_pose', 'travel_pose'], forbiddenPoseFamilies: ['performance_pose'], classSpecificSuppressionRules: ['suppress lute performer read'], promptDo: ['land relationship'], promptDont: ['no bard costume takeover'] },
+  monk: { coreFantasy: 'disciplined internal power in motion', visualVerbs: ['balances', 'breathes', 'flows'], bodyLanguage: 'body control, balance, exposed articulation', silhouetteGrammar: 'wraps, stance, calm energy', costumeGrammar: 'simple clean cloth and wraps', weaponToolGrammar: 'unarmed, staff, simple monk weapon', magicManifestationPreferences: ['none', 'body', 'light'], lightPreferences: ['hand_light', 'lantern_fog'], storyShorthandPatterns: ['worn wraps', 'training bruises'], commonArchetypes: ['martial artist', 'temple guardian'], forbiddenDrift: ['heavy armor', 'giant weapon', 'wizard sigils'], preferredPoseFamilies: ['class_specific_idle', 'grounded_power_stance'], forbiddenPoseFamilies: ['performance_pose'], classSpecificSuppressionRules: ['no heavy gear'], promptDo: ['body discipline'], promptDont: ['no knight armor'] },
+  artificer: { coreFantasy: 'magical maker whose intelligence lives in objects', visualVerbs: ['calibrates', 'builds', 'tests'], bodyLanguage: 'purposeful hands and engineered logic', silhouetteGrammar: 'one crafted implement, clean device read', costumeGrammar: 'reinforced coat, bracers, practical maker wear', weaponToolGrammar: 'one device/tool/focus, no prop soup', magicManifestationPreferences: ['weapon', 'body'], lightPreferences: ['relic_glow', 'hand_light'], storyShorthandPatterns: ['polished tool grip', 'heat marks on bracer'], commonArchetypes: ['inventor', 'battle engineer', 'alchemist'], forbiddenDrift: ['wizard with gadgets', 'many pouches', 'prop soup'], preferredPoseFamilies: ['class_specific_idle', 'weapon_display'], forbiddenPoseFamilies: ['performance_pose'], classSpecificSuppressionRules: ['one implement only'], promptDo: ['engineered object logic'], promptDont: ['no cluttered workshop on body'] },
+};
+
+type RaceVisualLogic = {
+  bodyLogic: string;
+  scaleLogic: string;
+  faceMarkers: string[];
+  silhouetteMarkers: string[];
+  strongClassAffinities: CharacterClass[];
+  normalClassAffinities: CharacterClass[];
+  rareReinterpretedClasses: CharacterClass[];
+  chaosOnlyClasses: CharacterClass[];
+  blockedDefaultClasses: CharacterClass[];
+  reinterpretationRules: Partial<Record<CharacterClass, string>>;
+  visualDoNot: string[];
+};
+
+export const raceVisualLogic: Record<string, RaceVisualLogic> = {
+  human: { bodyLogic: 'broadly adaptable human proportions', scaleLogic: 'default medium scale', faceMarkers: ['human face'], silhouetteMarkers: ['adaptable silhouette'], strongClassAffinities: characterClasses.map((entry) => entry.name), normalClassAffinities: [], rareReinterpretedClasses: [], chaosOnlyClasses: [], blockedDefaultClasses: [], reinterpretationRules: {}, visualDoNot: [] },
+  elf: { bodyLogic: 'long-lined agile body', scaleLogic: 'avoid brute bulk unless grounded by armor', faceMarkers: ['fine elf features'], silhouetteMarkers: ['elegant line'], strongClassAffinities: ['wizard', 'sorcerer', 'warlock', 'bard', 'rogue', 'ranger', 'druid', 'fighter'], normalClassAffinities: ['cleric', 'paladin', 'monk'], rareReinterpretedClasses: ['barbarian', 'artificer'], chaosOnlyClasses: [], blockedDefaultClasses: [], reinterpretationRules: { barbarian: 'lean wild duelist rather than giant brute' }, visualDoNot: ['towering bestial frame'] },
+  dwarf: { bodyLogic: 'compact sturdy mass', scaleLogic: 'grounded compact silhouette', faceMarkers: ['dwarf beard or strong jaw'], silhouetteMarkers: ['low center of gravity'], strongClassAffinities: ['fighter', 'barbarian', 'paladin', 'cleric', 'artificer'], normalClassAffinities: ['ranger', 'monk', 'rogue'], rareReinterpretedClasses: ['wizard', 'sorcerer', 'warlock', 'bard', 'druid'], chaosOnlyClasses: [], blockedDefaultClasses: [], reinterpretationRules: {}, visualDoNot: ['tall robed column'] },
+  halfling: { bodyLogic: 'small nimble body', scaleLogic: 'compact and clever, no oversized brute read', faceMarkers: ['halfling face'], silhouetteMarkers: ['small agile shape'], strongClassAffinities: ['rogue', 'bard', 'ranger'], normalClassAffinities: ['fighter', 'cleric', 'monk', 'druid'], rareReinterpretedClasses: ['barbarian', 'paladin', 'wizard', 'sorcerer', 'warlock', 'artificer'], chaosOnlyClasses: [], blockedDefaultClasses: [], reinterpretationRules: { barbarian: 'tavern brawler, stubborn survivor, scarred scrapper' }, visualDoNot: ['arena colossus', 'oversized maul'] },
+  gnome: { bodyLogic: 'small precise body', scaleLogic: 'clever compact scale', faceMarkers: ['gnome features'], silhouetteMarkers: ['small scholar or maker shape'], strongClassAffinities: ['wizard', 'bard', 'artificer'], normalClassAffinities: ['rogue', 'druid', 'warlock', 'sorcerer'], rareReinterpretedClasses: ['barbarian', 'fighter', 'paladin', 'cleric', 'ranger', 'monk'], chaosOnlyClasses: [], blockedDefaultClasses: [], reinterpretationRules: { barbarian: 'tunnel berserker, alchemical frenzy, feral shock skirmisher' }, visualDoNot: ['giant brute'] },
+  'half-orc': { bodyLogic: 'large powerful body', scaleLogic: 'strong but practical scale', faceMarkers: ['tusks', 'scarred face'], silhouetteMarkers: ['powerful shoulders'], strongClassAffinities: ['fighter', 'barbarian', 'ranger'], normalClassAffinities: ['cleric', 'paladin', 'rogue', 'monk', 'druid'], rareReinterpretedClasses: ['bard', 'artificer', 'wizard', 'sorcerer', 'warlock'], chaosOnlyClasses: [], blockedDefaultClasses: [], reinterpretationRules: { bard: 'war-chanter or scarred skald', artificer: 'siege-smith or salvage engineer' }, visualDoNot: ['delicate lute minstrel'] },
+  tiefling: { bodyLogic: 'horned occult elegance', scaleLogic: 'medium agile silhouette', faceMarkers: ['horns', 'tail'], silhouetteMarkers: ['horn line'], strongClassAffinities: ['warlock', 'sorcerer', 'rogue', 'bard'], normalClassAffinities: ['wizard', 'fighter', 'ranger', 'paladin'], rareReinterpretedClasses: ['druid', 'cleric', 'barbarian', 'monk', 'artificer'], chaosOnlyClasses: [], blockedDefaultClasses: [], reinterpretationRules: { druid: 'ash-grove keeper or thorn mystic' }, visualDoNot: ['generic holy angel read'] },
+  dragonborn: { bodyLogic: 'scaled powerful draconic body', scaleLogic: 'avoid tiny/finesse body logic', faceMarkers: ['snout', 'scale pattern'], silhouetteMarkers: ['crest and scaled mass'], strongClassAffinities: ['paladin', 'sorcerer', 'barbarian', 'fighter', 'cleric'], normalClassAffinities: ['ranger', 'warlock', 'monk', 'druid'], rareReinterpretedClasses: ['bard', 'rogue', 'wizard', 'artificer'], chaosOnlyClasses: [], blockedDefaultClasses: [], reinterpretationRules: {}, visualDoNot: ['tiny finesse body'] },
+  aasimar: { bodyLogic: 'celestial marker without automatic halo', scaleLogic: 'medium luminous body', faceMarkers: ['luminous eyes'], silhouetteMarkers: ['subtle celestial mark'], strongClassAffinities: ['paladin', 'cleric', 'sorcerer'], normalClassAffinities: ['fighter', 'wizard', 'bard', 'monk'], rareReinterpretedClasses: ['rogue', 'warlock', 'barbarian', 'ranger', 'druid', 'artificer'], chaosOnlyClasses: [], blockedDefaultClasses: [], reinterpretationRules: { rogue: 'fallen star infiltrator with halo suppressed', warlock: 'eclipsed pact bearer with saint read suppressed', barbarian: 'fallen radiant survivor' }, visualDoNot: ['constant saint halo for non-divine classes'] },
+  satyr: { bodyLogic: 'fey goat-legged agility and social motion', scaleLogic: 'medium nimble fey scale', faceMarkers: ['horns', 'goat legs'], silhouetteMarkers: ['hoof line'], strongClassAffinities: ['bard', 'rogue', 'ranger', 'druid'], normalClassAffinities: ['warlock', 'sorcerer', 'fighter'], rareReinterpretedClasses: ['paladin', 'cleric', 'wizard', 'artificer', 'barbarian', 'monk'], chaosOnlyClasses: [], blockedDefaultClasses: [], reinterpretationRules: { rogue: 'fey court infiltrator, suppress instrument-dominant bard read', bard: 'performer read allowed' }, visualDoNot: ['instrument dominance for rogue'] },
+  fairy: { bodyLogic: 'tiny winged body', scaleLogic: 'aerial, light, precise, never bulky brute', faceMarkers: ['wings', 'tiny features'], silhouetteMarkers: ['wing line'], strongClassAffinities: ['bard', 'sorcerer', 'warlock', 'druid'], normalClassAffinities: ['wizard', 'rogue', 'ranger', 'cleric', 'monk'], rareReinterpretedClasses: ['fighter', 'paladin', 'artificer'], chaosOnlyClasses: ['barbarian'], blockedDefaultClasses: [], reinterpretationRules: { fighter: 'tiny oathblade or aerial skirmisher', paladin: 'tiny radiant duelist or oath sprite', artificer: 'delicate atelier-maker', barbarian: 'wild fey skirmisher only in chaos' }, visualDoNot: ['bulky brute fantasy', 'oversized maul', 'arena colossus'] },
+  firbolg: { bodyLogic: 'large gentle woodland body', scaleLogic: 'large-presence but not giant clutter', faceMarkers: ['soft long ears'], silhouetteMarkers: ['woodland mass'], strongClassAffinities: ['druid', 'ranger', 'cleric', 'barbarian', 'fighter'], normalClassAffinities: ['monk', 'paladin', 'sorcerer', 'warlock'], rareReinterpretedClasses: ['rogue', 'bard', 'wizard', 'artificer'], chaosOnlyClasses: [], blockedDefaultClasses: [], reinterpretationRules: { rogue: 'moss scout or hush-warden', bard: 'earth-voice storyteller, not flashy minstrel' }, visualDoNot: ['flashy minstrel default'] },
+};
+
+function raceLogicFor(raceName: string): RaceVisualLogic {
+  return raceVisualLogic[raceName] ?? raceVisualLogic.human;
+}
+
+export function raceClassPlausibilityFor(raceName: string, primaryClass: CharacterClass): RaceClassPlausibilityLevel {
+  const logic = raceLogicFor(raceName);
+  if (logic.blockedDefaultClasses.includes(primaryClass)) return 'blocked_default';
+  if (logic.chaosOnlyClasses.includes(primaryClass)) return 'chaos_only';
+  if (logic.rareReinterpretedClasses.includes(primaryClass)) return 'rare_reinterpreted';
+  if (logic.strongClassAffinities.includes(primaryClass)) return 'strong_default';
+  return 'normal_default';
+}
+
+function raceClassReinterpretationFor(seed: Pick<CharacterSeed, 'race' | 'primaryClass'>): string | null {
+  const logic = raceLogicFor(seed.race.name);
+  return logic.reinterpretationRules[seed.primaryClass] ?? null;
+}
+
+function choosePlausibleRaceForClass(race: RaceOption, primaryClass: CharacterClass, mode: Mode, context: SmartSelectionContext): RaceOption {
+  const plausibility = raceClassPlausibilityFor(race.name, primaryClass);
+  if (mode === 'chaos' || (plausibility !== 'chaos_only' && plausibility !== 'blocked_default')) return race;
+  const pool = races.filter((candidate) => {
+    const level = raceClassPlausibilityFor(candidate.name, primaryClass);
+    return level === 'strong_default' || level === 'normal_default' || level === 'rare_reinterpreted';
+  });
+  const replacement = weightedPick(pool.length > 0 ? pool : races);
+  context.trace.push(`Race-class plausibility reroll: ${race.name}/${primaryClass} (${plausibility}) -> ${replacement.name}.`);
+  return replacement;
+}
+
 function supportingThemeFlavor(seed: CharacterSeed): string {
   const text = normalizeText(`${seed.visualTheme.id} ${seed.visualTheme.label} ${seed.archetype.name} ${seed.narrativeMotif.label}`);
   if (/grave|fallen|burial|oath/.test(text)) return 'after a burial vigil';
@@ -3289,7 +3406,104 @@ function classSafeSupportingThemeFlavor(seed: CharacterSeed): string {
 
 function resolveClassAuthoritativeDominantRead(seed: CharacterSeed): string {
   const role = classArtDirectionRoles[seed.primaryClass].role;
-  return `${seed.size} ${seed.race.name} ${seed.primaryClass} as ${role}, ${classSafeSupportingThemeFlavor(seed)}`;
+  const reinterpretation = raceClassReinterpretationFor(seed);
+  const classVerb = reinterpretation ? `${role}, reinterpreted as ${reinterpretation}` : role;
+  return `${seed.size} ${seed.race.name} ${seed.primaryClass} as ${classVerb}, ${classSafeSupportingThemeFlavor(seed)}`;
+}
+
+export function themeClassOverrideRisk(seed: CharacterSeed): ThemeClassOverrideRisk {
+  const text = normalizeText(`${seed.primaryClass} ${seed.buildTemplate.id} ${seed.visualTheme.id} ${seed.visualTheme.label} ${seed.weapon.name} ${seed.weaponLanguage.label} ${seed.pose.name} ${seed.light.name} ${seed.fx.name} ${seed.armor.name}`);
+  const reasons: string[] = [];
+  let level = 0;
+  const add = (points: number, reason: string) => {
+    level = Math.min(4, level + points);
+    reasons.push(reason);
+  };
+
+  if (seed.primaryClass === 'fighter' && /(holy_warrior|sun_knight|holy shield|divine rays|sunrise halo|cathedral|saint)/.test(text)) add(3, 'fighter-paladin light or holy gear drift');
+  if (seed.primaryClass === 'rogue' && /(wandering_bard|lore_skald|lute|flute|song resonance|performer|bardic)/.test(text)) add(3, 'rogue-bard instrument or performer drift');
+  if (seed.primaryClass === 'rogue' && /(trail_warden|longbow|map|compass|tracker|frontier)/.test(text)) add(2, 'rogue-ranger wilderness drift');
+  if (seed.primaryClass === 'wizard' && /(divine_archivist|holy symbol|holy shield|relic glow|prayer)/.test(text)) add(3, 'wizard-cleric divine prop drift');
+  if (seed.primaryClass === 'druid' && /(lute|flute|wandering_bard|lore_skald|courtly flourish|performer)/.test(text)) add(3, 'druid-bard performer drift');
+  if (seed.primaryClass === 'ranger' && /(ritualist|ritual prep|altar|antlered ritual|spellbook|grimoire)/.test(text)) add(2, 'ranger-druid or ritual caster drift');
+  if (seed.race.name === 'satyr' && seed.primaryClass === 'rogue' && /(lute|flute|song|bard|performer)/.test(text)) add(1, 'satyr rogue bard-bleed risk');
+  if (seed.race.name === 'aasimar' && !['cleric', 'paladin', 'sorcerer'].includes(seed.primaryClass) && /(halo|saint|divine rays|cathedral)/.test(text)) add(2, 'aasimar non-divine saint drift');
+
+  const numericLevel = Math.min(4, level) as 0 | 1 | 2 | 3 | 4;
+  return {
+    level: numericLevel,
+    reasons,
+    action: numericLevel <= 1 ? 'safe' : numericLevel === 2 ? 'downgrade_to_flavor' : numericLevel === 3 ? 'reinterpret_through_class' : 'suppress_class_stealing_signals',
+    unresolvedOverride: false,
+  };
+}
+
+export function divineLightModeForSeed(seed: CharacterSeed): DivineLightMode {
+  const text = normalizeText(`${seed.primaryClass} ${seed.buildTemplate.id} ${seed.visualTheme.id} ${seed.visualTheme.label} ${seed.archetype.name} ${seed.light.name} ${seed.fx.name}`);
+  const divineContext = /(holy|divine|sun|grave|fallen|saint|cleric|paladin|chaplain|warden|healer)/.test(text);
+  if (!divineContext) return 'none';
+  if (seed.primaryClass === 'fighter') return seed.weapon.tags.includes('shield') ? 'shield_edge_light' : seed.enchantmentIntensity !== 'none' ? 'weapon_edge_sacred_light' : 'dusty_battlefield_sun';
+  if (seed.primaryClass === 'cleric') {
+    if (/healer|mercy|wounded/.test(text)) return 'wounded_mercy_light';
+    if (/grave|fallen|warden/.test(text)) return 'sepulchral_lamp';
+    if (/relic|archivist/.test(text)) return 'relic_glow';
+    return 'candlelit_ritual';
+  }
+  if (seed.primaryClass === 'paladin') {
+    if (/grave|fallen|warden/.test(text)) return 'cold_judgement_rim';
+    if (seed.weapon.tags.includes('shield')) return 'shield_edge_light';
+    return seed.enchantmentIntensity !== 'none' ? 'weapon_edge_sacred_light' : 'muted_oath_light';
+  }
+  if (seed.primaryClass === 'monk') return 'hand_light';
+  return 'lantern_fog';
+}
+
+function divineLightPhrase(mode: DivineLightMode, fallback: string): string {
+  const phrases: Record<DivineLightMode, string> = {
+    none: fallback,
+    candlelit_ritual: 'small candlelit ritual glow around hands and cloth edges',
+    field_healer_lantern: 'field healer lantern warmth kept low on the body',
+    wounded_mercy_light: 'soft wounded-mercy light from the hands',
+    cold_judgement_rim: 'cold judgement rim light along armor and weapon edge',
+    relic_glow: 'compact relic glow close to the chest or hand',
+    hand_light: 'controlled hand light close to the body',
+    weapon_edge_sacred_light: 'thin sacred light along the weapon edge',
+    shield_edge_light: 'muted sacred light along the shield edge',
+    dusty_battlefield_sun: 'dusty battlefield sun caught on armor planes',
+    muted_oath_light: 'muted oath light on tabard and armor edges',
+    sepulchral_lamp: 'low sepulchral lamp glow near the hands',
+    lantern_fog: 'restrained lantern fog around the silhouette',
+    dawn_slash_rare: 'rare narrow dawn slash behind the weapon',
+    sunrise_halo_rare: 'rare small sunrise halo, not a giant saint aura',
+    cathedral_rays_iconic_only: 'iconic narrow cathedral rays kept behind the armor shape',
+  };
+  return phrases[mode];
+}
+
+function lightPhraseForImagePrompt(seed: CharacterSeed, artDirection: ArtDirectionBrief): string {
+  return artDirection.divineLightMode !== 'none' ? divineLightPhrase(artDirection.divineLightMode, seed.light.name) : seed.light.name;
+}
+
+function renderTextureHygieneGuidance(seed: CharacterSeed): string[] {
+  const guidance = [
+    'clean material separation',
+    'broad painterly value masses',
+    'controlled brush texture',
+    'readable surface hierarchy',
+  ];
+  if (seed.race.name !== 'dragonborn') guidance.push('no scale-like noise on cloth or skin');
+  return guidance;
+}
+
+export function renderTextureHygieneRisk(imagePrompt: string, seed?: Pick<CharacterSeed, 'race'>): { grid: boolean; rhombus: boolean; scaleOnNonScaledRace: boolean; overPatternedFabric: boolean } {
+  const positive = imagePrompt.split('Negative prompt:')[0] ?? imagePrompt;
+  const raceName = seed?.race.name ?? '';
+  return {
+    grid: /grid-like texture|repeating grid|checker texture|lattice artifact|wallpaper repetition/i.test(positive),
+    rhombus: /diamond pattern|mosaic texture|rhombus texture|tiled cloth pattern/i.test(positive),
+    scaleOnNonScaledRace: raceName !== 'dragonborn' && /scale-like noise|scaled micro-noise|scale pattern fabric/i.test(positive),
+    overPatternedFabric: /overpatterned fabric|symbol-covered fabric|micro-detail sprayed evenly/i.test(positive),
+  };
 }
 
 function poseDirectiveForArtDirection(seed: CharacterSeed): string {
@@ -3324,7 +3538,9 @@ function inferMagicManifestationMode(seed: CharacterSeed): MagicManifestationMod
 }
 
 function magicManifestationPhrase(seed: CharacterSeed, artDirection: ArtDirectionBrief): string {
-  const fx = seed.fx.name;
+  const fx = seed.primaryClass === 'fighter' && /divine rays|holy glow|sun motes|spectral feathers|sacred sparks/i.test(seed.fx.name)
+    ? 'muted sacred weapon glint'
+    : seed.fx.name;
   switch (artDirection.magicManifestationMode) {
     case 'none':
       return 'no large magic effect; rely on silhouette, materials, and expression';
@@ -3444,12 +3660,22 @@ function repairArtDirectionBrief(seed: CharacterSeed, brief: ArtDirectionBrief):
 export function resolveArtDirection(seed: CharacterSeed): ArtDirectionBrief {
   const poseDirective = poseDirectiveForArtDirection(seed);
   const magicManifestationMode = inferMagicManifestationMode(seed);
+  const divineLightMode = divineLightModeForSeed(seed);
+  const raceClassPlausibility = raceClassPlausibilityFor(seed.race.name, seed.primaryClass);
+  const raceClassReinterpretation = raceClassReinterpretationFor(seed);
+  const themeClassRisk = themeClassOverrideRisk(seed);
+  const renderTextureHygiene = renderTextureHygieneGuidance(seed);
   const storyShorthand = selectStoryShorthand(seed, { magicManifestationMode });
-  const secondaryFlavor = [
+  let secondaryFlavor = [
     seed.narrativeMotif.label,
     seed.culturalOrigin.label,
     supportingThemeFlavor(seed),
   ].filter(Boolean).slice(0, 3);
+  if (themeClassRisk.level >= 2) {
+    secondaryFlavor = secondaryFlavor.filter((flavor) => !classArtDirectionRoles[seed.primaryClass].forbidden.test(flavor));
+    secondaryFlavor.unshift(`${classFantasyBible[seed.primaryClass].coreFantasy.split(',')[0]} first`);
+    secondaryFlavor = [...new Set(secondaryFlavor)].slice(0, 3);
+  }
   const suppressedElements = [
     'extra books',
     'extra banners',
@@ -3461,7 +3687,10 @@ export function resolveArtDirection(seed: CharacterSeed): ArtDirectionBrief {
     'object clutter',
     'irrelevant story details',
     'flavor that competes with class or race read',
+    ...classFantasyBible[seed.primaryClass].classSpecificSuppressionRules,
   ];
+  if (themeClassRisk.level >= 2) suppressedElements.push('class-stealing theme props', ...themeClassRisk.reasons);
+  if (raceClassPlausibility === 'rare_reinterpreted' || raceClassPlausibility === 'chaos_only' || raceClassPlausibility === 'blocked_default') suppressedElements.push(...raceLogicFor(seed.race.name).visualDoNot);
   if (!/book|grimoire|journal/i.test(seed.weapon.name)) suppressedElements.push('secondary books', 'hovering grimoires');
   if (!/banner|pennant/i.test(seed.weapon.name)) suppressedElements.push('literal banners', 'literal flags');
   if (seed.size === 'tiny' || seed.size === 'small') suppressedElements.push('bulky oversized heroic framing');
@@ -3480,6 +3709,11 @@ export function resolveArtDirection(seed: CharacterSeed): ArtDirectionBrief {
     suppressedElements,
     poseDirective,
     magicManifestationMode,
+    divineLightMode,
+    raceClassPlausibility,
+    raceClassReinterpretation,
+    themeClassRisk,
+    renderTextureHygiene,
     storyShorthand,
     promptPriorityOrder: ['race appearance', 'primary class', 'silhouette', 'armor or clothing', 'primary weapon or tool', 'pose', 'light and FX', 'story shorthand', 'negative controls'],
     imagePromptGuidance: [
@@ -3521,13 +3755,15 @@ function buildPrimaryReadStack(seed: CharacterSeed, artDirection: ArtDirectionBr
   const weaponName = sanitizeWeaponNameForImagePrompt(seed);
   const weaponFragments = sanitizeWeaponLanguageForImagePrompt(seed);
   const armorFragments = sanitizeArmorLanguageForImagePrompt(seed);
+  const classFantasy = classFantasyBible[seed.primaryClass];
+  const raceLogic = raceLogicFor(seed.race.name);
   const identity = seed.curatedMulticlassProfile
     ? `Art direction: ${artDirection.dominantRead}. ${seed.size} ${seed.race.name} ${seed.primaryClass} primary, ${seed.primaryClass} / ${seed.curatedMulticlassProfile.secondaryClass} curated multiclass.`
     : `Art direction: ${artDirection.dominantRead}. ${seed.size} ${seed.race.name} ${seed.primaryClass} character.`;
   return {
     identity,
     raceAppearance: `Race appearance: ${raceAppearanceForImagePrompt(seed)}.`,
-    classRead: `Class and build fantasy: clearly readable as ${seed.primaryClass}; ${seed.buildTemplate.label}; ${seed.archetype.name}.`,
+    classRead: `Class and build fantasy: clearly readable as ${seed.primaryClass}; ${classFantasy.coreFantasy}; ${raceLogic.scaleLogic}.`,
     silhouette: `Silhouette: ${sanitizeSilhouetteForImagePrompt(seed)}.`,
     armor: `Armor and clothing: ${seed.armor.name}; ${armorFragments}.`,
     weapon: `Weapon and tool: ${weaponName}; ${weaponFragments}.`,
@@ -3537,8 +3773,9 @@ function buildPrimaryReadStack(seed: CharacterSeed, artDirection: ArtDirectionBr
 
 function buildFlavorStack(seed: CharacterSeed, artDirection: ArtDirectionBrief): FlavorStack {
   const details = shortList(sanitizeImagePromptDetails(seed, [...artDirection.storyShorthand, ...seed.characterBoundDetails]), 2);
+  const themeLabel = artDirection.themeClassRisk.level >= 2 ? `${seed.primaryClass}-colored ${classFantasyBible[seed.primaryClass].coreFantasy.split(',')[0]}` : seed.visualTheme.label;
   return {
-    theme: `Visual theme: ${seed.visualTheme.label}; flavor: ${shortList(artDirection.secondaryFlavor, 2)}.`,
+    theme: `Visual theme: ${themeLabel}; flavor: ${shortList(artDirection.secondaryFlavor, 2)}.`,
     details: `Character-bound visual details: ${details}.`,
     companion: seed.companion ? `Companion: ${seed.companion.label}, ${seed.companion.promptFragment}, visually subordinate to the character.` : null,
     sceneProps: seed.compositionMode === 'cinematic_splash_art' && seed.sceneProps.length > 0 ? shortList(seed.sceneProps, 2) : '',
@@ -3547,14 +3784,15 @@ function buildFlavorStack(seed: CharacterSeed, artDirection: ArtDirectionBrief):
 }
 
 function composeImagePromptFromStacks(seed: CharacterSeed, primaryRead: PrimaryReadStack, flavor: FlavorStack): string {
+  const artDirection = resolveArtDirection(seed);
   const stylePreset = stylePresets[stylePresetForSeed(seed)];
   const compactStyle = stylePresetForSeed(seed) === 'heroic_dnd_concept_art'
-    ? 'heroic D&D concept art, high-end painterly RPG art, dark heroic fantasy, large readable shapes, restrained accessories, clean silhouette, no accessory clutter'
+    ? 'heroic D&D concept art, high-end painterly RPG art, dark heroic fantasy, large readable shapes, restrained accessories, clean silhouette, clean material separation, broad painterly value masses'
     : stylePreset.phrase;
   return sentenceJoin([
     compositionImagePromptPhrase(seed.compositionMode) + '.',
     compactStyle + '.',
-    'Clean design: minimal belts and chains, no dangling ornaments.',
+    'Clean design: minimal belts and chains, no dangling ornaments, controlled brush texture.',
     primaryRead.identity,
     primaryRead.raceAppearance,
     primaryRead.classRead,
@@ -3567,7 +3805,7 @@ function composeImagePromptFromStacks(seed: CharacterSeed, primaryRead: PrimaryR
     flavor.magic,
     flavor.sceneProps ? `Limited scene props: ${flavor.sceneProps}.` : null,
     flavor.companion,
-    `Light: ${seed.light.name}.`,
+    `Light: ${lightPhraseForImagePrompt(seed, artDirection)}.`,
     qualityRulesForMode(seed.compositionMode),
     negativePromptForImage(),
   ]).replace(/subtle magical runes/gi, 'controlled focus shimmer').replace(/generic runes/gi, 'controlled focus shimmer').replace(/\s+/g, ' ').trim();

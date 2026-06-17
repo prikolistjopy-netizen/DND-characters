@@ -35,7 +35,7 @@ run(
 );
 writeFileSync(path.join(outDir, 'package.json'), JSON.stringify({ type: 'commonjs' }));
 
-const { generateCharacterSeed, resetSmartCandidatePoolMemory, validateGeneratedSeed, resolveArtDirection, validateArtDirectionBrief } = require(path.join(outDir, 'lib/generator.js'));
+const { generateCharacterSeed, resetSmartCandidatePoolMemory, validateGeneratedSeed, resolveArtDirection, validateArtDirectionBrief, renderTextureHygieneRisk } = require(path.join(outDir, 'lib/generator.js'));
 const { visualThemes, silhouetteProfiles, visualMotifs, armorLanguages, weaponLanguages, themeContentProfiles, dreamWalkerCompatibilityAliases, dreamWalkerRejectedCompatibilityTags } = require(path.join(outDir, 'data/seedData.js'));
 
 function increment(map, key, amount = 1) {
@@ -343,6 +343,30 @@ function analyze(label, useSmartPool) {
   let artistBriefMissingPose = 0;
   let artistBriefTooLong = 0;
   let artistBriefSuppressionMissing = 0;
+  let raceClassPlausibilityRiskCount = 0;
+  let blockedDefaultRaceClassCount = 0;
+  let chaosOnlyRaceClassInDefaultCount = 0;
+  let rareRaceClassReinterpretedCount = 0;
+  let raceClassReinterpretationAppliedCount = 0;
+  let themeOverridesPrimaryClassCount = 0;
+  let themeDowngradedToFlavorCount = 0;
+  let themeReinterpretedThroughClassCount = 0;
+  let themeRerolledForClassReadCount = 0;
+  let fighterPaladinDriftRiskCount = 0;
+  let rogueBardDriftRiskCount = 0;
+  let rogueRangerDriftRiskCount = 0;
+  let wizardClericDriftRiskCount = 0;
+  let druidBardDriftRiskCount = 0;
+  let divineHaloOveruseCount = 0;
+  let genericHolyBacklightCount = 0;
+  let cathedralRaysOveruseCount = 0;
+  const divineLightModeDistribution = new Map();
+  let fighterWithPaladinLightCount = 0;
+  let clericPaladinLightCollapseCount = 0;
+  let renderGridArtifactPromptRiskCount = 0;
+  let rhombusTextureRiskCount = 0;
+  let scaleTextureOnNonScaledRaceRiskCount = 0;
+  let overPatternedFabricRiskCount = 0;
   const recentPoseFamilyWindow = [];
   const recentClassPoseFamilyWindow = [];
   const recentWeaponPoseFamilyWindow = [];
@@ -515,7 +539,7 @@ function analyze(label, useSmartPool) {
     if (artDirection.secondaryFlavor.length > 3) secondaryFlavorOverBudgetCount += 1;
     storyShorthandTotal += artDirection.storyShorthand.length;
     if (artDirection.storyShorthand.length > 2 || artDirection.storyShorthand.some((detail) => artDirectionClutterPattern.test(detail))) storyShorthandClutterRiskCount += 1;
-    const suppressedLeakTerms = artDirection.suppressedElements.flatMap((item) => item.split(/\s+or\s+|,\s*/)).map((item) => item.trim()).filter((item) => item.length > 4 && !/^extra |^flavor |^irrelevant|^accessory clutter$|^object clutter$/.test(item));
+    const suppressedLeakTerms = artDirection.suppressedElements.flatMap((item) => item.split(/\s+or\s+|,\s*/)).map((item) => item.trim()).filter((item) => item.length > 4 && !/^extra |^flavor |^irrelevant|^accessory clutter$|^object clutter$|^class-|^suppress|^avoid|^no |^tiny|^instrument dominance|^paladin halo|^healer|^scholar|^performer|^mystic|^bard|^ranger|^druid|^wizard|^holy|^generic/.test(item));
     if (suppressedLeakTerms.some((term) => new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(positiveImagePrompt))) suppressedElementLeakCount += 1;
     if (/subtle magical runes|generic runes|floating symbols|glyph fragments/i.test(positiveImagePrompt)) genericRuneFxAfterArtDirectionCount += 1;
     if (artDirection.magicManifestationMode === 'none' && ['wizard', 'sorcerer', 'warlock', 'cleric', 'druid', 'bard', 'artificer'].includes(seed.primaryClass)) magicModeClassMismatchCount += 1;
@@ -537,6 +561,32 @@ function analyze(label, useSmartPool) {
     if (artDirection.magicManifestationMode === 'environment' && /generic mist|generic|swirling mist shown as restrained air/i.test(positiveImagePrompt)) environmentMagicGenericCount += 1;
     if (seed.primaryClass === 'bard' && /orb|generic wizard|focused scholar-adventurer/i.test(artDirection.dominantRead)) bardOrbCasterReadCount += 1;
     if (!['cleric', 'paladin'].includes(seed.primaryClass) && /holy symbol guardian|holy guardian/i.test(artDirection.dominantRead)) holySymbolNonDivineReadCount += 1;
+    const plausibility = artDirection.raceClassPlausibility;
+    if (['rare_reinterpreted', 'chaos_only', 'blocked_default'].includes(plausibility)) raceClassPlausibilityRiskCount += 1;
+    if (plausibility === 'blocked_default' && seed.mode !== 'chaos') blockedDefaultRaceClassCount += 1;
+    if (plausibility === 'chaos_only' && seed.mode !== 'chaos') chaosOnlyRaceClassInDefaultCount += 1;
+    if (plausibility === 'rare_reinterpreted') rareRaceClassReinterpretedCount += 1;
+    if (artDirection.raceClassReinterpretation) raceClassReinterpretationAppliedCount += 1;
+    if (artDirection.themeClassRisk?.unresolvedOverride) themeOverridesPrimaryClassCount += 1;
+    if (artDirection.themeClassRisk?.action === 'downgrade_to_flavor') themeDowngradedToFlavorCount += 1;
+    if (artDirection.themeClassRisk?.action === 'reinterpret_through_class') themeReinterpretedThroughClassCount += 1;
+    if (artDirection.themeClassRisk?.action === 'suppress_class_stealing_signals') themeRerolledForClassReadCount += 1;
+    if (seed.primaryClass === 'fighter' && /halo|cathedral rays|divine rays|saintly/i.test(positiveImagePrompt)) fighterPaladinDriftRiskCount += 1;
+    if (seed.primaryClass === 'rogue' && /lute|flute|songbook|song-scroll|performer-forward|bardic/i.test(positiveImagePrompt)) rogueBardDriftRiskCount += 1;
+    if (seed.primaryClass === 'rogue' && /trail warden|map and compass|frontier archer|ranger primary/i.test(positiveImagePrompt)) rogueRangerDriftRiskCount += 1;
+    if (seed.primaryClass === 'wizard' && /holy symbol|divine priest|cleric primary|paladin primary/i.test(positiveImagePrompt)) wizardClericDriftRiskCount += 1;
+    if (seed.primaryClass === 'druid' && /lute|flute|songbook|performer-forward|bardic/i.test(positiveImagePrompt)) druidBardDriftRiskCount += 1;
+    increment(divineLightModeDistribution, artDirection.divineLightMode ?? 'none');
+    if (/sunrise halo|halo-like|cathedral rays/i.test(positiveImagePrompt)) divineHaloOveruseCount += 1;
+    if (/generic holy backlight|divine rays|holy glow/i.test(positiveImagePrompt)) genericHolyBacklightCount += 1;
+    if (/cathedral rays/i.test(positiveImagePrompt)) cathedralRaysOveruseCount += 1;
+    if (seed.primaryClass === 'fighter' && /sunrise halo|cathedral rays|divine rays|holy glow/i.test(positiveImagePrompt)) fighterWithPaladinLightCount += 1;
+    if (seed.primaryClass === 'cleric' && /sunrise halo|cathedral rays|paladin|saint poster/i.test(positiveImagePrompt)) clericPaladinLightCollapseCount += 1;
+    const textureRisk = renderTextureHygieneRisk(imagePrompt, seed);
+    if (textureRisk.grid) renderGridArtifactPromptRiskCount += 1;
+    if (textureRisk.rhombus) rhombusTextureRiskCount += 1;
+    if (textureRisk.scaleOnNonScaledRace) scaleTextureOnNonScaledRaceRiskCount += 1;
+    if (textureRisk.overPatternedFabric) overPatternedFabricRiskCount += 1;
     imagePromptWordCountAfterArtDirectionCompressionTotal += imageWords;
     if (!/secondary flavor: .*?, .*?,/i.test(imagePrompt)) artDirectionCompressionRemovedFlavorCount += 1;
     const imageDetailText = extractImageDetailText(imagePrompt);
@@ -864,6 +914,30 @@ function analyze(label, useSmartPool) {
     artistBriefMissingPose,
     artistBriefTooLong,
     artistBriefSuppressionMissing,
+    raceClassPlausibilityRiskCount,
+    blockedDefaultRaceClassCount,
+    chaosOnlyRaceClassInDefaultCount,
+    rareRaceClassReinterpretedCount,
+    raceClassReinterpretationAppliedCount,
+    themeOverridesPrimaryClassCount,
+    themeDowngradedToFlavorCount,
+    themeReinterpretedThroughClassCount,
+    themeRerolledForClassReadCount,
+    fighterPaladinDriftRiskCount,
+    rogueBardDriftRiskCount,
+    rogueRangerDriftRiskCount,
+    wizardClericDriftRiskCount,
+    druidBardDriftRiskCount,
+    divineHaloOveruseCount,
+    genericHolyBacklightCount,
+    cathedralRaysOveruseCount,
+    divineLightModeDistribution,
+    fighterWithPaladinLightCount,
+    clericPaladinLightCollapseCount,
+    renderGridArtifactPromptRiskCount,
+    rhombusTextureRiskCount,
+    scaleTextureOnNonScaledRaceRiskCount,
+    overPatternedFabricRiskCount,
     emotionPoseMismatchCount,
     runeMotifGroundedNonArcaneCount,
     appearanceDistribution,
@@ -1032,6 +1106,35 @@ console.log(`Artist brief missing class/race: ${smart.artistBriefMissingClass}`)
 console.log(`Artist brief missing pose: ${smart.artistBriefMissingPose}`);
 console.log(`Artist brief too long: ${smart.artistBriefTooLong}`);
 console.log(`Artist brief suppression missing: ${smart.artistBriefSuppressionMissing}`);
+console.log('Race-class plausibility statistics');
+console.log(`Race-class plausibility risk count: ${smart.raceClassPlausibilityRiskCount}`);
+console.log(`Blocked default race/class count: ${smart.blockedDefaultRaceClassCount}`);
+console.log(`Chaos-only race/class in default count: ${smart.chaosOnlyRaceClassInDefaultCount}`);
+console.log(`Rare race/class reinterpreted count: ${smart.rareRaceClassReinterpretedCount}`);
+console.log(`Race-class reinterpretation applied count: ${smart.raceClassReinterpretationAppliedCount}`);
+console.log('Theme class override risk statistics');
+console.log(`Theme overrides primary class count: ${smart.themeOverridesPrimaryClassCount}`);
+console.log(`Theme downgraded to flavor count: ${smart.themeDowngradedToFlavorCount}`);
+console.log(`Theme reinterpreted through class count: ${smart.themeReinterpretedThroughClassCount}`);
+console.log(`Theme rerolled/suppressed for class read count: ${smart.themeRerolledForClassReadCount}`);
+console.log(`Fighter-paladin drift risk count: ${smart.fighterPaladinDriftRiskCount}`);
+console.log(`Rogue-bard drift risk count: ${smart.rogueBardDriftRiskCount}`);
+console.log(`Rogue-ranger drift risk count: ${smart.rogueRangerDriftRiskCount}`);
+console.log(`Wizard-cleric drift risk count: ${smart.wizardClericDriftRiskCount}`);
+console.log(`Druid-bard drift risk count: ${smart.druidBardDriftRiskCount}`);
+console.log('Divine light differentiation statistics');
+console.log(`Divine halo overuse count: ${smart.divineHaloOveruseCount}`);
+console.log(`Generic holy backlight count: ${smart.genericHolyBacklightCount}`);
+console.log(`Cathedral rays overuse count: ${smart.cathedralRaysOveruseCount}`);
+console.log('Divine light mode distribution');
+printTop(smart.divineLightModeDistribution, 20);
+console.log(`Fighter with paladin light count: ${smart.fighterWithPaladinLightCount}`);
+console.log(`Cleric-paladin light collapse count: ${smart.clericPaladinLightCollapseCount}`);
+console.log('Render texture hygiene statistics');
+console.log(`Render grid artifact prompt risk count: ${smart.renderGridArtifactPromptRiskCount}`);
+console.log(`Rhombus texture risk count: ${smart.rhombusTextureRiskCount}`);
+console.log(`Scale texture on non-scaled race risk count: ${smart.scaleTextureOnNonScaledRaceRiskCount}`);
+console.log(`Overpatterned fabric risk count: ${smart.overPatternedFabricRiskCount}`);
 console.log('Aasimar readability statistics');
 console.log(`Aasimar prompts: ${smart.aasimarPromptCount}`);
 console.log(`Aasimar celestial marker phrase: ${smart.aasimarCelestialMarkerCount}/${smart.aasimarPromptCount || 1} (${formatPercent((smart.aasimarCelestialMarkerCount / (smart.aasimarPromptCount || 1)) * 100)})`);
