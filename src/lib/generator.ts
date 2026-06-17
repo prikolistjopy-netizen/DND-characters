@@ -177,6 +177,9 @@ export type CharacterSeed = {
   mood: MoodOption;
   light: LightOption;
   fx: FxOption;
+  characterPresentation: CharacterPresentation;
+  backdropLane: BackdropLaneOption;
+  compositionLane: CompositionLaneOption;
 };
 
 export type GenerationResult = {
@@ -191,6 +194,50 @@ export type GenerationResult = {
 type MagicManifestationMode = 'none' | 'body' | 'weapon' | 'environment' | 'light' | 'companion' | 'subtle_aura';
 type RaceClassPlausibilityLevel = 'strong_default' | 'normal_default' | 'rare_reinterpreted' | 'chaos_only' | 'blocked_default';
 type DivineLightMode = 'none' | 'candlelit_ritual' | 'field_healer_lantern' | 'wounded_mercy_light' | 'cold_judgement_rim' | 'relic_glow' | 'hand_light' | 'weapon_edge_sacred_light' | 'shield_edge_light' | 'dusty_battlefield_sun' | 'muted_oath_light' | 'sepulchral_lamp' | 'lantern_fog' | 'dawn_slash_rare' | 'sunrise_halo_rare' | 'cathedral_rays_iconic_only';
+export type GenderPresentation = 'masculine' | 'feminine' | 'androgynous';
+export type ApparentAgeBand = 'young_adult' | 'adult' | 'middle_aged' | 'elder';
+export type CharacterPresentation = {
+  genderPresentation: GenderPresentation;
+  apparentAgeBand: ApparentAgeBand;
+  faceArchetype: string;
+  bodyType: string;
+  postureTemperament: string;
+};
+export type BackdropLane =
+  | 'abstract_painterly_gradient'
+  | 'storm_sky_silhouette'
+  | 'torchlit_wall'
+  | 'ruined_arch_shadow'
+  | 'forest_edge_depth'
+  | 'alley_rain_backlight'
+  | 'battlefield_dust_plane'
+  | 'workshop_glow_wall'
+  | 'candlelit_ritual_space'
+  | 'moonlit_fog_depth'
+  | 'desert_heat_haze'
+  | 'coastal_mist_edge'
+  | 'forge_ember_backdrop'
+  | 'tavern_stage_shadow'
+  | 'graveyard_lantern_fog'
+  | 'academy_window_light';
+export type CompositionLane =
+  | 'frontal_iconic'
+  | 'three_quarter_turn'
+  | 'walking_forward'
+  | 'diagonal_weapon_line'
+  | 'cloak_wind_turn'
+  | 'side_profile_ready'
+  | 'grounded_low_stance'
+  | 'upright_guardian'
+  | 'relaxed_after_battle'
+  | 'performance_turn'
+  | 'ritual_centered'
+  | 'stealth_angle'
+  | 'tool_inspection'
+  | 'aerial_small_race'
+  | 'seated_or_kneeling_rare';
+export type BackdropLaneOption = { id: BackdropLane; phrase: string; tags: string[]; weight: number };
+export type CompositionLaneOption = { id: CompositionLane; phrase: string; tags: string[]; weight: number };
 
 export type ThemeClassOverrideRisk = {
   level: 0 | 1 | 2 | 3 | 4;
@@ -241,6 +288,80 @@ const casterClasses: CharacterClass[] = ['wizard', 'sorcerer'];
 const hardArmorTags = ['light', 'medium', 'heavy', 'metal'];
 const scholarThemeIds = new Set(['divine_archivist', 'academy_mage', 'archive_performer']);
 const recentSeedMemory: CharacterSeed[] = [];
+
+const genderPresentationWeights: Array<WeightedOption<{ name: GenderPresentation }>> = [
+  { name: 'masculine', weight: 42 },
+  { name: 'feminine', weight: 42 },
+  { name: 'androgynous', weight: 16 },
+];
+
+const ageBandWeights: Array<WeightedOption<{ name: ApparentAgeBand }>> = [
+  { name: 'young_adult', weight: 20 },
+  { name: 'adult', weight: 40 },
+  { name: 'middle_aged', weight: 25 },
+  { name: 'elder', weight: 15 },
+];
+
+const faceArchetypes = [
+  'sharp noble face',
+  'weathered veteran face',
+  'soft healer face',
+  'mischievous performer face',
+  'haunted occult face',
+  'stern soldier face',
+  'wild expressive face',
+  'calm scholarly face',
+  'scarred survivor face',
+  'radiant severe face',
+];
+
+const postureTemperaments = [
+  'quiet authority',
+  'watchful restraint',
+  'measured confidence',
+  'restless readiness',
+  'solemn focus',
+  'wry social ease',
+  'controlled intensity',
+  'travel-worn patience',
+];
+
+const backdropLanes: BackdropLaneOption[] = [
+  { id: 'abstract_painterly_gradient', phrase: 'abstract painterly gradient with soft depth, no scene props', tags: ['general'], weight: 14 },
+  { id: 'storm_sky_silhouette', phrase: 'low-clutter storm sky silhouette behind the figure', tags: ['storm', 'sorcerer', 'warlock', 'barbarian'], weight: 9 },
+  { id: 'torchlit_wall', phrase: 'soft torchlit stone wall gradient, no scene props', tags: ['dungeon', 'fighter', 'rogue', 'cleric'], weight: 9 },
+  { id: 'ruined_arch_shadow', phrase: 'single ruined arch shadow as abstract depth, no rubble props', tags: ['grave', 'paladin', 'cleric', 'warlock'], weight: 8 },
+  { id: 'forest_edge_depth', phrase: 'forest edge depth with soft foliage silhouettes only', tags: ['forest', 'ranger', 'druid', 'fey'], weight: 10 },
+  { id: 'alley_rain_backlight', phrase: 'rainy alley backlight with abstract wet sheen, no clutter', tags: ['rogue', 'urban', 'bard'], weight: 8 },
+  { id: 'battlefield_dust_plane', phrase: 'battlefield dust plane behind the boots, no bodies or props', tags: ['fighter', 'barbarian', 'paladin'], weight: 9 },
+  { id: 'workshop_glow_wall', phrase: 'warm workshop glow on a plain wall, no workbench props', tags: ['artificer'], weight: 7 },
+  { id: 'candlelit_ritual_space', phrase: 'candlelit ritual atmosphere as soft wall glow, no altar props', tags: ['wizard', 'cleric', 'ritual'], weight: 7 },
+  { id: 'moonlit_fog_depth', phrase: 'moonlit fog depth behind the character, minimal ground detail', tags: ['warlock', 'rogue', 'druid'], weight: 8 },
+  { id: 'desert_heat_haze', phrase: 'desert heat haze gradient with clean atmospheric depth', tags: ['desert', 'ranger'], weight: 5 },
+  { id: 'coastal_mist_edge', phrase: 'coastal mist edge and muted horizon light, no docks or props', tags: ['coast', 'ranger', 'bard'], weight: 6 },
+  { id: 'forge_ember_backdrop', phrase: 'forge ember backdrop on a plain wall, no tool clutter', tags: ['dwarf', 'artificer', 'fighter'], weight: 7 },
+  { id: 'tavern_stage_shadow', phrase: 'tavern stage shadow as abstract warm backdrop, no furniture', tags: ['bard', 'rogue'], weight: 6 },
+  { id: 'graveyard_lantern_fog', phrase: 'graveyard lantern fog as distant atmosphere, no gravestone props', tags: ['grave', 'cleric', 'paladin'], weight: 6 },
+  { id: 'academy_window_light', phrase: 'academy window light pattern softened into a plain wall glow', tags: ['wizard', 'scholar', 'artificer'], weight: 6 },
+];
+
+const compositionLanes: CompositionLaneOption[] = [
+  { id: 'frontal_iconic', phrase: 'frontal iconic full-body read with slight asymmetry', tags: ['general'], weight: 7 },
+  { id: 'three_quarter_turn', phrase: 'three-quarter turn that keeps the full body readable', tags: ['general'], weight: 14 },
+  { id: 'walking_forward', phrase: 'walking forward with clean silhouette and grounded feet', tags: ['travel', 'ranger', 'fighter'], weight: 9 },
+  { id: 'diagonal_weapon_line', phrase: 'diagonal weapon line across a clean readable silhouette', tags: ['weapon', 'fighter', 'barbarian'], weight: 10 },
+  { id: 'cloak_wind_turn', phrase: 'turning slightly as cloak movement creates one large shape', tags: ['cloak', 'rogue', 'ranger', 'warlock'], weight: 8 },
+  { id: 'side_profile_ready', phrase: 'side-profile ready stance with face still visible', tags: ['weapon', 'stealth'], weight: 7 },
+  { id: 'grounded_low_stance', phrase: 'grounded low stance with broad stable shape', tags: ['barbarian', 'fighter', 'monk'], weight: 8 },
+  { id: 'upright_guardian', phrase: 'upright guardian composition with shield or weapon kept low', tags: ['paladin', 'cleric', 'fighter'], weight: 8 },
+  { id: 'relaxed_after_battle', phrase: 'relaxed after-battle composition, weapon at rest', tags: ['fighter', 'barbarian', 'ranger'], weight: 8 },
+  { id: 'performance_turn', phrase: 'performance turn with social gesture and full-body clarity', tags: ['bard'], weight: 7 },
+  { id: 'ritual_centered', phrase: 'ritual-centered stance, hands/focus close to body', tags: ['wizard', 'cleric', 'druid'], weight: 6 },
+  { id: 'stealth_angle', phrase: 'stealth angle with compact readable body line', tags: ['rogue'], weight: 8 },
+  { id: 'tool_inspection', phrase: 'tool inspection composition with one compact implement', tags: ['artificer', 'wizard'], weight: 6 },
+  { id: 'aerial_small_race', phrase: 'aerial small-race composition with wings or light step visible', tags: ['fairy', 'small'], weight: 6 },
+  { id: 'seated_or_kneeling_rare', phrase: 'rare seated or kneeling full-body composition with clear silhouette', tags: ['rare', 'ritual'], weight: 2 },
+];
 
 type PoseFamily = 'calm_presence' | 'class_specific_idle' | 'weapon_display' | 'social_pose' | 'travel_pose' | 'ritual_pose' | 'subtle_casting' | 'combat_ready' | 'wounded_survivor' | 'noble_portrait' | 'stealth_motion' | 'grounded_power_stance' | 'performance_pose' | 'protective_stance';
 type PoseEnergy = 'calm' | 'controlled' | 'ready' | 'dynamic' | 'high_action';
@@ -2113,6 +2234,9 @@ function createSeed(context: SmartSelectionContext): CharacterSeed {
   const mood = smartPickSimpleOption('Mood', constrainedMoodOptions(buildTemplate, archetype, visualTheme, narrativeMotif, narrativeVariant), archetype.tags, context);
   const light = smartPickSimpleOption('Light', constrainedLightOptions(buildTemplate, archetype, visualTheme), archetype.tags, context);
   const fx = smartPickSimpleOption('FX', constrainedFxOptions(buildTemplate, archetype, visualTheme, narrativeMotif, visualThemeVariant, narrativeVariant), [...archetype.tags, ...visualTheme.archetypeTags], context);
+  const characterPresentation = selectCharacterPresentation({ race, size, primaryClass });
+  const backdropLane = selectBackdropLane({ primaryClass, race, visualTheme, narrativeMotif, fantasyPillar });
+  const compositionLane = selectCompositionLane({ primaryClass, race, size, pose, weapon });
   const equipmentFinish = selectEquipmentFinish({ buildTemplate, visualTheme, fantasyPillar, armorLanguage, weaponLanguage }, context);
   const equipmentEnchantment = selectEquipmentEnchantment({ mode, buildTemplate, visualTheme, fantasyPillar, weapon, armor, visualMotif, fx }, context);
   let visualDetailSelection = buildVisualDetails(visualTheme, visualThemeVariant, themeProfile, visualMotif, armorLanguage, weaponLanguage, companionSelection.companion);
@@ -2170,6 +2294,9 @@ function createSeed(context: SmartSelectionContext): CharacterSeed {
     mood,
     light,
     fx,
+    characterPresentation,
+    backdropLane,
+    compositionLane,
   };
 
   return { ...seed, classAnchorScore: calculateClassAnchorScore(seed) };
@@ -2873,7 +3000,10 @@ function formatSeed(seed: CharacterSeed): string {
     `Size: ${seed.size}`,
     `Appearance Profile: ${seed.appearanceProfile.label}`,
     `Appearance Details: ${seed.appearanceProfile.promptFragment}`,
+    `Character Presentation: ${seed.characterPresentation.genderPresentation}, ${seed.characterPresentation.apparentAgeBand}, ${seed.characterPresentation.faceArchetype}, ${seed.characterPresentation.bodyType}, ${seed.characterPresentation.postureTemperament}`,
     `Composition Mode: ${seed.compositionMode}`,
+    `Composition Lane: ${seed.compositionLane.id}`,
+    `Backdrop Lane: ${seed.backdropLane.id}`,
     `Environment Detail Level: ${seed.environmentDetailLevel}`,
     `Style Preset: ${seed.stylePreset}`,
     `Secondary Class: ${seed.curatedMulticlassProfile ? seed.curatedMulticlassProfile.secondaryClass : 'none'}`,
@@ -2924,7 +3054,7 @@ function formatPrompt(seed: CharacterSeed): string {
     : `Create a D&D character concept art portrait of a ${seed.race.name} ${seed.primaryClass}.`;
   return [
     compositionPrompt(seed.compositionMode),
-    `Artist brief: ${artDirection.dominantRead}. Pose: ${artDirection.poseDirective}. Story shorthand: ${artDirection.storyShorthand.join('; ') || 'none'}. Avoid: ${artDirection.suppressedElements.slice(0, 4).join(', ')}.`,
+    `Artist brief: ${artDirection.dominantRead}. Presentation: ${seed.characterPresentation.genderPresentation} ${seed.characterPresentation.apparentAgeBand}, ${seed.characterPresentation.faceArchetype}, ${seed.characterPresentation.bodyType}. Backdrop: ${seed.backdropLane.phrase}. Composition: ${seed.compositionLane.phrase}. Pose: ${artDirection.poseDirective}. Story shorthand: ${artDirection.storyShorthand.join('; ') || 'none'}. Avoid: ${artDirection.suppressedElements.slice(0, 4).join(', ')}.`,
     multiclassLine,
     `Appearance: ${seed.appearanceProfile.promptFragment}.`,
     `Build template: ${seed.buildTemplate.label}; fantasy pillar: ${seed.fantasyPillar.label}; visual theme: ${seed.visualTheme.label} (${seed.visualFantasy}); theme variant: ${seed.visualThemeVariant.label}.`,
@@ -2957,7 +3087,7 @@ function qualityRulesForMode(compositionMode: CompositionMode): string {
 }
 
 function negativePromptForImage(): string {
-  return 'Negative prompt: no cropped body, no extra limbs, no malformed hands, no unreadable face, no modern clothing, no logo, no watermark, no cluttered background, no floor props, no duplicate weapons, no excessive belts, no chain clutter, no dangling ornaments, no loose papers, no item clutter, no stacks of books, no wearable library, no oversized banners, no giant flags, no repeating grid texture, no diamond pattern artifacts, no mosaic texture, no checker texture, no lattice artifact, no overpatterned fabric, no scale-like noise unless dragonborn, no readable text, only abstract marks or illegible symbols if papers or books appear.';
+  return 'Negative prompt: no cropped body, extra limbs, malformed hands, unreadable face, modern clothing, logo, watermark, cluttered background, floor props, duplicate weapons, excessive belts, crowded waist gear, belt papers or pouches, chain clutter, dangling ornaments, loose papers, item clutter, book stacks, wearable library, oversized banners, giant flags, heavy grain, noisy or speckled texture, gritty artifacts, tiled/grid/diamond/mosaic/rhombus/checker/lattice patterns, over-sharpened microdetail, crunchy texture, overpatterned fabric, all-over scale noise unless dragonborn, no readable text, only abstract marks or illegible symbols if papers or books appear.';
 }
 
 function sentenceJoin(parts: Array<string | null | undefined | false>): string {
@@ -3017,7 +3147,8 @@ function classifyImagePromptDetail(detail: string): ImageDetailCategory {
 function transformObjectClutterDetail(detail: string, seed: CharacterSeed): string | null {
   const text = normalizeText(detail);
   const weaponText = normalizeText(seed.weapon.name);
-  if (/battle reports?|field orders?|campaign maps?|campaign|reports?|orders?|inheritance letters?|letters?|coded travel record|weathered road journal|worn treasure map|maps?|journals?/.test(text)) return seed.primaryClass === 'fighter' ? 'campaign-worn officer trim' : seed.primaryClass === 'ranger' || seed.primaryClass === 'druid' ? 'mud-stained boots from long trail work' : 'weathered travel wear from old obligations';
+  if (/battle reports?|field orders?|campaign maps?|campaign|reports?|orders?|inheritance letters?|letters?/.test(text)) return seed.primaryClass === 'fighter' ? 'campaign-worn officer trim' : 'weathered travel wear from old obligations';
+  if (/coded travel record|weathered road journal|worn treasure map|maps?|journals?|compass|route chart/.test(text)) return seed.primaryClass === 'ranger' || seed.primaryClass === 'druid' ? 'route-worn cloak lining' : 'directional stitching on cuff';
   if (/first company banner|banner fragment|torn banner|pennant cords?|flags?|banners?|large flags?|giant banners?|multiple pennants?/.test(text)) {
     if (/banner|pennant/.test(weaponText)) return 'small torn cloth near the spearhead';
     return 'faded company color on cloak lining';
@@ -3028,10 +3159,13 @@ function transformObjectClutterDetail(detail: string, seed: CharacterSeed): stri
   if (/prayer strips?|many ribbons?|ribbons?|torn strips everywhere|excessive cloth strips?|long hanging scroll strips?/.test(text)) return 'clean sacred sash';
   if (/trophy loops?|many trophies?|trophies/.test(text)) return seed.primaryClass === 'barbarian' ? 'beast-scarred mantle' : 'trophy-scarred armor texture';
   if (/glyph fragments?|floating symbols?|floating glyphs?|formula bands?|symbol-covered fabric|symbol-covered robes?/.test(text)) return hasAny(seed.weapon.tags, ['magic-focus', 'staff', 'orb', 'wand', 'book']) ? 'controlled glow on the focus' : 'restrained embroidered trim';
-  if (/\bchains?\b|cords?|hanging chains?|dangling chains?|chain clusters?|many chains?|many medallions?|multiple amulets?|medallions?|many talismans?|talismans?|charms?|ornaments?|tokens?|coins?|necklaces?|keys?/.test(text)) return seed.primaryClass === 'paladin' || seed.primaryClass === 'cleric' ? 'worn sacred trim dulled by travel and vigil' : 'subtle material wear at the collar';
+  if (/\bchains?\b|cords?|hanging chains?|dangling chains?|chain clusters?|many chains?|many medallions?|multiple amulets?|medallions?|many talismans?|talismans?|charms?|ornaments?|tokens?|coins?|necklaces?|foreign coin necklace|keys?/.test(text)) return seed.primaryClass === 'paladin' || seed.primaryClass === 'cleric' ? 'worn sacred trim dulled by travel and vigil' : 'small worn metal accent at collar';
   if (/many belts?|excessive belts?|multiple straps?|excessive straps?|\bstraps?\b|crowded waist gear|overloaded belt gear|excessive buckles?/.test(text)) return 'practical armor fastening';
+  if (/tool rolls?|tool clusters?/.test(text)) return seed.primaryClass === 'artificer' || seed.primaryClass === 'rogue' ? 'single compact tool case' : 'practical seam reinforcement';
+  if (/tally marks?/.test(text)) return 'subtle scar-like marks on armor edge';
+  if (/trophy tassels?/.test(text)) return 'worn trophy-scar texture';
   if (/dangling charms?|dangling ornaments?|many small metal charms?|multiple tassels?|layered trinkets?|bookmarks?|loose pages?|loose papers?|documents?|notes?|scrolls?|charts?|thesis fragments?|wanted posters?|poster fragments?|pamphlets?|tally papers?|records?|ledgers?|inventory|license/.test(text)) {
-    if (seed.primaryClass === 'rogue' || seed.primaryClass === 'ranger') return 'single practical utility pouch';
+    if (seed.primaryClass === 'rogue' || seed.primaryClass === 'ranger') return 'single practical seam detail';
     if (seed.primaryClass === 'wizard' || seed.primaryClass === 'sorcerer' || seed.primaryClass === 'warlock') return 'clean robe panels';
     return 'subtle costume trim';
   }
@@ -3165,9 +3299,28 @@ function sanitizeArmorLanguageForImagePrompt(seed: CharacterSeed): string {
   return sanitizeAccessoryWording(source || seed.armor.name, seed, 'armor') || 'large readable armor shape';
 }
 
+function fighterPaladinHardComboSignals(seed: CharacterSeed): number {
+  if (seed.primaryClass !== 'fighter') return 0;
+  const text = normalizeText(`${seed.visualTheme.id} ${seed.visualTheme.label} ${seed.weapon.name} ${seed.weaponLanguage.label} ${seed.pose.name} ${seed.light.name} ${seed.fx.name} ${seed.silhouetteProfile.label}`);
+  return [
+    /holy_warrior|sun_knight|holy warrior|sun knight/.test(text),
+    /sacred|holy shield|relic shield|mace and holy shield/.test(text),
+    /golden divine rays|divine rays|holy glow|cathedral/.test(text),
+    /protective|shield lowered|shield braced/.test(text),
+    /sacred arch|saint|halo/.test(text),
+  ].filter(Boolean).length;
+}
+
 function sanitizeWeaponNameForImagePrompt(seed: CharacterSeed): string {
+  if (fighterPaladinHardComboSignals(seed) >= 3) {
+    if (seed.weapon.tags.includes('shield')) return 'longsword and plain shield';
+    if (hasAny(seed.weapon.tags, ['polearm', 'spear'])) return 'spear and shield';
+    if (hasAny(seed.weapon.tags, ['hammer', 'mace'])) return 'warhammer without holy symbol';
+    return 'heavy sword';
+  }
   if (/banner|pennant/i.test(seed.weapon.name)) return 'spear with a small torn cloth near the blade';
   if (seed.primaryClass === 'rogue' && !seed.classes.includes('bard') && /lute|flute|instrument|songbook|song-scroll|song scroll/i.test(seed.weapon.name)) return 'hidden blade and slim duelist knife';
+  if (seed.primaryClass === 'rogue' && /map|compass|scroll case|journal/i.test(seed.weapon.name)) return 'hidden blade and scout knife';
   if (seed.primaryClass === 'druid' && !seed.classes.includes('bard') && /lute|flute|instrument|songbook|rapier|cane sword/i.test(seed.weapon.name)) return 'organic staff and natural focus';
   if (seed.primaryClass === 'ranger' && /map|compass|scroll case|journal/i.test(seed.weapon.name)) return 'hunting bow and scout knife';
   if (seed.primaryClass === 'bard' && /orb|crystal orb|generic focus/i.test(seed.weapon.name)) return 'voice-led performance focus';
@@ -3176,8 +3329,10 @@ function sanitizeWeaponNameForImagePrompt(seed: CharacterSeed): string {
 }
 
 function sanitizeWeaponLanguageForImagePrompt(seed: CharacterSeed): string {
+  if (fighterPaladinHardComboSignals(seed) >= 3) return 'fighter-safe weapon read, no holy emblem';
   if (/banner|pennant/i.test(seed.weapon.name)) return 'clean spear silhouette';
   if (seed.primaryClass === 'rogue' && !seed.classes.includes('bard') && /lute|flute|instrument|song|performer/i.test(seed.weapon.name + ' ' + seed.weaponLanguage.label)) return 'quiet hidden-blade silhouette';
+  if (seed.primaryClass === 'rogue' && /map|compass|scroll|journal/i.test(seed.weapon.name + ' ' + seed.weaponLanguage.label)) return 'quiet ambush tool silhouette';
   if (seed.primaryClass === 'druid' && !seed.classes.includes('bard') && /lute|flute|instrument|song|performer|rapier/i.test(seed.weapon.name + ' ' + seed.weaponLanguage.label)) return 'organic focus silhouette';
   if (seed.primaryClass === 'ranger' && /map|compass|scroll|journal/i.test(seed.weapon.name + ' ' + seed.weaponLanguage.label)) return 'field-ready hunting weapon';
   const source = seed.weaponLanguage.promptFragments[0] ?? seed.weaponLanguage.label;
@@ -3367,6 +3522,77 @@ function choosePlausibleRaceForClass(race: RaceOption, primaryClass: CharacterCl
   return replacement;
 }
 
+function weightedLane<T extends { id: string; tags: string[]; weight: number }>(lanes: T[], preferredTags: string[], recentIds: string[]): T {
+  const scored = lanes.map((lane) => {
+    const tagBonus = lane.tags.some((tag) => preferredTags.includes(tag)) ? 35 : 0;
+    const recentPenalty = recentIds.includes(lane.id) ? -45 : 0;
+    return { ...lane, weight: Math.max(1, lane.weight + tagBonus + recentPenalty) };
+  });
+  return weightedPick(scored);
+}
+
+function bodyTypeFor(seed: Pick<CharacterSeed, 'race' | 'size' | 'primaryClass'>): string {
+  if (seed.size === 'tiny') return 'tiny aerial';
+  if (seed.size === 'small' && seed.primaryClass === 'barbarian') return 'small scarred scrapper';
+  if (seed.size === 'small') return 'small nimble';
+  if (seed.race.name === 'dwarf') return 'compact sturdy';
+  if (seed.race.name === 'dragonborn' || seed.race.name === 'half-orc') return seed.primaryClass === 'rogue' ? 'wiry powerful' : 'broad powerful';
+  if (seed.primaryClass === 'barbarian') return 'broad powerful';
+  if (seed.primaryClass === 'rogue' || seed.primaryClass === 'ranger' || seed.primaryClass === 'monk') return 'lean agile';
+  if (seed.primaryClass === 'wizard' || seed.primaryClass === 'cleric') return 'soft-robed';
+  if (seed.primaryClass === 'bard' || seed.primaryClass === 'sorcerer') return 'graceful tall';
+  if (seed.primaryClass === 'fighter' || seed.primaryClass === 'paladin') return 'athletic balanced';
+  return 'wiry';
+}
+
+function faceArchetypeFor(primaryClass: CharacterClass): string {
+  const byClass: Partial<Record<CharacterClass, string[]>> = {
+    fighter: ['stern soldier face', 'weathered veteran face', 'scarred survivor face'],
+    barbarian: ['wild expressive face', 'scarred survivor face', 'weathered veteran face'],
+    paladin: ['radiant severe face', 'weathered veteran face', 'sharp noble face'],
+    cleric: ['soft healer face', 'calm scholarly face', 'radiant severe face'],
+    wizard: ['calm scholarly face', 'haunted occult face', 'sharp noble face'],
+    sorcerer: ['haunted occult face', 'sharp noble face', 'wild expressive face'],
+    warlock: ['haunted occult face', 'sharp noble face', 'scarred survivor face'],
+    bard: ['mischievous performer face', 'sharp noble face', 'weathered veteran face'],
+    rogue: ['sharp noble face', 'scarred survivor face', 'mischievous performer face'],
+    ranger: ['weathered veteran face', 'scarred survivor face', 'stern soldier face'],
+    druid: ['wild expressive face', 'soft healer face', 'weathered veteran face'],
+    monk: ['calm scholarly face', 'stern soldier face', 'soft healer face'],
+    artificer: ['calm scholarly face', 'weathered veteran face', 'sharp noble face'],
+  };
+  return weightedPick((byClass[primaryClass] ?? faceArchetypes).map((name) => ({ name, weight: 10 }))).name;
+}
+
+function selectCharacterPresentation(seed: Pick<CharacterSeed, 'race' | 'size' | 'primaryClass'>): CharacterPresentation {
+  return {
+    genderPresentation: weightedPick(genderPresentationWeights).name,
+    apparentAgeBand: weightedPick(ageBandWeights).name,
+    faceArchetype: faceArchetypeFor(seed.primaryClass),
+    bodyType: bodyTypeFor(seed),
+    postureTemperament: weightedPick(postureTemperaments.map((name) => ({ name, weight: 10 }))).name,
+  };
+}
+
+function selectBackdropLane(seed: Pick<CharacterSeed, 'primaryClass' | 'race' | 'visualTheme' | 'narrativeMotif' | 'fantasyPillar'>): BackdropLaneOption {
+  const preferredTags = [
+    seed.primaryClass,
+    seed.race.name,
+    seed.visualTheme.id,
+    seed.fantasyPillar.id,
+    seed.narrativeMotif.id,
+    ...seed.visualTheme.archetypeTags,
+  ];
+  return weightedLane(backdropLanes, preferredTags, recentSeedMemory.slice(-8).map((recent) => recent.backdropLane?.id).filter(Boolean));
+}
+
+function selectCompositionLane(seed: Pick<CharacterSeed, 'primaryClass' | 'race' | 'size' | 'pose' | 'weapon'>): CompositionLaneOption {
+  const metadata = poseMetadata(seed.pose);
+  const preferredTags = [seed.primaryClass, seed.race.name, seed.size, metadata.poseFamily, ...seed.weapon.tags];
+  if (seed.size === 'tiny' || seed.race.name === 'fairy') preferredTags.push('small');
+  return weightedLane(compositionLanes, preferredTags, recentSeedMemory.slice(-8).map((recent) => recent.compositionLane?.id).filter(Boolean));
+}
+
 function supportingThemeFlavor(seed: CharacterSeed): string {
   const text = normalizeText(`${seed.visualTheme.id} ${seed.visualTheme.label} ${seed.archetype.name} ${seed.narrativeMotif.label}`);
   if (/grave|fallen|burial|oath/.test(text)) return 'after a burial vigil';
@@ -3481,15 +3707,20 @@ function divineLightPhrase(mode: DivineLightMode, fallback: string): string {
 }
 
 function lightPhraseForImagePrompt(seed: CharacterSeed, artDirection: ArtDirectionBrief): string {
+  if (fighterPaladinHardComboSignals(seed) >= 3) return 'dusty battlefield light and muted metal rim light, no halo';
   return artDirection.divineLightMode !== 'none' ? divineLightPhrase(artDirection.divineLightMode, seed.light.name) : seed.light.name;
 }
 
 function renderTextureHygieneGuidance(seed: CharacterSeed): string[] {
   const guidance = [
     'clean material separation',
-    'broad painterly value masses',
-    'controlled brush texture',
-    'readable surface hierarchy',
+    'smooth painterly value masses',
+    'clean matte rendering',
+    'low grain',
+    'controlled brush edges',
+    'natural cloth and leather texture',
+    'localized detail only',
+    'clean atmospheric depth',
   ];
   if (seed.race.name !== 'dragonborn') guidance.push('no scale-like noise on cloth or skin');
   return guidance;
@@ -3499,14 +3730,62 @@ export function renderTextureHygieneRisk(imagePrompt: string, seed?: Pick<Charac
   const positive = imagePrompt.split('Negative prompt:')[0] ?? imagePrompt;
   const raceName = seed?.race.name ?? '';
   return {
-    grid: /grid-like texture|repeating grid|checker texture|lattice artifact|wallpaper repetition/i.test(positive),
-    rhombus: /diamond pattern|mosaic texture|rhombus texture|tiled cloth pattern/i.test(positive),
-    scaleOnNonScaledRace: raceName !== 'dragonborn' && /scale-like noise|scaled micro-noise|scale pattern fabric/i.test(positive),
-    overPatternedFabric: /overpatterned fabric|symbol-covered fabric|micro-detail sprayed evenly/i.test(positive),
+    grid: /grid-like texture|repeating grid|checker texture|lattice artifact|wallpaper repetition|tiled texture/i.test(positive),
+    rhombus: /diamond pattern|mosaic texture|rhombus texture|tiled cloth pattern|repeating diamond/i.test(positive),
+    scaleOnNonScaledRace: raceName !== 'dragonborn' && /scale-like noise|scaled micro-noise|scale pattern fabric|all-over scale noise/i.test(positive),
+    overPatternedFabric: /overpatterned fabric|symbol-covered fabric|micro-detail sprayed evenly|heavy grain|noisy texture|speckled surface noise|crunchy texture/i.test(positive),
+  };
+}
+
+export function visualDirectorRisk(seed: CharacterSeed, imagePrompt: string): {
+  beltClutter: boolean;
+  visiblePropBudgetExceeded: boolean;
+  paperMapCompassLeak: boolean;
+  rogueMapCompassPrimary: boolean;
+  fighterFocusObject: boolean;
+  artificerPropSoup: boolean;
+  storyDetailObjectLeak: boolean;
+  fighterPaladinHardCombo: boolean;
+  fighterPaladinHardComboRepaired: boolean;
+  rogueBardHardCombo: boolean;
+  rogueBardHardComboRepaired: boolean;
+  wizardClericHardCombo: boolean;
+  druidBardHardCombo: boolean;
+  noisyTexturePromptRisk: boolean;
+  heavyGrainRisk: boolean;
+  microdetailOverusePromptRisk: boolean;
+  renderHygienePhraseCoverage: boolean;
+} {
+  const positive = imagePrompt.split('Negative prompt:')[0] ?? imagePrompt;
+  const weaponText = normalizeText(sanitizeWeaponNameForImagePrompt(seed));
+  const rawToolText = normalizeText(`${seed.weapon.name} ${seed.weaponLanguage.label}`);
+  const hardComboSignals = fighterPaladinHardComboSignals(seed);
+  const rogueBardRaw = seed.primaryClass === 'rogue' && /lute|flute|instrument|song|performer|bard/.test(rawToolText);
+  const wizardClericRaw = seed.primaryClass === 'wizard' && /holy symbol|divine|relic|prayer|cleric/.test(rawToolText + ' ' + normalizeText(seed.light.name));
+  const druidBardRaw = seed.primaryClass === 'druid' && /lute|flute|instrument|song|performer|bard/.test(rawToolText);
+  return {
+    beltClutter: /belt clutter|crowded waist|pouches on belt|papers on belt|maps? on belt|journal on belt|tool roll on belt/i.test(positive),
+    visiblePropBudgetExceeded: /multiple (?:tools|pouches|books|maps|weapons)|tool clusters?|prop soup|wearable library|several scrolls/i.test(positive),
+    paperMapCompassLeak: /battle reports?|campaign maps?|\bmap\b|\bmaps\b|compass|journal|loose papers?|documents?|scrolls?/i.test(positive),
+    rogueMapCompassPrimary: seed.primaryClass === 'rogue' && /map|compass/.test(weaponText),
+    fighterFocusObject: seed.primaryClass === 'fighter' && /orb|focus|book|grimoire|map|compass/.test(weaponText),
+    artificerPropSoup: seed.primaryClass === 'artificer' && /many tools|tool cluster|prop soup|many pouches|bottles|chains/i.test(positive),
+    storyDetailObjectLeak: /foreign coin necklace|token|tag|ledger|license|battle report|tally paper|tool roll/i.test(positive),
+    fighterPaladinHardCombo: hardComboSignals >= 3,
+    fighterPaladinHardComboRepaired: hardComboSignals >= 3 && /fighter-safe weapon|no halo|dusty battlefield light|muted metal rim|non-sacred guard|plain shield|without holy symbol/i.test(positive),
+    rogueBardHardCombo: rogueBardRaw,
+    rogueBardHardComboRepaired: rogueBardRaw && /hidden blade|duelist knife|quiet hidden-blade/i.test(positive),
+    wizardClericHardCombo: wizardClericRaw && /holy symbol|divine priest|cleric primary|paladin primary/i.test(positive),
+    druidBardHardCombo: druidBardRaw && /lute|flute|songbook|performer-forward|bardic/i.test(positive),
+    noisyTexturePromptRisk: /heavy grain|noisy texture|speckled surface noise|gritty digital artifacts|crunchy texture/i.test(positive),
+    heavyGrainRisk: /heavy grain|gritty digital artifacts/i.test(positive),
+    microdetailOverusePromptRisk: /all-over microtexture|over-sharpened microdetail|micro-detail sprayed/i.test(positive),
+    renderHygienePhraseCoverage: /premium painterly RPG illustration/i.test(imagePrompt) && /smooth painterly value masses/i.test(imagePrompt) && /low grain/i.test(imagePrompt),
   };
 }
 
 function poseDirectiveForArtDirection(seed: CharacterSeed): string {
+  if (fighterPaladinHardComboSignals(seed) >= 3) return 'fighter-readable grounded weapon-ready stance with non-sacred guard posture';
   const metadata = poseMetadata(seed.pose);
   const scale = seed.size === 'tiny' || seed.size === 'small' ? 'compact, scale-aware ' : '';
   const classPrefix = `${seed.primaryClass}-readable`;
@@ -3735,6 +4014,7 @@ export function resolveArtDirection(seed: CharacterSeed): ArtDirectionBrief {
 
 type PrimaryReadStack = {
   identity: string;
+  presentation: string;
   raceAppearance: string;
   classRead: string;
   silhouette: string;
@@ -3749,6 +4029,8 @@ type FlavorStack = {
   companion: string | null;
   sceneProps: string;
   magic: string;
+  backdrop: string;
+  composition: string;
 };
 
 function buildPrimaryReadStack(seed: CharacterSeed, artDirection: ArtDirectionBrief): PrimaryReadStack {
@@ -3762,8 +4044,9 @@ function buildPrimaryReadStack(seed: CharacterSeed, artDirection: ArtDirectionBr
     : `Art direction: ${artDirection.dominantRead}. ${seed.size} ${seed.race.name} ${seed.primaryClass} character.`;
   return {
     identity,
+    presentation: `Presentation: ${seed.characterPresentation.genderPresentation} ${seed.characterPresentation.apparentAgeBand}, ${seed.characterPresentation.faceArchetype}, ${seed.characterPresentation.bodyType}, ${seed.characterPresentation.postureTemperament}.`,
     raceAppearance: `Race appearance: ${raceAppearanceForImagePrompt(seed)}.`,
-    classRead: `Class and build fantasy: clearly readable as ${seed.primaryClass}; ${classFantasy.coreFantasy}; ${raceLogic.scaleLogic}.`,
+    classRead: `Class and build fantasy: clearly readable as ${seed.primaryClass}; ${classFantasy.coreFantasy.split(',')[0]}; ${raceLogic.scaleLogic}.`,
     silhouette: `Silhouette: ${sanitizeSilhouetteForImagePrompt(seed)}.`,
     armor: `Armor and clothing: ${seed.armor.name}; ${armorFragments}.`,
     weapon: `Weapon and tool: ${weaponName}; ${weaponFragments}.`,
@@ -3780,6 +4063,8 @@ function buildFlavorStack(seed: CharacterSeed, artDirection: ArtDirectionBrief):
     companion: seed.companion ? `Companion: ${seed.companion.label}, ${seed.companion.promptFragment}, visually subordinate to the character.` : null,
     sceneProps: seed.compositionMode === 'cinematic_splash_art' && seed.sceneProps.length > 0 ? shortList(seed.sceneProps, 2) : '',
     magic: `Magic and FX: ${magicManifestationPhrase(seed, artDirection)}.`,
+    backdrop: `Backdrop lane: ${seed.backdropLane.phrase}.`,
+    composition: `Composition: ${seed.compositionLane.phrase}.`,
   };
 }
 
@@ -3787,13 +4072,14 @@ function composeImagePromptFromStacks(seed: CharacterSeed, primaryRead: PrimaryR
   const artDirection = resolveArtDirection(seed);
   const stylePreset = stylePresets[stylePresetForSeed(seed)];
   const compactStyle = stylePresetForSeed(seed) === 'heroic_dnd_concept_art'
-    ? 'heroic D&D concept art, high-end painterly RPG art, dark heroic fantasy, large readable shapes, restrained accessories, clean silhouette, clean material separation, broad painterly value masses'
+    ? 'premium painterly RPG illustration, heroic D&D concept art, dark heroic fantasy, large readable shapes, restrained accessories, clean silhouette, smooth painterly value masses, clean matte rendering, low grain'
     : stylePreset.phrase;
   return sentenceJoin([
     compositionImagePromptPhrase(seed.compositionMode) + '.',
     compactStyle + '.',
-    'Clean design: minimal belts and chains, no dangling ornaments, controlled brush texture.',
+    'Clean design: minimal belts/chains, no dangling ornaments, controlled brush edges, localized detail.',
     primaryRead.identity,
+    primaryRead.presentation,
     primaryRead.raceAppearance,
     primaryRead.classRead,
     primaryRead.silhouette,
@@ -3803,6 +4089,8 @@ function composeImagePromptFromStacks(seed: CharacterSeed, primaryRead: PrimaryR
     flavor.theme,
     flavor.details,
     flavor.magic,
+    flavor.backdrop,
+    flavor.composition,
     flavor.sceneProps ? `Limited scene props: ${flavor.sceneProps}.` : null,
     flavor.companion,
     `Light: ${lightPhraseForImagePrompt(seed, artDirection)}.`,
@@ -3867,6 +4155,12 @@ function similarityScore(seed: CharacterSeed, previous: CharacterSeed): number {
   if (seed.narrativeMotif.id === previous.narrativeMotif.id) score += 6;
   if (seed.narrativeVariant.id === previous.narrativeVariant.id) score += 4;
   if (seed.emotion === previous.emotion) score += 3;
+  if (seed.backdropLane.id === previous.backdropLane.id) score += 10;
+  if (seed.compositionLane.id === previous.compositionLane.id) score += 10;
+  if (seed.characterPresentation.genderPresentation === previous.characterPresentation.genderPresentation) score += 3;
+  if (seed.characterPresentation.faceArchetype === previous.characterPresentation.faceArchetype) score += 4;
+  if (seed.characterPresentation.bodyType === previous.characterPresentation.bodyType) score += 4;
+  if (seed.primaryClass === previous.primaryClass && seed.backdropLane.id === previous.backdropLane.id && seed.compositionLane.id === previous.compositionLane.id) score += 18;
   score += detailOverlap(seed.storyDetails, previous.storyDetails) * 2;
   score += detailOverlap(seed.cultureDetails, previous.cultureDetails) * 2;
   return score;
@@ -4116,6 +4410,8 @@ export function generateCharacterSeed(options: GenerationOptions = {}): Generati
   trace.push(`Final selected narrativeVariant: ${resolvedSeed.narrativeVariant.id}.`);
   trace.push(`Final culture: ${resolvedSeed.culturalOrigin.label} (${resolvedSeed.cultureDetails.join(', ')}).`);
   trace.push(`Final appearance profile: ${resolvedSeed.appearanceProfile.id}.`);
+  trace.push(`Final presentation: ${resolvedSeed.characterPresentation.genderPresentation}, ${resolvedSeed.characterPresentation.apparentAgeBand}, ${resolvedSeed.characterPresentation.faceArchetype}, ${resolvedSeed.characterPresentation.bodyType}.`);
+  trace.push(`Final backdrop/composition lanes: ${resolvedSeed.backdropLane.id}; ${resolvedSeed.compositionLane.id}.`);
   trace.push(`Final character-bound details: ${resolvedSeed.characterBoundDetails.length}; scene props: ${resolvedSeed.sceneProps.length}; background props: ${resolvedSeed.backgroundProps.length}.`);
   trace.push(`Final silhouette profile: ${resolvedSeed.silhouetteProfile.id} (${resolvedSeed.silhouetteProfile.category}).`);
   trace.push(`Final visual motif: ${resolvedSeed.visualMotif.id}.`);

@@ -35,7 +35,7 @@ run(
 );
 writeFileSync(path.join(outDir, 'package.json'), JSON.stringify({ type: 'commonjs' }));
 
-const { generateCharacterSeed, resetSmartCandidatePoolMemory, validateGeneratedSeed, resolveArtDirection, validateArtDirectionBrief, renderTextureHygieneRisk } = require(path.join(outDir, 'lib/generator.js'));
+const { generateCharacterSeed, resetSmartCandidatePoolMemory, validateGeneratedSeed, resolveArtDirection, validateArtDirectionBrief, renderTextureHygieneRisk, visualDirectorRisk } = require(path.join(outDir, 'lib/generator.js'));
 const { visualThemes, silhouetteProfiles, visualMotifs, armorLanguages, weaponLanguages, themeContentProfiles, dreamWalkerCompatibilityAliases, dreamWalkerRejectedCompatibilityTags } = require(path.join(outDir, 'data/seedData.js'));
 
 function increment(map, key, amount = 1) {
@@ -367,6 +367,45 @@ function analyze(label, useSmartPool) {
   let rhombusTextureRiskCount = 0;
   let scaleTextureOnNonScaledRaceRiskCount = 0;
   let overPatternedFabricRiskCount = 0;
+  const genderPresentationDistribution = new Map();
+  const faceArchetypeDistribution = new Map();
+  const bodyTypeDistribution = new Map();
+  const backdropLaneDistribution = new Map();
+  const compositionLaneDistribution = new Map();
+  let allMasculineBatchRiskCount = 0;
+  let beardOveruseCount = 0;
+  let elderOveruseCount = 0;
+  let emptyBackgroundRiskCount = 0;
+  let repeatedBackdropLaneWithin8 = 0;
+  let scenePropRegressionCount = 0;
+  let frontalIconicOveruseCount = 0;
+  let repeatedCompositionWithin8 = 0;
+  let silhouetteVarietyScoreTotal = 0;
+  let poseCompositionMismatchCount = 0;
+  let beltClutterRiskCount = 0;
+  let visiblePropBudgetExceededCount = 0;
+  let paperMapCompassLeakCount = 0;
+  let rogueMapCompassPrimaryCount = 0;
+  let fighterFocusObjectCount = 0;
+  let artificerPropSoupRiskCount = 0;
+  let storyDetailObjectLeakCount = 0;
+  let noisyTexturePromptRiskCount = 0;
+  let heavyGrainRiskCount = 0;
+  let microdetailOverusePromptRiskCount = 0;
+  let renderHygienePhraseCoverage = 0;
+  let fighterPaladinHardComboCount = 0;
+  let fighterPaladinHardComboRepairedCount = 0;
+  let rogueBardHardComboCount = 0;
+  let rogueBardHardComboRepairedCount = 0;
+  let wizardClericHardComboCount = 0;
+  let druidBardHardComboCount = 0;
+  let repeatedVisualLaneComboWithin8 = 0;
+  let repeatedClassPoseBackdropWithin12 = 0;
+  const recentBackdropWindow = [];
+  const recentCompositionWindow = [];
+  const recentVisualLaneCombos = [];
+  const recentClassPoseBackdropCombos = [];
+const currentGenderBatch = [];
   const recentPoseFamilyWindow = [];
   const recentClassPoseFamilyWindow = [];
   const recentWeaponPoseFamilyWindow = [];
@@ -587,6 +626,48 @@ function analyze(label, useSmartPool) {
     if (textureRisk.rhombus) rhombusTextureRiskCount += 1;
     if (textureRisk.scaleOnNonScaledRace) scaleTextureOnNonScaledRaceRiskCount += 1;
     if (textureRisk.overPatternedFabric) overPatternedFabricRiskCount += 1;
+    const directorRisk = visualDirectorRisk(seed, imagePrompt);
+    increment(genderPresentationDistribution, seed.characterPresentation.genderPresentation);
+  currentGenderBatch.push(seed.characterPresentation.genderPresentation);
+  if (currentGenderBatch.length === 12) { if (currentGenderBatch.every((gender) => gender === 'masculine')) allMasculineBatchRiskCount += 1; currentGenderBatch.length = 0; }
+    increment(faceArchetypeDistribution, seed.characterPresentation.faceArchetype);
+    increment(bodyTypeDistribution, seed.characterPresentation.bodyType);
+    increment(backdropLaneDistribution, seed.backdropLane.id);
+    increment(compositionLaneDistribution, seed.compositionLane.id);
+    if (/beard/i.test(positiveImagePrompt)) beardOveruseCount += 1;
+    if (seed.characterPresentation.apparentAgeBand === 'elder') elderOveruseCount += 1;
+    if (/minimal empty background|plain dark background|empty background/i.test(positiveImagePrompt.replace(/full-body character concept art, centered character, entire body visible from head to toe, clean readable silhouette, minimal environment/i, ''))) emptyBackgroundRiskCount += 1;
+    if (seed.sceneProps.length > 0 && seed.compositionMode === 'full_body_character_art') scenePropRegressionCount += 1;
+    if (recentBackdropWindow.includes(seed.backdropLane.id)) repeatedBackdropLaneWithin8 += 1;
+    recentBackdropWindow.push(seed.backdropLane.id); if (recentBackdropWindow.length > 8) recentBackdropWindow.shift();
+    if (seed.compositionLane.id === 'frontal_iconic') frontalIconicOveruseCount += 1;
+    if (recentCompositionWindow.includes(seed.compositionLane.id)) repeatedCompositionWithin8 += 1;
+    recentCompositionWindow.push(seed.compositionLane.id); if (recentCompositionWindow.length > 8) recentCompositionWindow.shift();
+    silhouetteVarietyScoreTotal += new Set([seed.silhouetteProfile.category, seed.compositionLane.id, seed.backdropLane.id, seed.pose.name]).size;
+    if ((seed.compositionLane.id === 'performance_turn' && seed.primaryClass !== 'bard') || (seed.compositionLane.id === 'aerial_small_race' && seed.size !== 'tiny' && seed.race.name !== 'fairy')) poseCompositionMismatchCount += 1;
+    if (directorRisk.beltClutter) beltClutterRiskCount += 1;
+    if (directorRisk.visiblePropBudgetExceeded) visiblePropBudgetExceededCount += 1;
+    if (directorRisk.paperMapCompassLeak) paperMapCompassLeakCount += 1;
+    if (directorRisk.rogueMapCompassPrimary) rogueMapCompassPrimaryCount += 1;
+    if (directorRisk.fighterFocusObject) fighterFocusObjectCount += 1;
+    if (directorRisk.artificerPropSoup) artificerPropSoupRiskCount += 1;
+    if (directorRisk.storyDetailObjectLeak) storyDetailObjectLeakCount += 1;
+    if (directorRisk.noisyTexturePromptRisk) noisyTexturePromptRiskCount += 1;
+    if (directorRisk.heavyGrainRisk) heavyGrainRiskCount += 1;
+    if (directorRisk.microdetailOverusePromptRisk) microdetailOverusePromptRiskCount += 1;
+    if (directorRisk.renderHygienePhraseCoverage) renderHygienePhraseCoverage += 1;
+    if (directorRisk.fighterPaladinHardCombo) fighterPaladinHardComboCount += 1;
+    if (directorRisk.fighterPaladinHardComboRepaired) fighterPaladinHardComboRepairedCount += 1;
+    if (directorRisk.rogueBardHardCombo) rogueBardHardComboCount += 1;
+    if (directorRisk.rogueBardHardComboRepaired) rogueBardHardComboRepairedCount += 1;
+    if (directorRisk.wizardClericHardCombo) wizardClericHardComboCount += 1;
+    if (directorRisk.druidBardHardCombo) druidBardHardComboCount += 1;
+    const visualLaneCombo = `${seed.backdropLane.id}|${seed.compositionLane.id}|${seed.pose.name}|${artDirection.divineLightMode}`;
+    if (recentVisualLaneCombos.includes(visualLaneCombo)) repeatedVisualLaneComboWithin8 += 1;
+    recentVisualLaneCombos.push(visualLaneCombo); if (recentVisualLaneCombos.length > 8) recentVisualLaneCombos.shift();
+    const classPoseBackdrop = `${seed.primaryClass}|${seed.pose.name}|${seed.backdropLane.id}`;
+    if (recentClassPoseBackdropCombos.includes(classPoseBackdrop)) repeatedClassPoseBackdropWithin12 += 1;
+    recentClassPoseBackdropCombos.push(classPoseBackdrop); if (recentClassPoseBackdropCombos.length > 12) recentClassPoseBackdropCombos.shift();
     imagePromptWordCountAfterArtDirectionCompressionTotal += imageWords;
     if (!/secondary flavor: .*?, .*?,/i.test(imagePrompt)) artDirectionCompressionRemovedFlavorCount += 1;
     const imageDetailText = extractImageDetailText(imagePrompt);
@@ -938,6 +1019,13 @@ function analyze(label, useSmartPool) {
     rhombusTextureRiskCount,
     scaleTextureOnNonScaledRaceRiskCount,
     overPatternedFabricRiskCount,
+    genderPresentationDistribution, faceArchetypeDistribution, bodyTypeDistribution, backdropLaneDistribution, compositionLaneDistribution,
+    allMasculineBatchRiskCount, beardOveruseCount, elderOveruseCount, emptyBackgroundRiskCount, repeatedBackdropLaneWithin8, scenePropRegressionCount,
+    frontalIconicOveruseCount, repeatedCompositionWithin8, silhouetteVarietyScoreAverage: silhouetteVarietyScoreTotal / sampleSize, poseCompositionMismatchCount,
+    beltClutterRiskCount, visiblePropBudgetExceededCount, paperMapCompassLeakCount, rogueMapCompassPrimaryCount, fighterFocusObjectCount, artificerPropSoupRiskCount, storyDetailObjectLeakCount,
+    noisyTexturePromptRiskCount, heavyGrainRiskCount, microdetailOverusePromptRiskCount, renderHygienePhraseCoverage,
+    fighterPaladinHardComboCount, fighterPaladinHardComboRepairedCount, rogueBardHardComboCount, rogueBardHardComboRepairedCount, wizardClericHardComboCount, druidBardHardComboCount,
+    repeatedVisualLaneComboWithin8, repeatedClassPoseBackdropWithin12,
     emotionPoseMismatchCount,
     runeMotifGroundedNonArcaneCount,
     appearanceDistribution,
@@ -1130,6 +1218,40 @@ console.log('Divine light mode distribution');
 printTop(smart.divineLightModeDistribution, 20);
 console.log(`Fighter with paladin light count: ${smart.fighterWithPaladinLightCount}`);
 console.log(`Cleric-paladin light collapse count: ${smart.clericPaladinLightCollapseCount}`);
+console.log('Visual diversity and composition director statistics');
+printTop(smart.genderPresentationDistribution, 10);
+console.log(`All-masculine 12-sample batch risk count: ${smart.allMasculineBatchRiskCount}`);
+console.log(`Beard overuse count: ${smart.beardOveruseCount}`);
+console.log(`Elder overuse count: ${smart.elderOveruseCount}`);
+console.log('Face archetype distribution'); printTop(smart.faceArchetypeDistribution, 12);
+console.log('Body type distribution'); printTop(smart.bodyTypeDistribution, 12);
+console.log('Backdrop lane distribution'); printTop(smart.backdropLaneDistribution, 20);
+console.log(`Empty background risk count: ${smart.emptyBackgroundRiskCount}`);
+console.log(`Repeated backdrop lane within 8: ${smart.repeatedBackdropLaneWithin8}`);
+console.log(`Scene prop regression count: ${smart.scenePropRegressionCount}`);
+console.log('Composition lane distribution'); printTop(smart.compositionLaneDistribution, 20);
+console.log(`Frontal iconic overuse count: ${smart.frontalIconicOveruseCount}`);
+console.log(`Repeated composition within 8: ${smart.repeatedCompositionWithin8}`);
+console.log(`Silhouette variety score: ${smart.silhouetteVarietyScoreAverage.toFixed(2)}`);
+console.log(`Pose composition mismatch count: ${smart.poseCompositionMismatchCount}`);
+console.log(`Visible prop budget exceeded count: ${smart.visiblePropBudgetExceededCount}`);
+console.log(`Belt clutter risk count: ${smart.beltClutterRiskCount}`);
+console.log(`Paper/map/compass leak count: ${smart.paperMapCompassLeakCount}`);
+console.log(`Rogue map/compass primary count: ${smart.rogueMapCompassPrimaryCount}`);
+console.log(`Fighter focus object count: ${smart.fighterFocusObjectCount}`);
+console.log(`Artificer prop soup risk count: ${smart.artificerPropSoupRiskCount}`);
+console.log(`Story detail object leak count: ${smart.storyDetailObjectLeakCount}`);
+console.log(`Fighter-paladin hard combo repaired/unrepaired: ${smart.fighterPaladinHardComboRepairedCount}/${Math.max(0, smart.fighterPaladinHardComboCount - smart.fighterPaladinHardComboRepairedCount)}`);
+console.log(`Rogue-bard hard combo repaired/unrepaired: ${smart.rogueBardHardComboRepairedCount}/${Math.max(0, smart.rogueBardHardComboCount - smart.rogueBardHardComboRepairedCount)}`);
+console.log(`Wizard-cleric hard combo count: ${smart.wizardClericHardComboCount}`);
+console.log(`Druid-bard hard combo count: ${smart.druidBardHardComboCount}`);
+console.log(`Noisy texture prompt risk count: ${smart.noisyTexturePromptRiskCount}`);
+console.log(`Heavy grain risk count: ${smart.heavyGrainRiskCount}`);
+console.log(`Microdetail overuse prompt risk count: ${smart.microdetailOverusePromptRiskCount}`);
+console.log(`Render hygiene phrase coverage: ${smart.renderHygienePhraseCoverage}/${sampleSize}`);
+console.log(`Repeated visual lane combo within 8: ${smart.repeatedVisualLaneComboWithin8}`);
+console.log(`Repeated class pose backdrop within 12: ${smart.repeatedClassPoseBackdropWithin12}`);
+console.log(`Visual diversity score: ${((smart.genderPresentationDistribution.size + smart.faceArchetypeDistribution.size + smart.bodyTypeDistribution.size + smart.backdropLaneDistribution.size + smart.compositionLaneDistribution.size) / 5).toFixed(2)}`);
 console.log('Render texture hygiene statistics');
 console.log(`Render grid artifact prompt risk count: ${smart.renderGridArtifactPromptRiskCount}`);
 console.log(`Rhombus texture risk count: ${smart.rhombusTextureRiskCount}`);
