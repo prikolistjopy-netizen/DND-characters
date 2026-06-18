@@ -1,0 +1,1391 @@
+const { rmSync, writeFileSync } = require('node:fs');
+const { execFileSync: run } = require('node:child_process');
+const path = require('node:path');
+
+const root = path.resolve(__dirname, '..');
+const outDir = path.join(root, '.identity-analysis-build');
+const sampleSize = 10000;
+const dreamWalkerIconicPattern = /sleeping spirit|living dream butterflies|fractured reality|dream serpent|miniature moonlit door/i;
+const scholarThemes = new Set(['divine_archivist', 'academy_mage', 'archive_performer']);
+const layerOrder = ['Class Identity', 'Build Template', 'Visual Theme', 'Narrative Motif', 'Theme Variant', 'Narrative Variant', 'Culture'];
+
+rmSync(outDir, { recursive: true, force: true });
+run(
+  'tsc',
+  [
+    '--ignoreConfig',
+    '--outDir',
+    outDir,
+    '--module',
+    'commonjs',
+    '--target',
+    'ES2020',
+    '--moduleResolution',
+    'node10',
+    '--ignoreDeprecations',
+    '6.0',
+    '--esModuleInterop',
+    '--skipLibCheck',
+    '--lib',
+    'ES2020,DOM',
+    'src/data/seedData.ts',
+    'src/lib/generator.ts',
+  ],
+  { cwd: root, stdio: 'inherit' },
+);
+writeFileSync(path.join(outDir, 'package.json'), JSON.stringify({ type: 'commonjs' }));
+
+const { generateCharacterSeed, resetSmartCandidatePoolMemory, validateGeneratedSeed, resolveArtDirection, validateArtDirectionBrief, renderTextureHygieneRisk, visualDirectorRisk } = require(path.join(outDir, 'lib/generator.js'));
+const { visualThemes, silhouetteProfiles, visualMotifs, armorLanguages, weaponLanguages, themeContentProfiles, dreamWalkerCompatibilityAliases, dreamWalkerRejectedCompatibilityTags } = require(path.join(outDir, 'data/seedData.js'));
+
+function increment(map, key, amount = 1) {
+  map.set(key, (map.get(key) ?? 0) + amount);
+}
+
+function topEntries(map, limit = 20) {
+  return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit);
+}
+
+function median(values) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+}
+
+function formatPercent(value) {
+  return `${value.toFixed(1)}%`;
+}
+
+function wordCount(text) {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function hasForbiddenNoTextPhrase(text) {
+  return /\bno text\b|no text in image|text in image/i.test(text);
+}
+
+
+function startsWithCompositionPhrase(text) {
+  return /^(Full-body painted fantasy character study|full-body character concept art, centered character, entire body visible from head to toe, clean readable silhouette, minimal environment|focused character concept portrait, readable face and upper costume, limited background, strong race features|cinematic fantasy splash art, dynamic scene, dramatic lighting, readable character silhouette|clean vertical character card illustration, full body visible, readable silhouette, minimal background, strong design clarity)/i.test(text);
+}
+function oldPromptTemplate(text) { return /^Detailed fantasy concept art portrait of/i.test(text); }
+function extractImageDetailText(prompt) {
+  const match = prompt.match(/Character-bound visual details: (.*?)(?:\. Culture details:|\. Magic and FX:|\. Limited scene props:|\. Companion:|\. Light:)/);
+  return match ? match[1] : '';
+}
+function countMatches(text, pattern) { const matches = text.match(pattern); return matches ? matches.length : 0; }
+function countMatchingDetailItems(text, pattern) {
+  return text.split(/,\s*/).filter((item) => pattern.test(item)).length;
+}
+const noisyDetailPattern = /spyglass|wanted poster|ledger|records?|license|black-market relic tags?|wax-sealed inventory|trap maps?|coffin tags?|\btag\b|\btags\b|paper|scroll|journal|map|poster|inventory|trinket|tiny charm|hanging charm/i;
+const artDirectionClutterPattern = /many charms|cool necklace|mysterious token|several scrolls|decorative belts|extra pouches|random symbols|battle reports?|campaign maps?|stacked books?|banner fragments?|trophy loops?|formula bands?|chain clutter|dangling ornaments?/i;
+const paperRecordPattern = /ledger|records?|license|inventory|poster|map|scroll|journal|letter|contract|paper|notes|registry|writ/i;
+const spyglassPattern = /spyglass/i;
+const ledgerPattern = /ledger|license|inventory/i;
+const tagCharmPattern = /tag|charm|bead|trinket|token|coin|key|seal/i;
+const spyglassAllowedThemes = new Set(['pirate_raider', 'bounty_hunter', 'cartographer', 'scout', 'relic_thief', 'trail_warden', 'monster_tracker', 'swamp_tracker']);
+const bureaucracyAllowedThemes = new Set(['bounty_hunter', 'monster_tracker', 'relic_thief', 'trail_warden', 'divine_archivist', 'academy_mage', 'archive_performer', 'dream_walker']);
+const aasimarCelestialPattern = /celestial|radiant skin|halo|divine mark|birthmark|ethereal/i;
+const aasimarEyePattern = /luminous .*eyes|radiant eyes|silver eyes|star-like pupils|reflective eyes/i;
+const aasimarHaloMarkPattern = /halo|birthmark|divine mark|celestial scars|tear marks/i;
+const genericAasimarRiskPattern = /generic human|ordinary human|human with only/i;
+const highImpactPoseNames = new Set(['shield braced against incoming sparks', 'flying kick with prayer beads suspended midair', 'kneeling prayer as holy light gathers', 'performing a playful fey flourish', 'ready stance on a cracked dungeon tile', 'tracing a glowing sigil in the air', 'studying a map under candlelight']);
+function hasAny(tags, values) { return values.some((value) => tags.includes(value)); }
+function poseCategory(seed) {
+  const text = `${seed.pose.name} ${(seed.pose.tags ?? []).join(' ')}`.toLowerCase();
+  if (/prayer|kneeling|holy|sacred|ritual|sigil/.test(text)) return 'prayer_ritual';
+  if (/map|journal|study|studying|research|book|scroll|tools/.test(text)) return 'study_research';
+  if (/stealth|shadow|hidden|assassin|knife|crouch/.test(text)) return 'stealth_ready';
+  if (/fey|flourish|playful|perform|lute|flute|dance/.test(text)) return 'fey_performance';
+  if (/shield|guard|deflect|block|braced|defensive/.test(text)) return 'defensive_combat';
+  if (/strike|kick|attack|greatsword|axe|swing|duel|rapier|bow/.test(text)) return 'offensive_combat';
+  return 'calm_portrait';
+}
+
+function poseFamily(seed) {
+  const text = `${seed.pose.name} ${(seed.pose.tags ?? []).join(' ')}`.toLowerCase();
+  if (/instrument|song|story|perform|flourish|lute|flute/.test(text)) return 'performance_pose';
+  if (/dagger|crouch|ambush|stealth|cloak|stiletto|lock/.test(text)) return 'stealth_motion';
+  if (/shield|guard|protective|warding|reliquary/.test(text)) return 'protective_stance';
+  if (/staff planted|focus close|orb close|spell softly|one-handed spell|subtle magic|focus lowered/.test(text)) return 'subtle_casting';
+  if (/ritual|prayer|holy symbol|blessing|meditating|kneeling|relic censer/.test(text)) return 'ritual_pose';
+  if (/tracking|travel|walking|cloak held|wind|boots|road|bow held lowered|tracks|lantern low/.test(text)) return 'travel_pose';
+  if (/pommel|weapon grounded|checking blade|raised|greatsword|greataxe|maul|spear|bow|rapier|blade|weapon display/.test(text)) return 'weapon_display';
+  if (/ready stance|ready but not|braced|combat|close-quarters/.test(text)) return 'combat_ready';
+  if (/wound|survivor|after battle|battlefield|scar/.test(text)) return 'wounded_survivor';
+  if (/quiet authority|courtly|noble|portrait/.test(text)) return 'noble_portrait';
+  if (/tinkering|calibrating|adjusting|bracer|tool|device|gauntlet/.test(text)) return 'class_specific_idle';
+  if (/laughing|social|storytelling|unseen audience/.test(text)) return 'social_pose';
+  if (/ground slam|overhead|flying kick|charging|howling|leaping|mid-air/.test(text)) return 'grounded_power_stance';
+  return 'calm_presence';
+}
+function poseIsHighImpact(seed) {
+  return /tracing a glowing sigil|ready stance on a cracked dungeon tile|overhead strike|shield braced|kneeling prayer|flying kick|ground slam|charging|mid-air|leaping/i.test(seed.pose.name);
+}
+function emotionPoseMismatch(seed) {
+  const category = poseCategory(seed);
+  const emotion = seed.emotion;
+  if (category === 'defensive_combat' && ['reckless joy', 'curious delight'].includes(emotion) && seed.primaryClass !== 'barbarian' && !seed.visualTheme.id.includes('fey')) return true;
+  if (category === 'prayer_ritual' && ['wry confidence', 'reckless joy'].includes(emotion)) return true;
+  if (category === 'stealth_ready' && emotion === 'curious delight' && !seed.visualTheme.id.includes('fey')) return true;
+  if (category === 'study_research' && ['barely contained fury', 'reckless joy'].includes(emotion)) return true;
+  return false;
+}
+function runeMotifGrounded(seed) {
+  return seed.visualMotif?.id === 'rune_motif' && ['bounty_hunter', 'pirate_raider', 'urban_assassin', 'mercenary_captain', 'arena_champion', 'royal_guard', 'duel_saint'].includes(seed.visualTheme.id) && !['wizard', 'sorcerer', 'warlock', 'artificer'].includes(seed.primaryClass);
+}
+
+function entropy(counts) {
+  const total = [...counts.values()].reduce((sum, count) => sum + count, 0);
+  if (total === 0 || counts.size <= 1) return { entropy: 0, normalized: 0 };
+  const h = [...counts.values()].reduce((sum, count) => {
+    const p = count / total;
+    return sum - p * Math.log2(p);
+  }, 0);
+  return { entropy: h, normalized: h / Math.log2(counts.size) };
+}
+
+function identityBudget(seed) {
+  const raw = {
+    'Class Identity': Math.max(0, seed.classAnchorScore / 5) * 35,
+    'Build Template': 25,
+    'Visual Theme': 15,
+    'Narrative Motif': 10,
+    'Theme Variant': 5,
+    'Narrative Variant': 5,
+    Culture: 5,
+  };
+  const total = Object.values(raw).reduce((sum, value) => sum + value, 0);
+  const normalized = Object.fromEntries(Object.entries(raw).map(([key, value]) => [key, (value / total) * 100]));
+  const dominantLayer = Object.entries(normalized).sort((a, b) => b[1] - a[1])[0][0];
+  return { normalized, dominantLayer };
+}
+
+function detailOverlap(a, b) {
+  const bSet = new Set(b ?? []);
+  return (a ?? []).filter((item) => bSet.has(item)).length;
+}
+
+function visualCore(seed) {
+  return [
+    seed.buildTemplate.id,
+    seed.visualTheme.id,
+    seed.pose.name,
+    seed.weapon.name,
+    seed.light.name,
+    seed.fx.name,
+  ].join(' | ');
+}
+
+function similarityScore(seed, previous) {
+  let score = 0;
+  const matches = [
+    [seed.buildTemplate.id, previous.buildTemplate.id, 15],
+    [seed.visualTheme.id, previous.visualTheme.id, 18],
+    [seed.visualThemeVariant.id, previous.visualThemeVariant.id, 8],
+    [seed.silhouetteProfile?.id, previous.silhouetteProfile?.id, 12],
+    [seed.armor.name, previous.armor.name, 10],
+    [seed.armorLanguage?.id, previous.armorLanguage?.id, 8],
+    [seed.weapon.name, previous.weapon.name, 12],
+    [seed.weaponLanguage?.id, previous.weaponLanguage?.id, 8],
+    [seed.pose.name, previous.pose.name, 14],
+    [seed.mood.name, previous.mood.name, 8],
+    [seed.light.name, previous.light.name, 10],
+    [seed.fx.name, previous.fx.name, 10],
+    [seed.visualMotif?.id, previous.visualMotif?.id, 8],
+    [seed.equipmentFinish?.id, previous.equipmentFinish?.id, 5],
+    [seed.equipmentEnchantment?.id, previous.equipmentEnchantment?.id, 5],
+    [seed.race.id, previous.race.id, 5],
+    [seed.culturalOrigin.id, previous.culturalOrigin.id, 5],
+    [seed.narrativeMotif.id, previous.narrativeMotif.id, 6],
+    [seed.narrativeVariant.id, previous.narrativeVariant.id, 4],
+  ];
+  for (const [a, b, weight] of matches) if (a && a === b) score += weight;
+  if (seed.race.id === previous.race.id) score += appearanceSimilarity(seed, previous);
+  score += detailOverlap(seed.storyDetails, previous.storyDetails) * 2;
+  score += detailOverlap(seed.cultureDetails, previous.cultureDetails) * 2;
+  return score;
+}
+
+function appearanceSimilarity(seed, previous) {
+  if (!seed.appearanceProfile || !previous.appearanceProfile || seed.race.name !== previous.race.name) return 0;
+  let score = 0;
+  if (seed.appearanceProfile.id === previous.appearanceProfile.id) score += 12;
+  if (seed.appearanceProfile.ageCategory === previous.appearanceProfile.ageCategory) score += 6;
+  if (seed.appearanceProfile.faceType === previous.appearanceProfile.faceType) score += 8;
+  if (seed.appearanceProfile.bodyType === previous.appearanceProfile.bodyType) score += 6;
+  if (seed.appearanceProfile.facialHair && seed.appearanceProfile.facialHair === previous.appearanceProfile.facialHair) score += 8;
+  score += detailOverlap(seed.appearanceProfile.raceSpecificFeatures, previous.appearanceProfile.raceSpecificFeatures) * 4;
+  return score;
+}
+
+function detailDensity(seed) {
+  const visual = seed.visualDetails.length;
+  const story = seed.storyDetails.length;
+  const culture = seed.cultureDetails.length;
+  const companion = seed.companionDetails?.length ?? 0;
+  return { visual, story, culture, companion, total: visual + story + culture + companion };
+}
+
+function seedSummary(seed) {
+  return `${seed.primaryClass} ${seed.race.name} score ${seed.classAnchorScore}/5 | ${seed.culturalOrigin.label} | ${seed.fantasyPillar?.id ?? 'no-pillar'} | ${seed.buildTemplate.id} | ${seed.visualTheme.id}/${seed.visualThemeVariant.id} | ${seed.silhouetteProfile?.id ?? 'no-silhouette'} | ${seed.visualMotif?.id ?? 'no-motif'} | ${seed.armorLanguage?.id ?? 'no-armor-language'} | ${seed.weaponLanguage?.id ?? 'no-weapon-language'} | companion ${seed.companion?.id ?? 'none'} | ${seed.weapon.name} | ${seed.fx.name}`;
+}
+
+function classifyValidationIssue(issue, mismatchCounts) {
+  const message = issue.message;
+  if (message.includes('weapon language') || message.includes('blade weapon language') || message.includes('mechanical tool language') || message.includes('cane sword language')) mismatchCounts.weaponLanguage += 1;
+  if (message.includes('armor language') || message.includes('academy robes') || message.includes('hunter leather')) mismatchCounts.armorLanguage += 1;
+  if (message.includes('silhouette profile') || message.includes('companion silhouette') || message.includes('dragon_warden') || message.includes('falconer') || message.includes('beastmaster')) mismatchCounts.silhouette += 1;
+  if (message.includes('companion must') || message.includes('legendary companion') || message.includes('major/legendary companion')) mismatchCounts.companion += 1;
+  if (message.includes('visual motif')) mismatchCounts.visualMotif += 1;
+}
+
+function enchantmentFamily(seed) {
+  const id = seed.equipmentEnchantment?.id ?? 'none';
+  if (seed.enchantmentIntensity === 'none') return 'none';
+  if (/holy|relic|stained_glass/.test(id)) return 'holy';
+  if (/void|eclipse|starlight/.test(id)) return 'void';
+  if (/fey|flower/.test(id)) return 'fey';
+  if (/rune/.test(id)) return 'rune';
+  if (/mechanical/.test(id)) return 'mechanical';
+  if (/necrotic|grave/.test(id)) return 'necrotic';
+  return 'battle';
+}
+
+function hasContradictoryEquipmentFx(seed) {
+  const family = enchantmentFamily(seed);
+  if (['none', 'rune'].includes(family)) return false;
+  const fxName = seed.fx.name;
+  const voidFx = seed.fx.tags.includes('void') || /void|black-violet|purple/.test(fxName);
+  const holyFx = seed.fx.tags.includes('holy') || /holy|divine|spectral feather/.test(fxName);
+  const feyFx = seed.fx.tags.includes('fey') || /fey|petal|witchfire|pollen|butterfl/.test(fxName);
+  return (voidFx && ['holy', 'fey'].includes(family)) || (holyFx && ['void', 'fey', 'necrotic'].includes(family)) || (feyFx && ['void', 'holy', 'necrotic', 'mechanical'].includes(family));
+}
+
+function analyze(label, useSmartPool) {
+  resetSmartCandidatePoolMemory();
+  const failures = [];
+  const seeds = [];
+  const layerTotals = new Map(layerOrder.map((layer) => [layer, 0]));
+  const dominanceCounts = new Map();
+  const themeDominatesClass = new Map();
+  const motifDominatesClass = new Map();
+  const scholarTriggers = new Map();
+  const classScores = new Map();
+  const detailDensityCounts = new Map();
+  const themeCounts = new Map();
+  const cultureCounts = new Map();
+  const combinationCounts = new Map();
+  const generatedSamples = [];
+  const silhouetteCounts = new Map();
+  const visualMotifCounts = new Map();
+  const companionCounts = new Map();
+  const armorLanguageCounts = new Map();
+  const weaponLanguageCounts = new Map();
+  const equipmentFinishCounts = new Map();
+  const equipmentEnchantmentCounts = new Map();
+  const enchantmentIntensityCounts = new Map();
+  const visualDetailCounts = new Map();
+  const plainWeaponFallbackSources = new Map();
+  const plainWeaponFallbackTags = new Map();
+  const plainWeaponFallbackBuildTemplates = new Map();
+  const plainWeaponFallbackThemes = new Map();
+  const plainWeaponFallbackClasses = new Map();
+  const sequentialThemeCounts = new Map();
+  const sequentialPoseCounts = new Map();
+  const poseFamilyCounts = new Map();
+  let highImpactPoseCount = 0;
+  let casterActiveCastingPoseCount = 0;
+  let casterPoseTotal = 0;
+  let casterSigilPoseCount = 0;
+  let repeatedPoseFamilyWithinEightCount = 0;
+  let classPoseRepetitionCount = 0;
+  let weaponPoseRepetitionCount = 0;
+  let primaryReadMissingRace = 0;
+  let primaryReadMissingClass = 0;
+  let primaryReadMissingSilhouette = 0;
+  let primaryReadMissingWeapon = 0;
+  let primaryReadMissingPose = 0;
+  let flavorStackDominatesPromptCount = 0;
+  let artDirectionGeneratedCount = 0;
+  let dominantReadMissingClassCount = 0;
+  let dominantReadMissingRaceCount = 0;
+  let dominantReadTooLongCount = 0;
+  let primaryVisualReadCoverageTotal = 0;
+  let secondaryFlavorOverBudgetCount = 0;
+  let suppressedElementLeakCount = 0;
+  let storyShorthandTotal = 0;
+  let storyShorthandClutterRiskCount = 0;
+  let genericRuneFxAfterArtDirectionCount = 0;
+  let magicModeClassMismatchCount = 0;
+  let artDirectionPrimaryReadRegressionCount = 0;
+  const magicManifestationModeCounts = new Map();
+  let dominantReadClassDriftCount = 0;
+  let dominantReadThemeOverridesClassCount = 0;
+  let dominantReadWrongRoleNounCount = 0;
+  let dominantReadPrimaryClassCoverageCount = 0;
+  let artDirectionRepairCount = 0;
+  let dominantReadRepairCount = 0;
+  let poseDirectiveRepairCount = 0;
+  let secondaryFlavorDemotionCount = 0;
+  let conflictingFlavorSuppressedCount = 0;
+  const magicModeDistributionByClass = new Map();
+  const casterBodyMagicTotals = new Map();
+  const casterBodyMagicCounts = new Map();
+  let environmentMagicGenericCount = 0;
+  let bardOrbCasterReadCount = 0;
+  let holySymbolNonDivineReadCount = 0;
+  let imagePromptWordCountAfterArtDirectionCompressionTotal = 0;
+  let artDirectionCompressionRemovedFlavorCount = 0;
+  let primaryReadLostAfterCompressionCount = 0;
+  let artistBriefMissingDominantRead = 0;
+  let artistBriefMissingClass = 0;
+  let artistBriefMissingPose = 0;
+  let artistBriefTooLong = 0;
+  let artistBriefSuppressionMissing = 0;
+  let raceClassPlausibilityRiskCount = 0;
+  let blockedDefaultRaceClassCount = 0;
+  let chaosOnlyRaceClassInDefaultCount = 0;
+  let rareRaceClassReinterpretedCount = 0;
+  let raceClassReinterpretationAppliedCount = 0;
+  let themeOverridesPrimaryClassCount = 0;
+  let themeDowngradedToFlavorCount = 0;
+  let themeReinterpretedThroughClassCount = 0;
+  let themeRerolledForClassReadCount = 0;
+  let fighterPaladinDriftRiskCount = 0;
+  let rogueBardDriftRiskCount = 0;
+  let rogueRangerDriftRiskCount = 0;
+  let wizardClericDriftRiskCount = 0;
+  let druidBardDriftRiskCount = 0;
+  let divineHaloOveruseCount = 0;
+  let genericHolyBacklightCount = 0;
+  let cathedralRaysOveruseCount = 0;
+  const divineLightModeDistribution = new Map();
+  let fighterWithPaladinLightCount = 0;
+  let clericPaladinLightCollapseCount = 0;
+  let renderGridArtifactPromptRiskCount = 0;
+  let rhombusTextureRiskCount = 0;
+  let scaleTextureOnNonScaledRaceRiskCount = 0;
+  let overPatternedFabricRiskCount = 0;
+  const genderPresentationDistribution = new Map();
+  const faceArchetypeDistribution = new Map();
+  const bodyTypeDistribution = new Map();
+  const backdropLaneDistribution = new Map();
+  const compositionLaneDistribution = new Map();
+  let allMasculineBatchRiskCount = 0;
+  let beardOveruseCount = 0;
+  let elderOveruseCount = 0;
+  let emptyBackgroundRiskCount = 0;
+  let repeatedBackdropLaneWithin8 = 0;
+  let scenePropRegressionCount = 0;
+  let frontalIconicOveruseCount = 0;
+  let repeatedCompositionWithin8 = 0;
+  let silhouetteVarietyScoreTotal = 0;
+  let poseCompositionMismatchCount = 0;
+  let beltClutterRiskCount = 0;
+  let visiblePropBudgetExceededCount = 0;
+  let paperMapCompassLeakCount = 0;
+  let rogueMapCompassPrimaryCount = 0;
+  let fighterFocusObjectCount = 0;
+  let artificerPropSoupRiskCount = 0;
+  let storyDetailObjectLeakCount = 0;
+  let noisyTexturePromptRiskCount = 0;
+  let heavyGrainRiskCount = 0;
+  let microdetailOverusePromptRiskCount = 0;
+  let renderHygienePhraseCoverage = 0;
+  let fighterPaladinHardComboCount = 0;
+  let fighterPaladinHardComboRepairedCount = 0;
+  let rogueBardHardComboCount = 0;
+  let rogueBardHardComboRepairedCount = 0;
+  let wizardClericHardComboCount = 0;
+  let druidBardHardComboCount = 0;
+  let repeatedVisualLaneComboWithin8 = 0;
+  let repeatedClassPoseBackdropWithin12 = 0;
+  const recentBackdropWindow = [];
+  const recentCompositionWindow = [];
+  const recentVisualLaneCombos = [];
+  const recentClassPoseBackdropCombos = [];
+const currentGenderBatch = [];
+  const recentPoseFamilyWindow = [];
+  const recentClassPoseFamilyWindow = [];
+  const recentWeaponPoseFamilyWindow = [];
+  const sequentialFxCounts = new Map();
+  const sequentialDetailCounts = new Map();
+  const appearanceDistribution = new Map();
+  const compositionModeCounts = new Map();
+  const environmentLevelCounts = new Map();
+  const scenePropCounts = new Map();
+  const characterBoundCounts = new Map();
+  const scenePropTop = new Map();
+  const modeCounts = new Map();
+  const curatedProfileCounts = new Map();
+  const dreamWalkerVariantCounts = new Map();
+  const dreamWalkerSilhouetteCounts = new Map();
+  const dreamWalkerArmorCounts = new Map();
+  const dreamWalkerWeaponCounts = new Map();
+  const dreamWalkerWeaponLanguageCounts = new Map();
+  const dreamWalkerFinishCounts = new Map();
+  const dreamWalkerEnchantmentCounts = new Map();
+  const dreamWalkerPoseCounts = new Map();
+  const dreamWalkerMoodCounts = new Map();
+  const dreamWalkerLightCounts = new Map();
+  const dreamWalkerFxCounts = new Map();
+  const dreamWalkerDetailCounts = new Map();
+  let dreamWalkerCount = 0;
+  let dreamWalkerScenePropTotal = 0;
+  let dreamWalkerIconicCount = 0;
+  let scenePropTotal = 0;
+  let characterBoundTotal = 0;
+  let excessiveClutterCount = 0;
+  let consecutiveSameRaceSameAppearanceCount = 0;
+  let sameRaceAppearanceSimilarityTotal = 0;
+  let sameRaceAppearanceComparisonCount = 0;
+  let randomMulticlassCount = 0;
+  let tripleMulticlassCount = 0;
+  let forbiddenMulticlassCount = 0;
+  let multiclassAnchorTotal = 0;
+  let multiclassAnchorCount = 0;
+  let conflictCount = 0;
+  let equipmentContradictionCount = 0;
+  let companionActiveCount = 0;
+  let legendaryCompanionCount = 0;
+  let imagePromptWordTotal = 0;
+  let imagePromptWordMax = 0;
+  let imagePromptOver450Count = 0;
+  let imagePromptNoReadableTextCount = 0;
+  let imagePromptNoTextPhraseCount = 0;
+  let imagePromptFullBodyModePhraseCount = 0;
+  let imagePromptFullBodyModeTotal = 0;
+  let imagePromptRaceAppearanceCount = 0;
+  let imagePromptClassReadabilityCount = 0;
+  let imagePromptQualityRulesCount = 0;
+  let imagePromptNegativePromptCount = 0;
+  let imagePromptScenePropTotal = 0;
+  let imagePromptCharacterBoundTotal = 0;
+  let fullGenerationMissingCount = 0;
+  let fullGenerationMissingSeedHeaderCount = 0;
+  let fullGenerationMissingImageHeaderCount = 0;
+  let fullGenerationImageMismatchCount = 0;
+  let fullGenerationContainsTraceCount = 0;
+  let fullGenerationOldPromptCount = 0;
+  let oldPromptTemplateAsImagePromptCount = 0;
+  let imagePromptMissingCompositionPhraseCount = 0;
+  let imagePromptMissingRaceAppearanceCount = 0;
+  let imagePromptMissingClassReadabilityCount = 0;
+  let aasimarPromptCount = 0;
+  let aasimarCelestialMarkerCount = 0;
+  let aasimarEyeMarkerCount = 0;
+  let aasimarHaloMarkCount = 0;
+  let aasimarGenericRiskCount = 0;
+  let noisyDetailTotal = 0;
+  let paperOverusePromptCount = 0;
+  let spyglassOutsideAllowedCount = 0;
+  let ledgerOutsideAllowedCount = 0;
+  let tagCharmClusterOveruseCount = 0;
+  let repeatedHighImpactPoseWithinFiveCount = 0;
+  let repeatedPoseSameClassWithinTenCount = 0;
+  let emotionPoseMismatchCount = 0;
+  let runeMotifGroundedNonArcaneCount = 0;
+  const recentPoseWindow = [];
+  const recentPoseClassWindow = [];
+  let previousSequentialSeed = null;
+  let sequentialSimilarityTotal = 0;
+  let sequentialSimilarityMax = 0;
+  let sequentialComparisonCount = 0;
+  let consecutiveVisualCoreDuplicateCount = 0;
+  let tooSimilarSequentialCount = 0;
+  const companionByClass = new Map();
+  const companionByBuildTemplate = new Map();
+  const companionClassTotals = new Map();
+  const companionBuildTemplateTotals = new Map();
+  const mismatchCounts = {
+    weaponLanguage: 0,
+    armorLanguage: 0,
+    silhouette: 0,
+    companion: 0,
+    visualMotif: 0,
+  };
+
+  for (let index = 0; index < sampleSize; index += 1) {
+    const result = generateCharacterSeed({ useSmartPool });
+    const { seed } = result;
+    const issues = validateGeneratedSeed(seed);
+    if (issues.length > 0) {
+      conflictCount += 1;
+      for (const issue of issues) classifyValidationIssue(issue, mismatchCounts);
+      failures.push(`${seedSummary(seed)} :: ${issues.map((issue) => issue.message).join('; ')}`);
+    }
+
+    increment(modeCounts, seed.mode);
+    increment(compositionModeCounts, seed.compositionMode ?? 'no-composition');
+    increment(environmentLevelCounts, seed.environmentDetailLevel ?? 'no-environment-level');
+    increment(appearanceDistribution, `${seed.race.name}:${seed.appearanceProfile?.id ?? 'no-appearance'}`);
+    increment(scenePropCounts, String(seed.sceneProps?.length ?? 0));
+    increment(characterBoundCounts, String(seed.characterBoundDetails?.length ?? 0));
+    scenePropTotal += seed.sceneProps?.length ?? 0;
+    characterBoundTotal += seed.characterBoundDetails?.length ?? 0;
+    for (const prop of seed.sceneProps ?? []) increment(scenePropTop, prop);
+    const sceneLimit = seed.compositionMode === 'cinematic_splash_art' ? 3 : seed.environmentDetailLevel === 'minimal' || seed.compositionMode === 'character_card' ? 0 : 1;
+    if ((seed.sceneProps?.length ?? 0) > sceneLimit) excessiveClutterCount += 1;
+    const fullGenerationText = result.fullGenerationText ?? '';
+    if (!fullGenerationText) fullGenerationMissingCount += 1;
+    if (!fullGenerationText.includes('=== D&D CHARACTER SEED ===')) fullGenerationMissingSeedHeaderCount += 1;
+    if (!fullGenerationText.includes('=== IMAGE PROMPT ===')) fullGenerationMissingImageHeaderCount += 1;
+    if (!fullGenerationText.includes(result.imagePrompt ?? '')) fullGenerationImageMismatchCount += 1;
+    if (/Debug \/ Generation Trace|Generation Trace|Final validation status/i.test(fullGenerationText)) fullGenerationContainsTraceCount += 1;
+    if (oldPromptTemplate(fullGenerationText)) fullGenerationOldPromptCount += 1;
+    const artistBriefSentence = (result.promptDraft ?? '').match(/Artist brief: .*?(?= Create a D&D character concept art portrait| Appearance:)/)?.[0] ?? '';
+    if (!artistBriefSentence.includes('Artist brief:')) artistBriefMissingDominantRead += 1;
+    if (!new RegExp(`\\b${seed.primaryClass}\\b`, 'i').test(artistBriefSentence) || !new RegExp(`\\b${seed.race.name}\\b`, 'i').test(artistBriefSentence)) artistBriefMissingClass += 1;
+    if (!/Pose:/i.test(artistBriefSentence)) artistBriefMissingPose += 1;
+    if (wordCount(artistBriefSentence) > 55) artistBriefTooLong += 1;
+    if (!/Avoid:/i.test(artistBriefSentence)) artistBriefSuppressionMissing += 1;
+    const imagePrompt = result.imagePrompt ?? '';
+    const imageWords = wordCount(imagePrompt);
+    imagePromptWordTotal += imageWords;
+    imagePromptWordMax = Math.max(imagePromptWordMax, imageWords);
+    if (imageWords > 450) imagePromptOver450Count += 1;
+    if (imagePrompt.includes('no readable text')) imagePromptNoReadableTextCount += 1;
+    if (hasForbiddenNoTextPhrase(imagePrompt)) imagePromptNoTextPhraseCount += 1;
+    if (oldPromptTemplate(imagePrompt)) oldPromptTemplateAsImagePromptCount += 1;
+    if (!startsWithCompositionPhrase(imagePrompt)) imagePromptMissingCompositionPhraseCount += 1;
+    if (seed.compositionMode === 'full_body_character_art') {
+      imagePromptFullBodyModeTotal += 1;
+      if (/full-body painted fantasy character study|full-body character concept art/i.test(imagePrompt)) imagePromptFullBodyModePhraseCount += 1;
+    }
+    if (new RegExp(`\\b${seed.race.name}\\b`, 'i').test(imagePrompt) || (seed.race.name === 'dwarf' && /dwarf|beard|compact/i.test(imagePrompt))) imagePromptRaceAppearanceCount += 1;
+    else imagePromptMissingRaceAppearanceCount += 1;
+    if (new RegExp(`\\b${seed.primaryClass}\\b`, 'i').test(imagePrompt)) imagePromptClassReadabilityCount += 1;
+    else imagePromptMissingClassReadabilityCount += 1;
+    if (seed.race.name === 'aasimar') {
+      aasimarPromptCount += 1;
+      const raceSentence = imagePrompt.match(/Race appearance: .*?\./)?.[0] ?? '';
+      if (aasimarCelestialPattern.test(raceSentence)) aasimarCelestialMarkerCount += 1;
+      if (aasimarEyePattern.test(raceSentence)) aasimarEyeMarkerCount += 1;
+      if (aasimarHaloMarkPattern.test(raceSentence)) aasimarHaloMarkCount += 1;
+      if (genericAasimarRiskPattern.test(raceSentence) || !aasimarCelestialPattern.test(raceSentence)) aasimarGenericRiskCount += 1;
+    }
+    const positiveImagePrompt = imagePrompt.split(/\\bAvoid\\b/i)[0];
+    const artDirection = resolveArtDirection(seed);
+    artDirectionGeneratedCount += 1;
+    increment(magicManifestationModeCounts, artDirection.magicManifestationMode);
+    if (!new RegExp(`\\b${seed.primaryClass}\\b`, 'i').test(artDirection.dominantRead)) dominantReadMissingClassCount += 1;
+    if (!new RegExp(`\\b${seed.race.name}\\b`, 'i').test(artDirection.dominantRead)) dominantReadMissingRaceCount += 1;
+    if (wordCount(artDirection.dominantRead) > 22) dominantReadTooLongCount += 1;
+    const primaryVisualReadRequired = [seed.race.name, seed.primaryClass, seed.armor.name, seed.weapon.name, seed.pose.name];
+    const primaryVisualHits = primaryVisualReadRequired.filter((item) => artDirection.primaryVisualRead.join(' ').toLowerCase().includes(String(item).toLowerCase())).length;
+    primaryVisualReadCoverageTotal += primaryVisualHits / primaryVisualReadRequired.length;
+    if (artDirection.secondaryFlavor.length > 3) secondaryFlavorOverBudgetCount += 1;
+    storyShorthandTotal += artDirection.storyShorthand.length;
+    if (artDirection.storyShorthand.length > 2 || artDirection.storyShorthand.some((detail) => artDirectionClutterPattern.test(detail))) storyShorthandClutterRiskCount += 1;
+    const suppressedLeakTerms = artDirection.suppressedElements.flatMap((item) => item.split(/\s+or\s+|,\s*/)).map((item) => item.trim()).filter((item) => item.length > 4 && !/^extra |^flavor |^irrelevant|^accessory clutter$|^object clutter$|^class-|^suppress|^avoid|^no |^tiny|^instrument dominance|^paladin halo|^healer|^scholar|^performer|^mystic|^bard|^ranger|^druid|^wizard|^holy|^generic/.test(item));
+    if (suppressedLeakTerms.some((term) => new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(positiveImagePrompt))) suppressedElementLeakCount += 1;
+    if (/subtle magical runes|generic runes|floating symbols|glyph fragments/i.test(positiveImagePrompt)) genericRuneFxAfterArtDirectionCount += 1;
+    if (artDirection.magicManifestationMode === 'none' && ['wizard', 'sorcerer', 'warlock', 'cleric', 'druid', 'bard', 'artificer'].includes(seed.primaryClass)) magicModeClassMismatchCount += 1;
+    const artValidation = validateArtDirectionBrief(seed, artDirection);
+    if (artValidation.classDrift) dominantReadClassDriftCount += 1;
+    if (artValidation.themeOverridesClass) dominantReadThemeOverridesClassCount += 1;
+    if (artValidation.wrongRoleNoun) dominantReadWrongRoleNounCount += 1;
+    if (new RegExp(`\\b${seed.primaryClass}\\b`, 'i').test(artDirection.dominantRead)) dominantReadPrimaryClassCoverageCount += 1;
+    artDirectionRepairCount += artDirection.repairStats?.artDirectionRepairCount ?? 0;
+    dominantReadRepairCount += artDirection.repairStats?.dominantReadRepairCount ?? 0;
+    poseDirectiveRepairCount += artDirection.repairStats?.poseDirectiveRepairCount ?? 0;
+    secondaryFlavorDemotionCount += artDirection.repairStats?.secondaryFlavorDemotionCount ?? 0;
+    conflictingFlavorSuppressedCount += artDirection.repairStats?.conflictingFlavorSuppressedCount ?? 0;
+    increment(magicModeDistributionByClass, `${seed.primaryClass}:${artDirection.magicManifestationMode}`);
+    if (['wizard', 'sorcerer', 'warlock'].includes(seed.primaryClass)) {
+      increment(casterBodyMagicTotals, seed.primaryClass);
+      if (artDirection.magicManifestationMode === 'body') increment(casterBodyMagicCounts, seed.primaryClass);
+    }
+    if (artDirection.magicManifestationMode === 'environment' && /generic mist|generic|swirling mist shown as restrained air/i.test(positiveImagePrompt)) environmentMagicGenericCount += 1;
+    if (seed.primaryClass === 'bard' && /orb|generic wizard|focused scholar-adventurer/i.test(artDirection.dominantRead)) bardOrbCasterReadCount += 1;
+    if (!['cleric', 'paladin'].includes(seed.primaryClass) && /holy symbol guardian|holy guardian/i.test(artDirection.dominantRead)) holySymbolNonDivineReadCount += 1;
+    const plausibility = artDirection.raceClassPlausibility;
+    if (['rare_reinterpreted', 'chaos_only', 'blocked_default'].includes(plausibility)) raceClassPlausibilityRiskCount += 1;
+    if (plausibility === 'blocked_default' && seed.mode !== 'chaos') blockedDefaultRaceClassCount += 1;
+    if (plausibility === 'chaos_only' && seed.mode !== 'chaos') chaosOnlyRaceClassInDefaultCount += 1;
+    if (plausibility === 'rare_reinterpreted') rareRaceClassReinterpretedCount += 1;
+    if (artDirection.raceClassReinterpretation) raceClassReinterpretationAppliedCount += 1;
+    if (artDirection.themeClassRisk?.unresolvedOverride) themeOverridesPrimaryClassCount += 1;
+    if (artDirection.themeClassRisk?.action === 'downgrade_to_flavor') themeDowngradedToFlavorCount += 1;
+    if (artDirection.themeClassRisk?.action === 'reinterpret_through_class') themeReinterpretedThroughClassCount += 1;
+    if (artDirection.themeClassRisk?.action === 'suppress_class_stealing_signals') themeRerolledForClassReadCount += 1;
+    if (seed.primaryClass === 'fighter' && /halo|cathedral rays|divine rays|saintly/i.test(positiveImagePrompt)) fighterPaladinDriftRiskCount += 1;
+    if (seed.primaryClass === 'rogue' && /lute|flute|songbook|song-scroll|performer-forward|bardic/i.test(positiveImagePrompt)) rogueBardDriftRiskCount += 1;
+    if (seed.primaryClass === 'rogue' && /trail warden|map and compass|frontier archer|ranger primary/i.test(positiveImagePrompt)) rogueRangerDriftRiskCount += 1;
+    if (seed.primaryClass === 'wizard' && /holy symbol|divine priest|cleric primary|paladin primary/i.test(positiveImagePrompt)) wizardClericDriftRiskCount += 1;
+    if (seed.primaryClass === 'druid' && /lute|flute|songbook|performer-forward|bardic/i.test(positiveImagePrompt)) druidBardDriftRiskCount += 1;
+    increment(divineLightModeDistribution, artDirection.divineLightMode ?? 'none');
+    if (/sunrise halo|halo-like|cathedral rays/i.test(positiveImagePrompt)) divineHaloOveruseCount += 1;
+    if (/generic holy backlight|divine rays|holy glow/i.test(positiveImagePrompt)) genericHolyBacklightCount += 1;
+    if (/cathedral rays/i.test(positiveImagePrompt)) cathedralRaysOveruseCount += 1;
+    if (seed.primaryClass === 'fighter' && /sunrise halo|cathedral rays|divine rays|holy glow/i.test(positiveImagePrompt)) fighterWithPaladinLightCount += 1;
+    if (seed.primaryClass === 'cleric' && /sunrise halo|cathedral rays|paladin|saint poster/i.test(positiveImagePrompt)) clericPaladinLightCollapseCount += 1;
+    const textureRisk = renderTextureHygieneRisk(imagePrompt, seed);
+    if (textureRisk.grid) renderGridArtifactPromptRiskCount += 1;
+    if (textureRisk.rhombus) rhombusTextureRiskCount += 1;
+    if (textureRisk.scaleOnNonScaledRace) scaleTextureOnNonScaledRaceRiskCount += 1;
+    if (textureRisk.overPatternedFabric) overPatternedFabricRiskCount += 1;
+    const directorRisk = visualDirectorRisk(seed, imagePrompt);
+    increment(genderPresentationDistribution, seed.characterPresentation.genderPresentation);
+  currentGenderBatch.push(seed.characterPresentation.genderPresentation);
+  if (currentGenderBatch.length === 12) { if (currentGenderBatch.every((gender) => gender === 'masculine')) allMasculineBatchRiskCount += 1; currentGenderBatch.length = 0; }
+    increment(faceArchetypeDistribution, seed.characterPresentation.faceArchetype);
+    increment(bodyTypeDistribution, seed.characterPresentation.bodyType);
+    increment(backdropLaneDistribution, seed.backdropLane.id);
+    increment(compositionLaneDistribution, seed.compositionLane.id);
+    if (/beard/i.test(positiveImagePrompt)) beardOveruseCount += 1;
+    if (seed.characterPresentation.apparentAgeBand === 'elder') elderOveruseCount += 1;
+    if (/minimal empty background|plain dark background|empty background/i.test(positiveImagePrompt.replace(/full-body character concept art, centered character, entire body visible from head to toe, clean readable silhouette, minimal environment/i, ''))) emptyBackgroundRiskCount += 1;
+    if (seed.sceneProps.length > 0 && seed.compositionMode === 'full_body_character_art') scenePropRegressionCount += 1;
+    if (recentBackdropWindow.includes(seed.backdropLane.id)) repeatedBackdropLaneWithin8 += 1;
+    recentBackdropWindow.push(seed.backdropLane.id); if (recentBackdropWindow.length > 8) recentBackdropWindow.shift();
+    if (seed.compositionLane.id === 'frontal_iconic') frontalIconicOveruseCount += 1;
+    if (recentCompositionWindow.includes(seed.compositionLane.id)) repeatedCompositionWithin8 += 1;
+    recentCompositionWindow.push(seed.compositionLane.id); if (recentCompositionWindow.length > 8) recentCompositionWindow.shift();
+    silhouetteVarietyScoreTotal += new Set([seed.silhouetteProfile.category, seed.compositionLane.id, seed.backdropLane.id, seed.pose.name]).size;
+    if ((seed.compositionLane.id === 'performance_turn' && seed.primaryClass !== 'bard') || (seed.compositionLane.id === 'aerial_or_light_step' && seed.size !== 'tiny' && seed.race.name !== 'fairy')) poseCompositionMismatchCount += 1;
+    if (directorRisk.beltClutter) beltClutterRiskCount += 1;
+    if (directorRisk.visiblePropBudgetExceeded) visiblePropBudgetExceededCount += 1;
+    if (directorRisk.paperMapCompassLeak) paperMapCompassLeakCount += 1;
+    if (directorRisk.rogueMapCompassPrimary) rogueMapCompassPrimaryCount += 1;
+    if (directorRisk.fighterFocusObject) fighterFocusObjectCount += 1;
+    if (directorRisk.artificerPropSoup) artificerPropSoupRiskCount += 1;
+    if (directorRisk.storyDetailObjectLeak) storyDetailObjectLeakCount += 1;
+    if (directorRisk.noisyTexturePromptRisk) noisyTexturePromptRiskCount += 1;
+    if (directorRisk.heavyGrainRisk) heavyGrainRiskCount += 1;
+    if (directorRisk.microdetailOverusePromptRisk) microdetailOverusePromptRiskCount += 1;
+    if (directorRisk.renderHygienePhraseCoverage) renderHygienePhraseCoverage += 1;
+    if (directorRisk.fighterPaladinHardCombo) fighterPaladinHardComboCount += 1;
+    if (directorRisk.fighterPaladinHardComboRepaired) fighterPaladinHardComboRepairedCount += 1;
+    if (directorRisk.rogueBardHardCombo) rogueBardHardComboCount += 1;
+    if (directorRisk.rogueBardHardComboRepaired) rogueBardHardComboRepairedCount += 1;
+    if (directorRisk.wizardClericHardCombo) wizardClericHardComboCount += 1;
+    if (directorRisk.druidBardHardCombo) druidBardHardComboCount += 1;
+    const visualLaneCombo = `${seed.backdropLane.id}|${seed.compositionLane.id}|${seed.pose.name}|${artDirection.divineLightMode}`;
+    if (recentVisualLaneCombos.includes(visualLaneCombo)) repeatedVisualLaneComboWithin8 += 1;
+    recentVisualLaneCombos.push(visualLaneCombo); if (recentVisualLaneCombos.length > 8) recentVisualLaneCombos.shift();
+    const classPoseBackdrop = `${seed.primaryClass}|${seed.pose.name}|${seed.backdropLane.id}`;
+    if (recentClassPoseBackdropCombos.includes(classPoseBackdrop)) repeatedClassPoseBackdropWithin12 += 1;
+    recentClassPoseBackdropCombos.push(classPoseBackdrop); if (recentClassPoseBackdropCombos.length > 12) recentClassPoseBackdropCombos.shift();
+    imagePromptWordCountAfterArtDirectionCompressionTotal += imageWords;
+    if (!/secondary flavor: .*?, .*?,/i.test(imagePrompt)) artDirectionCompressionRemovedFlavorCount += 1;
+    const imageDetailText = extractImageDetailText(imagePrompt);
+    noisyDetailTotal += countMatches(imageDetailText, new RegExp(noisyDetailPattern.source, 'gi'));
+    if (countMatchingDetailItems(imageDetailText, new RegExp(paperRecordPattern.source, 'i')) > 1) paperOverusePromptCount += 1;
+    if (spyglassPattern.test(imageDetailText) && !spyglassAllowedThemes.has(seed.visualTheme.id) && !hasAny(seed.archetype.tags, ['scout', 'frontier', 'hunter'])) spyglassOutsideAllowedCount += 1;
+    if (ledgerPattern.test(imageDetailText) && !bureaucracyAllowedThemes.has(seed.visualTheme.id) && !hasAny(seed.archetype.tags, ['academy', 'hunter', 'tools'])) ledgerOutsideAllowedCount += 1;
+    if (countMatchingDetailItems(imageDetailText, new RegExp(tagCharmPattern.source, 'i')) > 1 && !['cleric', 'monk'].includes(seed.primaryClass) && seed.visualTheme.id !== 'dream_walker') tagCharmClusterOveruseCount += 1;
+    if (/painted fantasy character study|Quality rules:/i.test(imagePrompt)) imagePromptQualityRulesCount += 1;
+    if (/\bAvoid\b.*no readable text|Negative prompt:/i.test(imagePrompt)) imagePromptNegativePromptCount += 1;
+    imagePromptScenePropTotal += seed.sceneProps?.length ?? 0;
+    imagePromptCharacterBoundTotal += imageDetailText ? imageDetailText.split(/,\s*/).filter(Boolean).length : 0;
+    if (seed.classes.length > 2) tripleMulticlassCount += 1;
+    const forbiddenKey = [...seed.classes].sort().join('/');
+    if (['barbarian/bard', 'barbarian/wizard', 'artificer/barbarian', 'druid/paladin', 'artificer/monk', 'cleric/rogue'].includes(forbiddenKey)) forbiddenMulticlassCount += 1;
+    if (seed.mode === 'curated multiclass') {
+      if (seed.curatedMulticlassProfile) increment(curatedProfileCounts, seed.curatedMulticlassProfile.id);
+      else randomMulticlassCount += 1;
+      multiclassAnchorTotal += seed.classAnchorScore;
+      multiclassAnchorCount += 1;
+    } else if (seed.classes.length > 1 || seed.curatedMulticlassProfile) randomMulticlassCount += 1;
+
+    const budget = identityBudget(seed);
+    for (const [layer, value] of Object.entries(budget.normalized)) increment(layerTotals, layer, value);
+    increment(dominanceCounts, budget.dominantLayer);
+    if (budget.normalized['Visual Theme'] > budget.normalized['Class Identity']) increment(themeDominatesClass, `${seed.primaryClass}+${seed.visualTheme.id}`);
+    if (budget.normalized['Narrative Motif'] > budget.normalized['Class Identity']) increment(motifDominatesClass, `${seed.primaryClass}+${seed.narrativeMotif.id}`);
+
+    increment(themeCounts, seed.visualTheme.id);
+    increment(cultureCounts, seed.culturalOrigin.id);
+    increment(silhouetteCounts, seed.silhouetteProfile?.id ?? 'no-silhouette');
+    increment(visualMotifCounts, seed.visualMotif?.id ?? 'no-visual-motif');
+    increment(companionCounts, seed.companion?.id ?? 'none');
+    increment(armorLanguageCounts, seed.armorLanguage?.id ?? 'no-armor-language');
+    increment(weaponLanguageCounts, seed.weaponLanguage?.id ?? 'no-weapon-language');
+    if (seed.visualTheme.id === 'dream_walker') {
+      dreamWalkerCount += 1;
+      dreamWalkerScenePropTotal += seed.sceneProps?.length ?? 0;
+      increment(dreamWalkerVariantCounts, seed.visualThemeVariant?.id ?? 'no-variant');
+      increment(dreamWalkerSilhouetteCounts, seed.silhouetteProfile?.id ?? seed.silhouette.name);
+      increment(dreamWalkerArmorCounts, seed.armor.name);
+      increment(dreamWalkerWeaponCounts, seed.weapon.name);
+      increment(dreamWalkerWeaponLanguageCounts, seed.weaponLanguage?.id ?? 'no-weapon-language');
+      increment(dreamWalkerFinishCounts, seed.equipmentFinish?.id ?? 'no-finish');
+      increment(dreamWalkerEnchantmentCounts, seed.equipmentEnchantment?.id ?? 'no-enchantment');
+      increment(dreamWalkerPoseCounts, seed.pose.name);
+      increment(dreamWalkerMoodCounts, seed.mood.name);
+      increment(dreamWalkerLightCounts, seed.light.name);
+      increment(dreamWalkerFxCounts, seed.fx.name);
+      for (const detail of seed.characterBoundDetails ?? seed.visualDetails ?? []) {
+        increment(dreamWalkerDetailCounts, detail);
+        if (dreamWalkerIconicPattern.test(detail)) dreamWalkerIconicCount += 1;
+      }
+    }
+    if (seed.weaponLanguage?.id === 'plain_weapon_language') {
+      increment(plainWeaponFallbackSources, seed.weapon.name);
+      for (const tag of seed.weapon.tags ?? []) increment(plainWeaponFallbackTags, tag);
+      increment(plainWeaponFallbackBuildTemplates, seed.buildTemplate.id);
+      increment(plainWeaponFallbackThemes, seed.visualTheme.id);
+      increment(plainWeaponFallbackClasses, seed.primaryClass);
+    }
+    increment(equipmentFinishCounts, seed.equipmentFinish?.id ?? 'no-equipment-finish');
+    increment(equipmentEnchantmentCounts, seed.equipmentEnchantment?.id ?? 'no-equipment-enchantment');
+    increment(enchantmentIntensityCounts, seed.enchantmentIntensity ?? 'no-intensity');
+    if (hasContradictoryEquipmentFx(seed)) equipmentContradictionCount += 1;
+    increment(companionClassTotals, seed.primaryClass);
+    increment(companionBuildTemplateTotals, seed.buildTemplate.id);
+    if (seed.companion) {
+      companionActiveCount += 1;
+      increment(companionByClass, seed.primaryClass);
+      increment(companionByBuildTemplate, seed.buildTemplate.id);
+      if (seed.companion.tier === 'legendary') legendaryCompanionCount += 1;
+    }
+    for (const detail of seed.visualDetails ?? []) {
+      increment(visualDetailCounts, detail);
+      increment(sequentialDetailCounts, detail);
+    }
+    increment(sequentialThemeCounts, seed.visualTheme.id);
+    increment(sequentialPoseCounts, seed.pose.name);
+    const family = poseFamily(seed);
+    increment(poseFamilyCounts, family);
+    if (poseIsHighImpact(seed)) highImpactPoseCount += 1;
+    if (['wizard', 'sorcerer', 'warlock'].includes(seed.primaryClass) || seed.buildTemplate.id === 'arcane_caster') {
+      casterPoseTotal += 1;
+      if (/tracing|casting with both hands|sigil|spell gesture|speaking a spell|extended in subtle magic/i.test(seed.pose.name)) casterActiveCastingPoseCount += 1;
+      if (/tracing a glowing sigil in the air/i.test(seed.pose.name)) casterSigilPoseCount += 1;
+    }
+    if (recentPoseFamilyWindow.includes(family)) repeatedPoseFamilyWithinEightCount += 1;
+    if (recentClassPoseFamilyWindow.some((entry) => entry.primaryClass === seed.primaryClass && entry.family === family)) classPoseRepetitionCount += 1;
+    const weaponFamily = (seed.weapon.tags ?? [])[0] ?? seed.weapon.name;
+    if (recentWeaponPoseFamilyWindow.some((entry) => entry.weaponFamily === weaponFamily && entry.family === family)) weaponPoseRepetitionCount += 1;
+    recentPoseFamilyWindow.push(family); if (recentPoseFamilyWindow.length > 8) recentPoseFamilyWindow.shift();
+    recentClassPoseFamilyWindow.push({ primaryClass: seed.primaryClass, family }); if (recentClassPoseFamilyWindow.length > 12) recentClassPoseFamilyWindow.shift();
+    recentWeaponPoseFamilyWindow.push({ weaponFamily, family }); if (recentWeaponPoseFamilyWindow.length > 12) recentWeaponPoseFamilyWindow.shift();
+    const lowerPrompt = imagePrompt.toLowerCase();
+    const raceRead = lowerPrompt.includes(seed.race.name.toLowerCase()) || (seed.race.name === 'dwarf' && /dwarf|beard|compact/.test(lowerPrompt));
+    const classRead = lowerPrompt.includes(seed.primaryClass.toLowerCase());
+    const silhouetteRead = /silhouette|body|shape|masses|build/.test(lowerPrompt);
+    const weaponRead = /primary tool|weapon|blade|staff|bow|hammer|focus|instrument|shield|knife|rapier/.test(lowerPrompt);
+    const poseRead = /stance|pose|composition|turn|carries|holds|walk/.test(lowerPrompt);
+    if (!raceRead) primaryReadMissingRace += 1;
+    if (!classRead) primaryReadMissingClass += 1;
+    if (!silhouetteRead) primaryReadMissingSilhouette += 1;
+    if (!weaponRead) primaryReadMissingWeapon += 1;
+    if (!poseRead) primaryReadMissingPose += 1;
+    if (!raceRead || !classRead || !silhouetteRead || !weaponRead || !poseRead) primaryReadLostAfterCompressionCount += 1;
+    if (!raceRead || !classRead || !silhouetteRead || !weaponRead || !poseRead) artDirectionPrimaryReadRegressionCount += 1;
+    const firstFlavorIndex = imagePrompt.indexOf('Visual theme:');
+    const weaponIndex = imagePrompt.indexOf('Weapon and tool:');
+    if (firstFlavorIndex !== -1 && weaponIndex !== -1 && firstFlavorIndex < weaponIndex) flavorStackDominatesPromptCount += 1;
+    increment(sequentialFxCounts, seed.fx.name);
+    if (highImpactPoseNames.has(seed.pose.name) && recentPoseWindow.includes(seed.pose.name)) repeatedHighImpactPoseWithinFiveCount += 1;
+    if (recentPoseClassWindow.some((entry) => entry.pose === seed.pose.name && entry.primaryClass === seed.primaryClass)) repeatedPoseSameClassWithinTenCount += 1;
+    recentPoseWindow.push(seed.pose.name);
+    if (recentPoseWindow.length > 5) recentPoseWindow.shift();
+    recentPoseClassWindow.push({ pose: seed.pose.name, primaryClass: seed.primaryClass });
+    if (recentPoseClassWindow.length > 10) recentPoseClassWindow.shift();
+    if (emotionPoseMismatch(seed)) emotionPoseMismatchCount += 1;
+    if (runeMotifGrounded(seed)) runeMotifGroundedNonArcaneCount += 1;
+    if (previousSequentialSeed) {
+      const score = similarityScore(seed, previousSequentialSeed);
+      sequentialSimilarityTotal += score;
+      sequentialSimilarityMax = Math.max(sequentialSimilarityMax, score);
+      sequentialComparisonCount += 1;
+      if (score >= 65) tooSimilarSequentialCount += 1;
+      if (visualCore(seed) === visualCore(previousSequentialSeed)) consecutiveVisualCoreDuplicateCount += 1;
+      if (seed.race.name === previousSequentialSeed.race.name) {
+        sameRaceAppearanceSimilarityTotal += appearanceSimilarity(seed, previousSequentialSeed);
+        sameRaceAppearanceComparisonCount += 1;
+        if (seed.appearanceProfile?.id === previousSequentialSeed.appearanceProfile?.id) consecutiveSameRaceSameAppearanceCount += 1;
+      }
+    }
+    previousSequentialSeed = seed;
+    increment(combinationCounts, `${seed.primaryClass}+${seed.visualTheme.id}+${seed.narrativeMotif.id}`);
+    if (scholarThemes.has(seed.visualTheme.id)) {
+      increment(scholarTriggers, `archetype:${seed.archetype.name}`);
+      for (const tag of seed.archetype.tags) increment(scholarTriggers, `tag:${tag}`);
+      increment(scholarTriggers, `class:${seed.primaryClass}`);
+    }
+
+    const classScoreBucket = classScores.get(seed.primaryClass) ?? [];
+    classScoreBucket.push(seed.classAnchorScore);
+    classScores.set(seed.primaryClass, classScoreBucket);
+
+    const density = detailDensity(seed);
+    increment(detailDensityCounts, `visual:${density.visual}`);
+    increment(detailDensityCounts, `story:${density.story}`);
+    increment(detailDensityCounts, `culture:${density.culture}`);
+    increment(detailDensityCounts, `companion:${density.companion}`);
+    increment(detailDensityCounts, `total:${density.total}`);
+
+    seeds.push({ seed, budget, density, index });
+    if (generatedSamples.length < 30) generatedSamples.push(seed);
+  }
+
+  const themeEntropy = entropy(themeCounts);
+  const silhouetteEntropy = entropy(silhouetteCounts);
+  const expectedThemeCount = sampleSize / visualThemes.length;
+  const overusedThemes = topEntries(themeCounts, visualThemes.length).filter(([, count]) => count > expectedThemeCount * 1.5).slice(0, 10);
+  const underusedThemes = [...themeCounts.entries()].sort((a, b) => a[1] - b[1]).filter(([, count]) => count < expectedThemeCount * 0.5).slice(0, 10);
+  const densityValues = seeds.map(({ density }) => density.total);
+  const densityOutliers = seeds.filter(({ density }) => density.total > median(densityValues) + 3).slice(0, 10).map(({ seed, density }) => `${density.total} details :: ${seedSummary(seed)}`);
+  const duplicateCombinationCount = [...combinationCounts.values()].reduce((sum, count) => sum + Math.max(0, count - 1), 0);
+  const underusedDetailPools = themeContentProfiles
+    .map((profile) => [profile.themeId, (themeCounts.get(profile.themeId) ?? 0)])
+    .sort((a, b) => a[1] - b[1])
+    .slice(0, 10);
+  const scholarTotal = [...themeCounts.entries()].filter(([theme]) => scholarThemes.has(theme)).reduce((sum, [, count]) => sum + count, 0);
+  const topTheme = topEntries(themeCounts, 1)[0];
+  const classScoreAverage = seeds.reduce((sum, { seed }) => sum + seed.classAnchorScore, 0) / seeds.length;
+  const highestClassIdentity = [...seeds].sort((a, b) => b.seed.classAnchorScore - a.seed.classAnchorScore || b.budget.normalized['Class Identity'] - a.budget.normalized['Class Identity']).slice(0, 10);
+  const highestDiversity = [...seeds]
+    .map((entry) => {
+      const { seed, density } = entry;
+      const themeRarity = 1 - (themeCounts.get(seed.visualTheme.id) ?? 0) / sampleSize;
+      const cultureRarity = 1 - (cultureCounts.get(seed.culturalOrigin.id) ?? 0) / sampleSize;
+      const combinationRarity = 1 - (combinationCounts.get(`${seed.primaryClass}+${seed.visualTheme.id}+${seed.narrativeMotif.id}`) ?? 0) / sampleSize;
+      return { ...entry, diversityScore: themeRarity * 30 + cultureRarity * 15 + combinationRarity * 25 + density.total * 2 + seed.classAnchorScore * 2 };
+    })
+    .sort((a, b) => b.diversityScore - a.diversityScore)
+    .slice(0, 10);
+
+  return {
+    label,
+    useSmartPool,
+    failures,
+    seeds,
+    layerTotals,
+    dominanceCounts,
+    themeDominatesClass,
+    motifDominatesClass,
+    scholarTriggers,
+    classScores,
+    detailDensityCounts,
+    themeCounts,
+    cultureCounts,
+    combinationCounts,
+    generatedSamples,
+    themeEntropy,
+    silhouetteEntropy,
+    overusedThemes,
+    underusedThemes,
+    densityOutliers,
+    duplicateCombinationCount,
+    scholarTotal,
+    topTheme,
+    classScoreAverage,
+    highestClassIdentity,
+    highestDiversity,
+    silhouetteCounts,
+    visualMotifCounts,
+    companionCounts,
+    armorLanguageCounts,
+    weaponLanguageCounts,
+    equipmentFinishCounts,
+    equipmentEnchantmentCounts,
+    enchantmentIntensityCounts,
+    visualDetailCounts,
+    equipmentContradictionCount,
+    companionActiveCount,
+    legendaryCompanionCount,
+    companionByClass,
+    companionByBuildTemplate,
+    companionClassTotals,
+    companionBuildTemplateTotals,
+    mismatchCounts,
+    conflictCount,
+    underusedDetailPools,
+    plainWeaponFallbackSources,
+    plainWeaponFallbackTags,
+    plainWeaponFallbackBuildTemplates,
+    plainWeaponFallbackThemes,
+    plainWeaponFallbackClasses,
+    dreamWalkerCount,
+    dreamWalkerScenePropAverage: dreamWalkerScenePropTotal / Math.max(1, dreamWalkerCount),
+    dreamWalkerIconicRate: dreamWalkerIconicCount / Math.max(1, dreamWalkerCount),
+    dreamWalkerVariantCounts,
+    dreamWalkerSilhouetteCounts,
+    dreamWalkerArmorCounts,
+    dreamWalkerWeaponCounts,
+    dreamWalkerWeaponLanguageCounts,
+    dreamWalkerFinishCounts,
+    dreamWalkerEnchantmentCounts,
+    dreamWalkerPoseCounts,
+    dreamWalkerMoodCounts,
+    dreamWalkerLightCounts,
+    dreamWalkerFxCounts,
+    dreamWalkerDetailCounts,
+    imagePromptWordAverage: imagePromptWordTotal / sampleSize,
+    imagePromptWordMax,
+    imagePromptOver450Count,
+    imagePromptNoReadableTextCount,
+    imagePromptNoTextPhraseCount,
+    imagePromptFullBodyModePhraseCount,
+    imagePromptFullBodyModeTotal,
+    imagePromptRaceAppearanceCount,
+    imagePromptClassReadabilityCount,
+    imagePromptQualityRulesCount,
+    imagePromptNegativePromptCount,
+    imagePromptScenePropAverage: imagePromptScenePropTotal / sampleSize,
+    imagePromptCharacterBoundAverage: imagePromptCharacterBoundTotal / sampleSize,
+    fullGenerationMissingCount,
+    fullGenerationMissingSeedHeaderCount,
+    fullGenerationMissingImageHeaderCount,
+    fullGenerationImageMismatchCount,
+    fullGenerationContainsTraceCount,
+    fullGenerationOldPromptCount,
+    oldPromptTemplateAsImagePromptCount,
+    imagePromptMissingCompositionPhraseCount,
+    imagePromptMissingRaceAppearanceCount,
+    imagePromptMissingClassReadabilityCount,
+    aasimarPromptCount,
+    aasimarCelestialMarkerCount,
+    aasimarEyeMarkerCount,
+    aasimarHaloMarkCount,
+    aasimarGenericRiskCount,
+    noisyDetailAverage: noisyDetailTotal / sampleSize,
+    paperOverusePromptCount,
+    spyglassOutsideAllowedCount,
+    ledgerOutsideAllowedCount,
+    tagCharmClusterOveruseCount,
+    repeatedHighImpactPoseWithinFiveCount,
+    repeatedPoseSameClassWithinTenCount,
+    poseFamilyCounts,
+    highImpactPoseCount,
+    casterActiveCastingPoseCount,
+    casterPoseTotal,
+    casterSigilPoseCount,
+    repeatedPoseFamilyWithinEightCount,
+    classPoseRepetitionCount,
+    weaponPoseRepetitionCount,
+    primaryReadMissingRace,
+    primaryReadMissingClass,
+    primaryReadMissingSilhouette,
+    primaryReadMissingWeapon,
+    primaryReadMissingPose,
+    flavorStackDominatesPromptCount,
+    artDirectionGeneratedCount,
+    dominantReadMissingClassCount,
+    dominantReadMissingRaceCount,
+    dominantReadTooLongCount,
+    primaryVisualReadCoverage: primaryVisualReadCoverageTotal / sampleSize,
+    secondaryFlavorOverBudgetCount,
+    suppressedElementLeakCount,
+    storyShorthandAverage: storyShorthandTotal / sampleSize,
+    storyShorthandClutterRiskCount,
+    magicManifestationModeCounts,
+    genericRuneFxAfterArtDirectionCount,
+    magicModeClassMismatchCount,
+    artDirectionPrimaryReadRegressionCount,
+    dominantReadClassDriftCount,
+    dominantReadThemeOverridesClassCount,
+    dominantReadWrongRoleNounCount,
+    dominantReadPrimaryClassCoverageCount,
+    artDirectionRepairCount,
+    dominantReadRepairCount,
+    poseDirectiveRepairCount,
+    secondaryFlavorDemotionCount,
+    conflictingFlavorSuppressedCount,
+    magicModeDistributionByClass,
+    casterBodyMagicTotals,
+    casterBodyMagicCounts,
+    environmentMagicGenericCount,
+    bardOrbCasterReadCount,
+    holySymbolNonDivineReadCount,
+    imagePromptWordCountAfterArtDirectionCompressionAverage: imagePromptWordCountAfterArtDirectionCompressionTotal / sampleSize,
+    artDirectionCompressionRemovedFlavorCount,
+    primaryReadLostAfterCompressionCount,
+    artistBriefMissingDominantRead,
+    artistBriefMissingClass,
+    artistBriefMissingPose,
+    artistBriefTooLong,
+    artistBriefSuppressionMissing,
+    raceClassPlausibilityRiskCount,
+    blockedDefaultRaceClassCount,
+    chaosOnlyRaceClassInDefaultCount,
+    rareRaceClassReinterpretedCount,
+    raceClassReinterpretationAppliedCount,
+    themeOverridesPrimaryClassCount,
+    themeDowngradedToFlavorCount,
+    themeReinterpretedThroughClassCount,
+    themeRerolledForClassReadCount,
+    fighterPaladinDriftRiskCount,
+    rogueBardDriftRiskCount,
+    rogueRangerDriftRiskCount,
+    wizardClericDriftRiskCount,
+    druidBardDriftRiskCount,
+    divineHaloOveruseCount,
+    genericHolyBacklightCount,
+    cathedralRaysOveruseCount,
+    divineLightModeDistribution,
+    fighterWithPaladinLightCount,
+    clericPaladinLightCollapseCount,
+    renderGridArtifactPromptRiskCount,
+    rhombusTextureRiskCount,
+    scaleTextureOnNonScaledRaceRiskCount,
+    overPatternedFabricRiskCount,
+    genderPresentationDistribution, faceArchetypeDistribution, bodyTypeDistribution, backdropLaneDistribution, compositionLaneDistribution,
+    allMasculineBatchRiskCount, beardOveruseCount, elderOveruseCount, emptyBackgroundRiskCount, repeatedBackdropLaneWithin8, scenePropRegressionCount,
+    frontalIconicOveruseCount, repeatedCompositionWithin8, silhouetteVarietyScoreAverage: silhouetteVarietyScoreTotal / sampleSize, poseCompositionMismatchCount,
+    beltClutterRiskCount, visiblePropBudgetExceededCount, paperMapCompassLeakCount, rogueMapCompassPrimaryCount, fighterFocusObjectCount, artificerPropSoupRiskCount, storyDetailObjectLeakCount,
+    noisyTexturePromptRiskCount, heavyGrainRiskCount, microdetailOverusePromptRiskCount, renderHygienePhraseCoverage,
+    fighterPaladinHardComboCount, fighterPaladinHardComboRepairedCount, rogueBardHardComboCount, rogueBardHardComboRepairedCount, wizardClericHardComboCount, druidBardHardComboCount,
+    repeatedVisualLaneComboWithin8, repeatedClassPoseBackdropWithin12,
+    emotionPoseMismatchCount,
+    runeMotifGroundedNonArcaneCount,
+    appearanceDistribution,
+    compositionModeCounts,
+    environmentLevelCounts,
+    scenePropCounts,
+    characterBoundCounts,
+    scenePropTop,
+    modeCounts,
+    curatedProfileCounts,
+    scenePropAverage: scenePropTotal / sampleSize,
+    characterBoundAverage: characterBoundTotal / sampleSize,
+    excessiveClutterCount,
+    consecutiveSameRaceSameAppearanceCount,
+    averageSameRaceAppearanceSimilarity: sameRaceAppearanceSimilarityTotal / Math.max(1, sameRaceAppearanceComparisonCount),
+    randomMulticlassCount,
+    tripleMulticlassCount,
+    forbiddenMulticlassCount,
+    multiclassClassAnchorAverage: multiclassAnchorTotal / Math.max(1, multiclassAnchorCount),
+    sequentialThemeCounts,
+    sequentialPoseCounts,
+    sequentialFxCounts,
+    sequentialDetailCounts,
+    sequentialSimilarityAverage: sequentialComparisonCount > 0 ? sequentialSimilarityTotal / sequentialComparisonCount : 0,
+    sequentialSimilarityMax,
+    tooSimilarSequentialCount,
+    consecutiveVisualCoreDuplicateCount,
+    consecutiveVisualCoreDuplicateRate: sequentialComparisonCount > 0 ? consecutiveVisualCoreDuplicateCount / sequentialComparisonCount : 0,
+  };
+}
+
+const baseline = analyze('Baseline weighted selection', false);
+const smart = analyze('Smart candidate pool selection', true);
+const failures = [...baseline.failures.map((failure) => `baseline: ${failure}`), ...smart.failures.map((failure) => `smart: ${failure}`)];
+const baselineUnderused = new Set(baseline.underusedThemes.map(([theme]) => theme));
+const smartUnderusedActivation = [...baselineUnderused].reduce((sum, theme) => sum + (smart.themeCounts.get(theme) ?? 0), 0);
+const baselineUnderusedActivation = [...baselineUnderused].reduce((sum, theme) => sum + (baseline.themeCounts.get(theme) ?? 0), 0);
+
+console.log('A. Baseline vs smart candidate pool statistics');
+for (const report of [baseline, smart]) {
+  console.log(`\n${report.label}`);
+  console.log(`Class identity average: ${report.classScoreAverage.toFixed(3)}/5`);
+  console.log(`Theme entropy: ${report.themeEntropy.entropy.toFixed(3)} bits (${(report.themeEntropy.normalized * 100).toFixed(1)}% normalized)`);
+  console.log(`Silhouette entropy: ${report.silhouetteEntropy.entropy.toFixed(3)} bits (${(report.silhouetteEntropy.normalized * 100).toFixed(1)}% normalized)`);
+  console.log(`Top theme concentration: ${report.topTheme[0]} = ${report.topTheme[1]} (${formatPercent((report.topTheme[1] / sampleSize) * 100)})`);
+  console.log(`Scholar theme concentration: ${report.scholarTotal} (${formatPercent((report.scholarTotal / sampleSize) * 100)})`);
+  console.log(`Duplicate combination rate: ${formatPercent((report.duplicateCombinationCount / sampleSize) * 100)}`);
+  console.log(`Companion activation: ${report.companionActiveCount} (${formatPercent((report.companionActiveCount / sampleSize) * 100)})`);
+  console.log(`Legendary companion rate: ${report.legendaryCompanionCount} (${formatPercent((report.legendaryCompanionCount / sampleSize) * 100)})`);
+  console.log(`Conflict rate: ${formatPercent((report.conflictCount / sampleSize) * 100)}`);
+  console.log(`Mismatch counts: weapon ${report.mismatchCounts.weaponLanguage}, armor ${report.mismatchCounts.armorLanguage}, silhouette ${report.mismatchCounts.silhouette}, companion ${report.mismatchCounts.companion}, visual motif ${report.mismatchCounts.visualMotif}`);
+  console.log(`Fallback language usage: armor ${report.armorLanguageCounts.get('plain_armor_language') ?? 0} (${formatPercent(((report.armorLanguageCounts.get('plain_armor_language') ?? 0) / sampleSize) * 100)}), weapon ${report.weaponLanguageCounts.get('plain_weapon_language') ?? 0} (${formatPercent(((report.weaponLanguageCounts.get('plain_weapon_language') ?? 0) / sampleSize) * 100)})`);
+  console.log(`Equipment contradiction count: ${report.equipmentContradictionCount}`);
+  console.log(`Recent similarity: avg ${report.sequentialSimilarityAverage.toFixed(1)}, max ${report.sequentialSimilarityMax}, too-similar ${report.tooSimilarSequentialCount}, visual-core duplicates ${report.consecutiveVisualCoreDuplicateCount} (${formatPercent(report.consecutiveVisualCoreDuplicateRate * 100)})`);
+}
+
+console.log(`\nUnderused theme activation from baseline-underused set: baseline ${baselineUnderusedActivation}, smart ${smartUnderusedActivation}`);
+console.log(`Class identity delta smart-baseline: ${(smart.classScoreAverage - baseline.classScoreAverage).toFixed(3)}`);
+console.log(`Theme entropy delta smart-baseline: ${(smart.themeEntropy.normalized - baseline.themeEntropy.normalized).toFixed(3)}`);
+console.log(`Top-1 concentration delta smart-baseline: ${(((smart.topTheme[1] - baseline.topTheme[1]) / sampleSize) * 100).toFixed(2)} percentage points`);
+console.log(`Scholar concentration delta smart-baseline: ${(((smart.scholarTotal - baseline.scholarTotal) / sampleSize) * 100).toFixed(2)} percentage points`);
+
+
+function printTop(map, limit = 10) {
+  for (const [item, count] of topEntries(map, limit)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+}
+
+function printLayerStats(report) {
+  console.log(`\nLayer contribution statistics (${report.label})`);
+  for (const layer of layerOrder) console.log(`${layer}: ${formatPercent((report.layerTotals.get(layer) ?? 0) / sampleSize)}`);
+  console.log('Layer dominance counts');
+  for (const [layer, count] of topEntries(report.dominanceCounts, layerOrder.length)) console.log(`${String(count).padStart(5, ' ')}  ${layer}`);
+  console.log('Theme-over-class dominance events');
+  for (const [key, count] of topEntries(report.themeDominatesClass, 10)) console.log(`${String(count).padStart(5, ' ')}  ${key}`);
+  console.log('Motif-over-class dominance events');
+  for (const [key, count] of topEntries(report.motifDominatesClass, 10)) console.log(`${String(count).padStart(5, ' ')}  ${key}`);
+}
+printLayerStats(smart);
+
+console.log('\nB. Smart theme distribution');
+for (const [theme, count] of topEntries(smart.themeCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${theme}`);
+console.log('\nC. Smart scholar trigger analysis');
+for (const [trigger, count] of topEntries(smart.scholarTriggers, 30)) console.log(`${String(count).padStart(5, ' ')}  ${trigger}`);
+console.log('\nD. Smart class readability analysis');
+for (const [className, values] of [...smart.classScores.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+  const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+  console.log(`${className}: avg ${average.toFixed(2)} | median ${median(values).toFixed(1)} | min ${Math.min(...values)} | max ${Math.max(...values)} | n ${values.length}`);
+}
+console.log('\nE. Smart detail density analysis');
+for (const [bucket, count] of topEntries(smart.detailDensityCounts, 30)) console.log(`${String(count).padStart(5, ' ')}  ${bucket}`);
+console.log('Detail density outliers');
+for (const item of smart.densityOutliers) console.log(item);
+console.log('\nF. Smart entropy report');
+console.log(`Theme entropy: ${smart.themeEntropy.entropy.toFixed(3)} bits`);
+console.log(`Theme entropy normalized: ${(smart.themeEntropy.normalized * 100).toFixed(1)}%`);
+console.log('Most overused themes');
+for (const [theme, count] of smart.overusedThemes) console.log(`${String(count).padStart(5, ' ')}  ${theme}`);
+console.log('Most underused themes');
+for (const [theme, count] of smart.underusedThemes) console.log(`${String(count).padStart(5, ' ')}  ${theme}`);
+console.log('\nVisual library distribution');
+console.log(`Companion activation: ${smart.companionActiveCount}/${sampleSize} (${formatPercent((smart.companionActiveCount / sampleSize) * 100)})`);
+console.log(`Legendary companion rate: ${smart.legendaryCompanionCount}/${sampleSize} (${formatPercent((smart.legendaryCompanionCount / sampleSize) * 100)})`);
+console.log(`Mismatch counts: weapon ${smart.mismatchCounts.weaponLanguage}, armor ${smart.mismatchCounts.armorLanguage}, silhouette ${smart.mismatchCounts.silhouette}, companion ${smart.mismatchCounts.companion}, visual motif ${smart.mismatchCounts.visualMotif}`);
+console.log(`Fallback language usage: armor ${smart.armorLanguageCounts.get('plain_armor_language') ?? 0}/${sampleSize} (${formatPercent(((smart.armorLanguageCounts.get('plain_armor_language') ?? 0) / sampleSize) * 100)}), weapon ${smart.weaponLanguageCounts.get('plain_weapon_language') ?? 0}/${sampleSize} (${formatPercent(((smart.weaponLanguageCounts.get('plain_weapon_language') ?? 0) / sampleSize) * 100)})`);
+console.log(`Equipment contradiction count: ${smart.equipmentContradictionCount}`);
+console.log(`Recent similarity: avg ${smart.sequentialSimilarityAverage.toFixed(1)}, max ${smart.sequentialSimilarityMax}, too-similar ${smart.tooSimilarSequentialCount}, visual-core duplicates ${smart.consecutiveVisualCoreDuplicateCount} (${formatPercent(smart.consecutiveVisualCoreDuplicateRate * 100)})`);
+console.log('Image Prompt quality statistics');
+console.log(`Average Image Prompt word count: ${smart.imagePromptWordAverage.toFixed(1)}`);
+console.log(`Max Image Prompt word count: ${smart.imagePromptWordMax}`);
+console.log(`Image Prompts over 450 words: ${smart.imagePromptOver450Count}/${sampleSize} (${formatPercent((smart.imagePromptOver450Count / sampleSize) * 100)})`);
+console.log(`Image Prompts with no readable text phrase: ${smart.imagePromptNoReadableTextCount}/${sampleSize} (${formatPercent((smart.imagePromptNoReadableTextCount / sampleSize) * 100)})`);
+console.log(`Image Prompts with forbidden no text phrase: ${smart.imagePromptNoTextPhraseCount}/${sampleSize} (${formatPercent((smart.imagePromptNoTextPhraseCount / sampleSize) * 100)})`);
+console.log(`Full-body mode prompts with full-body phrase: ${smart.imagePromptFullBodyModePhraseCount}/${Math.max(1, smart.imagePromptFullBodyModeTotal)} (${formatPercent((smart.imagePromptFullBodyModePhraseCount / Math.max(1, smart.imagePromptFullBodyModeTotal)) * 100)})`);
+console.log(`Image Prompts with race appearance phrase: ${smart.imagePromptRaceAppearanceCount}/${sampleSize} (${formatPercent((smart.imagePromptRaceAppearanceCount / sampleSize) * 100)})`);
+console.log(`Image Prompts with class readability phrase: ${smart.imagePromptClassReadabilityCount}/${sampleSize} (${formatPercent((smart.imagePromptClassReadabilityCount / sampleSize) * 100)})`);
+console.log(`Image Prompts with quality rules: ${smart.imagePromptQualityRulesCount}/${sampleSize} (${formatPercent((smart.imagePromptQualityRulesCount / sampleSize) * 100)})`);
+console.log(`Image Prompts with negative prompt: ${smart.imagePromptNegativePromptCount}/${sampleSize} (${formatPercent((smart.imagePromptNegativePromptCount / sampleSize) * 100)})`);
+console.log(`Average scene props in Image Prompt: ${smart.imagePromptScenePropAverage.toFixed(2)}`);
+console.log(`Average character-bound details in Image Prompt: ${smart.imagePromptCharacterBoundAverage.toFixed(2)}`);
+console.log(`Old prompt template as Image Prompt: ${smart.oldPromptTemplateAsImagePromptCount}`);
+console.log(`Full Generation Output missing: ${smart.fullGenerationMissingCount}`);
+console.log(`Full Generation Output missing seed header: ${smart.fullGenerationMissingSeedHeaderCount}`);
+console.log(`Full Generation Output missing image prompt header: ${smart.fullGenerationMissingImageHeaderCount}`);
+console.log(`Full Generation Output image prompt mismatch: ${smart.fullGenerationImageMismatchCount}`);
+console.log(`Full Generation Output contains debug trace: ${smart.fullGenerationContainsTraceCount}`);
+console.log(`Image Prompt missing composition phrase: ${smart.imagePromptMissingCompositionPhraseCount}`);
+console.log(`Image Prompt missing Race appearance: ${smart.imagePromptMissingRaceAppearanceCount}`);
+console.log(`Image Prompt missing Class and build fantasy: ${smart.imagePromptMissingClassReadabilityCount}`);
+console.log('Art Direction Resolver statistics');
+console.log(`Art direction generated count: ${smart.artDirectionGeneratedCount}`);
+console.log(`Dominant read missing class: ${smart.dominantReadMissingClassCount}`);
+console.log(`Dominant read missing race: ${smart.dominantReadMissingRaceCount}`);
+console.log(`Dominant read too long: ${smart.dominantReadTooLongCount}`);
+console.log(`Primary visual read coverage: ${formatPercent(smart.primaryVisualReadCoverage * 100)}`);
+console.log(`Secondary flavor over budget: ${smart.secondaryFlavorOverBudgetCount}`);
+console.log(`Suppressed element leak count: ${smart.suppressedElementLeakCount}`);
+console.log(`Average story shorthand count: ${smart.storyShorthandAverage.toFixed(2)}`);
+console.log(`Story shorthand clutter risk count: ${smart.storyShorthandClutterRiskCount}`);
+console.log('Magic manifestation mode distribution');
+printTop(smart.magicManifestationModeCounts, 10);
+console.log(`Generic rune FX after art direction count: ${smart.genericRuneFxAfterArtDirectionCount}`);
+console.log(`Magic mode class mismatch count: ${smart.magicModeClassMismatchCount}`);
+console.log(`Art direction primary read regression count: ${smart.artDirectionPrimaryReadRegressionCount}`);
+console.log(`Dominant read class drift count: ${smart.dominantReadClassDriftCount}`);
+console.log(`Dominant read theme overrides class count: ${smart.dominantReadThemeOverridesClassCount}`);
+console.log(`Dominant read wrong role noun count: ${smart.dominantReadWrongRoleNounCount}`);
+console.log(`Dominant read primary class coverage: ${smart.dominantReadPrimaryClassCoverageCount}/${sampleSize} (${formatPercent((smart.dominantReadPrimaryClassCoverageCount / sampleSize) * 100)})`);
+console.log(`Art direction repair count: ${smart.artDirectionRepairCount}`);
+console.log(`Dominant read repair count: ${smart.dominantReadRepairCount}`);
+console.log(`Pose directive repair count: ${smart.poseDirectiveRepairCount}`);
+console.log(`Secondary flavor demotion count: ${smart.secondaryFlavorDemotionCount}`);
+console.log(`Conflicting flavor suppressed count: ${smart.conflictingFlavorSuppressedCount}`);
+console.log('Magic mode distribution by class');
+printTop(smart.magicModeDistributionByClass, 30);
+console.log('Body magic rate by caster class');
+for (const className of ['wizard', 'sorcerer', 'warlock']) console.log(`${className}: ${smart.casterBodyMagicCounts.get(className) ?? 0}/${smart.casterBodyMagicTotals.get(className) ?? 0}`);
+console.log(`Environment magic generic count: ${smart.environmentMagicGenericCount}`);
+console.log(`Bard orb caster read count: ${smart.bardOrbCasterReadCount}`);
+console.log(`Holy symbol non-divine read count: ${smart.holySymbolNonDivineReadCount}`);
+console.log(`Image Prompt word count after Art Direction compression: ${smart.imagePromptWordCountAfterArtDirectionCompressionAverage.toFixed(1)}`);
+console.log(`Art Direction compression removed flavor count: ${smart.artDirectionCompressionRemovedFlavorCount}`);
+console.log(`Primary read lost after compression count: ${smart.primaryReadLostAfterCompressionCount}`);
+console.log('Artist brief quality statistics');
+console.log(`Artist brief missing dominant read: ${smart.artistBriefMissingDominantRead}`);
+console.log(`Artist brief missing class/race: ${smart.artistBriefMissingClass}`);
+console.log(`Artist brief missing pose: ${smart.artistBriefMissingPose}`);
+console.log(`Artist brief too long: ${smart.artistBriefTooLong}`);
+console.log(`Artist brief suppression missing: ${smart.artistBriefSuppressionMissing}`);
+console.log('Race-class plausibility statistics');
+console.log(`Race-class plausibility risk count: ${smart.raceClassPlausibilityRiskCount}`);
+console.log(`Blocked default race/class count: ${smart.blockedDefaultRaceClassCount}`);
+console.log(`Chaos-only race/class in default count: ${smart.chaosOnlyRaceClassInDefaultCount}`);
+console.log(`Rare race/class reinterpreted count: ${smart.rareRaceClassReinterpretedCount}`);
+console.log(`Race-class reinterpretation applied count: ${smart.raceClassReinterpretationAppliedCount}`);
+console.log('Theme class override risk statistics');
+console.log(`Theme overrides primary class count: ${smart.themeOverridesPrimaryClassCount}`);
+console.log(`Theme downgraded to flavor count: ${smart.themeDowngradedToFlavorCount}`);
+console.log(`Theme reinterpreted through class count: ${smart.themeReinterpretedThroughClassCount}`);
+console.log(`Theme rerolled/suppressed for class read count: ${smart.themeRerolledForClassReadCount}`);
+console.log(`Fighter-paladin drift risk count: ${smart.fighterPaladinDriftRiskCount}`);
+console.log(`Rogue-bard drift risk count: ${smart.rogueBardDriftRiskCount}`);
+console.log(`Rogue-ranger drift risk count: ${smart.rogueRangerDriftRiskCount}`);
+console.log(`Wizard-cleric drift risk count: ${smart.wizardClericDriftRiskCount}`);
+console.log(`Druid-bard drift risk count: ${smart.druidBardDriftRiskCount}`);
+console.log('Divine light differentiation statistics');
+console.log(`Divine halo overuse count: ${smart.divineHaloOveruseCount}`);
+console.log(`Generic holy backlight count: ${smart.genericHolyBacklightCount}`);
+console.log(`Cathedral rays overuse count: ${smart.cathedralRaysOveruseCount}`);
+console.log('Divine light mode distribution');
+printTop(smart.divineLightModeDistribution, 20);
+console.log(`Fighter with paladin light count: ${smart.fighterWithPaladinLightCount}`);
+console.log(`Cleric-paladin light collapse count: ${smart.clericPaladinLightCollapseCount}`);
+console.log('Visual diversity and composition director statistics');
+printTop(smart.genderPresentationDistribution, 10);
+console.log(`All-masculine 12-sample batch risk count: ${smart.allMasculineBatchRiskCount}`);
+console.log(`Beard overuse count: ${smart.beardOveruseCount}`);
+console.log(`Elder overuse count: ${smart.elderOveruseCount}`);
+console.log('Face archetype distribution'); printTop(smart.faceArchetypeDistribution, 12);
+console.log('Body type distribution'); printTop(smart.bodyTypeDistribution, 12);
+console.log('Backdrop lane distribution'); printTop(smart.backdropLaneDistribution, 20);
+console.log(`Empty background risk count: ${smart.emptyBackgroundRiskCount}`);
+console.log(`Repeated backdrop lane within 8: ${smart.repeatedBackdropLaneWithin8}`);
+console.log(`Scene prop regression count: ${smart.scenePropRegressionCount}`);
+console.log('Composition lane distribution'); printTop(smart.compositionLaneDistribution, 20);
+console.log(`Frontal iconic overuse count: ${smart.frontalIconicOveruseCount}`);
+console.log(`Repeated composition within 8: ${smart.repeatedCompositionWithin8}`);
+console.log(`Silhouette variety score: ${smart.silhouetteVarietyScoreAverage.toFixed(2)}`);
+console.log(`Pose composition mismatch count: ${smart.poseCompositionMismatchCount}`);
+console.log(`Visible prop budget exceeded count: ${smart.visiblePropBudgetExceededCount}`);
+console.log(`Belt clutter risk count: ${smart.beltClutterRiskCount}`);
+console.log(`Paper/map/compass leak count: ${smart.paperMapCompassLeakCount}`);
+console.log(`Rogue map/compass primary count: ${smart.rogueMapCompassPrimaryCount}`);
+console.log(`Fighter focus object count: ${smart.fighterFocusObjectCount}`);
+console.log(`Artificer prop soup risk count: ${smart.artificerPropSoupRiskCount}`);
+console.log(`Story detail object leak count: ${smart.storyDetailObjectLeakCount}`);
+console.log(`Fighter-paladin hard combo repaired/unrepaired: ${smart.fighterPaladinHardComboRepairedCount}/${Math.max(0, smart.fighterPaladinHardComboCount - smart.fighterPaladinHardComboRepairedCount)}`);
+console.log(`Rogue-bard hard combo repaired/unrepaired: ${smart.rogueBardHardComboRepairedCount}/${Math.max(0, smart.rogueBardHardComboCount - smart.rogueBardHardComboRepairedCount)}`);
+console.log(`Wizard-cleric hard combo count: ${smart.wizardClericHardComboCount}`);
+console.log(`Druid-bard hard combo count: ${smart.druidBardHardComboCount}`);
+console.log(`Noisy texture prompt risk count: ${smart.noisyTexturePromptRiskCount}`);
+console.log(`Heavy grain risk count: ${smart.heavyGrainRiskCount}`);
+console.log(`Microdetail overuse prompt risk count: ${smart.microdetailOverusePromptRiskCount}`);
+console.log(`Render hygiene phrase coverage: ${smart.renderHygienePhraseCoverage}/${sampleSize}`);
+console.log(`Repeated visual lane combo within 8: ${smart.repeatedVisualLaneComboWithin8}`);
+console.log(`Repeated class pose backdrop within 12: ${smart.repeatedClassPoseBackdropWithin12}`);
+console.log(`Visual diversity score: ${((smart.genderPresentationDistribution.size + smart.faceArchetypeDistribution.size + smart.bodyTypeDistribution.size + smart.backdropLaneDistribution.size + smart.compositionLaneDistribution.size) / 5).toFixed(2)}`);
+console.log('Render texture hygiene statistics');
+console.log(`Render grid artifact prompt risk count: ${smart.renderGridArtifactPromptRiskCount}`);
+console.log(`Rhombus texture risk count: ${smart.rhombusTextureRiskCount}`);
+console.log(`Scale texture on non-scaled race risk count: ${smart.scaleTextureOnNonScaledRaceRiskCount}`);
+console.log(`Overpatterned fabric risk count: ${smart.overPatternedFabricRiskCount}`);
+console.log('Aasimar readability statistics');
+console.log(`Aasimar prompts: ${smart.aasimarPromptCount}`);
+console.log(`Aasimar celestial marker phrase: ${smart.aasimarCelestialMarkerCount}/${smart.aasimarPromptCount || 1} (${formatPercent((smart.aasimarCelestialMarkerCount / (smart.aasimarPromptCount || 1)) * 100)})`);
+console.log(`Aasimar luminous/radiant eye marker: ${smart.aasimarEyeMarkerCount}/${smart.aasimarPromptCount || 1} (${formatPercent((smart.aasimarEyeMarkerCount / (smart.aasimarPromptCount || 1)) * 100)})`);
+console.log(`Aasimar halo/birthmark/celestial mark marker: ${smart.aasimarHaloMarkCount}/${smart.aasimarPromptCount || 1} (${formatPercent((smart.aasimarHaloMarkCount / (smart.aasimarPromptCount || 1)) * 100)})`);
+console.log(`Aasimar generic human risk count: ${smart.aasimarGenericRiskCount}`);
+console.log('Noisy character-bound detail statistics');
+console.log(`Average noisy character-bound details per prompt: ${smart.noisyDetailAverage.toFixed(2)}`);
+console.log(`Prompts with >1 paper/document item: ${smart.paperOverusePromptCount}`);
+console.log(`Spyglass outside allowed themes: ${smart.spyglassOutsideAllowedCount}`);
+console.log(`Ledger/license/inventory outside allowed themes: ${smart.ledgerOutsideAllowedCount}`);
+console.log(`Prompts with >1 tag/charm cluster: ${smart.tagCharmClusterOveruseCount}`);
+console.log('Pose cooldown and emotion coherence statistics');
+console.log(`Repeated high-impact pose within last 5: ${smart.repeatedHighImpactPoseWithinFiveCount}`);
+console.log(`Repeated pose + same class within last 10: ${smart.repeatedPoseSameClassWithinTenCount}`);
+const smartTopPoseShare = Math.max(0, ...smart.sequentialPoseCounts.values()) / sampleSize;
+const smartTopPoseFamilyShare = Math.max(0, ...smart.poseFamilyCounts.values()) / sampleSize;
+const smartPoseFamilyEntropy = entropy(smart.poseFamilyCounts);
+console.log(`Top pose share: ${(smartTopPoseShare * 100).toFixed(1)}%`);
+console.log(`Top pose family share: ${(smartTopPoseFamilyShare * 100).toFixed(1)}%`);
+console.log(`Pose family entropy: ${smartPoseFamilyEntropy.entropy.toFixed(3)} bits (${(smartPoseFamilyEntropy.normalized * 100).toFixed(1)}% normalized)`);
+console.log(`High-impact pose rate: ${((smart.highImpactPoseCount / sampleSize) * 100).toFixed(1)}%`);
+console.log(`Caster active casting pose rate: ${smart.casterPoseTotal ? ((smart.casterActiveCastingPoseCount / smart.casterPoseTotal) * 100).toFixed(1) : '0.0'}%`);
+console.log(`Caster sigil pose rate: ${smart.casterPoseTotal ? ((smart.casterSigilPoseCount / smart.casterPoseTotal) * 100).toFixed(1) : '0.0'}%`);
+console.log(`Repeated pose family within last 8: ${smart.repeatedPoseFamilyWithinEightCount}`);
+console.log(`Class pose repetition count: ${smart.classPoseRepetitionCount}`);
+console.log(`Weapon pose repetition count: ${smart.weaponPoseRepetitionCount}`);
+console.log(`Primary read missing race/class/silhouette/weapon/pose: ${smart.primaryReadMissingRace}/${smart.primaryReadMissingClass}/${smart.primaryReadMissingSilhouette}/${smart.primaryReadMissingWeapon}/${smart.primaryReadMissingPose}`);
+console.log(`Flavor stack dominates prompt count: ${smart.flavorStackDominatesPromptCount}`);
+console.log('Pose family distribution');
+printTop(smart.poseFamilyCounts, 14);
+console.log(`Emotion-pose mismatch count: ${smart.emotionPoseMismatchCount}`);
+console.log(`Rune motif on grounded non-arcane count: ${smart.runeMotifGroundedNonArcaneCount}`);
+console.log('Appearance / clutter / multiclass report');
+console.log(`Average same-race appearance similarity: ${smart.averageSameRaceAppearanceSimilarity.toFixed(1)}`);
+console.log(`Consecutive same-race same-appearance count: ${smart.consecutiveSameRaceSameAppearanceCount}`);
+console.log(`Average scene props: ${smart.scenePropAverage.toFixed(2)}`);
+console.log(`Average character-bound details: ${smart.characterBoundAverage.toFixed(2)}`);
+console.log(`Excessive clutter prompts: ${smart.excessiveClutterCount}/${sampleSize} (${formatPercent((smart.excessiveClutterCount / sampleSize) * 100)})`);
+console.log(`Ordinary class rate: ${smart.modeCounts.get('ordinary class') ?? 0}/${sampleSize} (${formatPercent(((smart.modeCounts.get('ordinary class') ?? 0) / sampleSize) * 100)})`);
+console.log(`Curated multiclass rate: ${smart.modeCounts.get('curated multiclass') ?? 0}/${sampleSize} (${formatPercent(((smart.modeCounts.get('curated multiclass') ?? 0) / sampleSize) * 100)})`);
+console.log(`Chaos rate: ${smart.modeCounts.get('chaos') ?? 0}/${sampleSize} (${formatPercent(((smart.modeCounts.get('chaos') ?? 0) / sampleSize) * 100)})`);
+console.log(`Random multiclass count: ${smart.randomMulticlassCount}`);
+console.log(`Triple multiclass count: ${smart.tripleMulticlassCount}`);
+console.log(`Forbidden multiclass count: ${smart.forbiddenMulticlassCount}`);
+console.log(`Multiclass class anchor average: ${smart.multiclassClassAnchorAverage.toFixed(2)}/5`);
+console.log('Top 20 plain weapon fallback sources');
+for (const [item, count] of topEntries(smart.plainWeaponFallbackSources, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Plain weapon fallback by tag');
+for (const [item, count] of topEntries(smart.plainWeaponFallbackTags, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Plain weapon fallback by build template');
+for (const [item, count] of topEntries(smart.plainWeaponFallbackBuildTemplates, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Plain weapon fallback by visual theme');
+for (const [item, count] of topEntries(smart.plainWeaponFallbackThemes, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Plain weapon fallback by class');
+for (const [item, count] of topEntries(smart.plainWeaponFallbackClasses, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top repeated sequential visual themes');
+for (const [item, count] of topEntries(smart.sequentialThemeCounts, 10)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top repeated sequential poses');
+for (const [item, count] of topEntries(smart.sequentialPoseCounts, 10)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top repeated sequential FX');
+for (const [item, count] of topEntries(smart.sequentialFxCounts, 10)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top repeated sequential visual details');
+for (const [item, count] of topEntries(smart.sequentialDetailCounts, 10)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Composition mode distribution');
+for (const [item, count] of topEntries(smart.compositionModeCounts, 10)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Environment detail level distribution');
+for (const [item, count] of topEntries(smart.environmentLevelCounts, 10)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top appearance profiles');
+for (const [item, count] of topEntries(smart.appearanceDistribution, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top scene props');
+for (const [item, count] of topEntries(smart.scenePropTop, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Curated multiclass distribution');
+for (const [item, count] of topEntries(smart.curatedProfileCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Dream Walker-specific statistics');
+console.log(`Dream Walker activation: ${smart.dreamWalkerCount}/${sampleSize} (${formatPercent((smart.dreamWalkerCount / sampleSize) * 100)})`);
+console.log(`Dream Walker scene prop average: ${smart.dreamWalkerScenePropAverage.toFixed(2)}`);
+console.log(`Dream Walker iconic/legendary detail rate: ${formatPercent(smart.dreamWalkerIconicRate * 100)}`);
+console.log(`Dream Walker remapped compatibility tags: ${Object.entries(dreamWalkerCompatibilityAliases).map(([tag, mapped]) => `${tag}->${mapped.join('|')}`).join(', ')}`);
+console.log(`Dream Walker rejected/ignored unknown tags: ${dreamWalkerRejectedCompatibilityTags.length > 0 ? dreamWalkerRejectedCompatibilityTags.join(', ') : 'none'}`);
+for (const [title, map] of [['Dream Walker theme variants', smart.dreamWalkerVariantCounts], ['Dream Walker silhouettes', smart.dreamWalkerSilhouetteCounts], ['Dream Walker armor/clothing', smart.dreamWalkerArmorCounts], ['Dream Walker weapon/tools', smart.dreamWalkerWeaponCounts], ['Dream Walker weapon languages', smart.dreamWalkerWeaponLanguageCounts], ['Dream Walker equipment finishes', smart.dreamWalkerFinishCounts], ['Dream Walker enchantments', smart.dreamWalkerEnchantmentCounts], ['Dream Walker poses', smart.dreamWalkerPoseCounts], ['Dream Walker moods', smart.dreamWalkerMoodCounts], ['Dream Walker lights', smart.dreamWalkerLightCounts], ['Dream Walker FX', smart.dreamWalkerFxCounts], ['Dream Walker character-bound details', smart.dreamWalkerDetailCounts]]) {
+  console.log(title);
+  for (const [item, count] of topEntries(map, 10)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+}
+console.log('Equipment finish distribution');
+for (const [item, count] of topEntries(smart.equipmentFinishCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Enchantment intensity distribution');
+for (const [item, count] of topEntries(smart.enchantmentIntensityCounts, 10)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top equipment enchantments');
+for (const [item, count] of topEntries(smart.equipmentEnchantmentCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Companion activation by class');
+for (const [className, total] of [...smart.companionClassTotals.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+  const active = smart.companionByClass.get(className) ?? 0;
+  console.log(`${className}: ${active}/${total} (${formatPercent((active / total) * 100)})`);
+}
+console.log('Companion activation by build template');
+for (const [templateId, total] of [...smart.companionBuildTemplateTotals.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+  const active = smart.companionByBuildTemplate.get(templateId) ?? 0;
+  console.log(`${templateId}: ${active}/${total} (${formatPercent((active / total) * 100)})`);
+}
+console.log('Top silhouettes');
+for (const [item, count] of topEntries(smart.silhouetteCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top visual motifs');
+for (const [item, count] of topEntries(smart.visualMotifCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top companions');
+for (const [item, count] of topEntries(smart.companionCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top armor languages');
+for (const [item, count] of topEntries(smart.armorLanguageCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Top weapon languages');
+for (const [item, count] of topEntries(smart.weaponLanguageCounts, 20)) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('Underused detail pools');
+for (const [item, count] of smart.underusedDetailPools) console.log(`${String(count).padStart(5, ' ')}  ${item}`);
+console.log('\nG. 30 smart-pool test characters');
+smart.generatedSamples.forEach((seed, index) => console.log(`${index + 1}. ${seedSummary(seed)}`));
+console.log('\nH. 10 highest smart class identity characters');
+smart.highestClassIdentity.forEach(({ seed }, index) => console.log(`${index + 1}. ${seedSummary(seed)}`));
+console.log('\nI. 10 highest smart diversity score characters');
+smart.highestDiversity.forEach(({ seed, diversityScore }, index) => console.log(`${index + 1}. diversity ${diversityScore.toFixed(1)} | ${seedSummary(seed)}`));
+
+rmSync(outDir, { recursive: true, force: true });
+if (failures.length > 0) {
+  console.error(`Identity analysis failed with ${failures.length} validation issue(s):`);
+  console.error(failures.slice(0, 25).join('\n'));
+  process.exit(1);
+}
+console.log(`\nIdentity analysis passed: ${sampleSize} baseline and ${sampleSize} smart-pool generated seeds inspected.`);
