@@ -73,7 +73,7 @@ type Mode = (typeof modeWeights)[number]['name'];
 export type DiversityMode = 'off' | 'soft' | 'strict';
 export type EnvironmentDetailLevel = 'minimal' | 'balanced' | 'cinematic';
 export type CompositionMode = 'character_concept_portrait' | 'full_body_character_art' | 'cinematic_splash_art' | 'character_card';
-export type StylePreset = 'heroic_dnd_concept_art' | 'realistic_dark_fantasy' | 'wuxia_inspired_high_fantasy' | 'painterly_rpg_splash' | 'grounded_character_sheet';
+export type StylePreset = 'cinematic_painted_fantasy' | 'painted_character_study_clean' | 'clean_concept_art' | 'legacy_heroic_rpg' | 'heroic_dnd_concept_art' | 'realistic_dark_fantasy' | 'wuxia_inspired_high_fantasy' | 'painterly_rpg_splash' | 'grounded_character_sheet';
 type RegenerableLayer = 'template' | 'theme' | 'themeVariant' | 'motif' | 'narrativeVariant' | 'culture' | 'armor' | 'weapon' | 'silhouette' | 'pose' | 'mood' | 'light' | 'fx';
 
 type TemplateSelection = {
@@ -119,6 +119,7 @@ type SmartSelectionContext = {
   stylePreset?: StylePreset;
   generationProfile?: GenerationProfile;
   promptCompilerMode?: PromptCompilerMode;
+  manualControls?: ManualGenerationControls;
 };
 
 export type GenerationOptions = {
@@ -129,6 +130,7 @@ export type GenerationOptions = {
   stylePreset?: StylePreset;
   generationProfile?: GenerationProfile;
   promptCompilerMode?: PromptCompilerMode;
+  manualControls?: ManualGenerationControls;
 };
 
 export type CharacterSeed = {
@@ -186,6 +188,7 @@ export type CharacterSeed = {
   compositionLane: CompositionLaneOption;
   generationProfile: GenerationProfile;
   promptCompilerMode: PromptCompilerMode;
+  characterConcept: CharacterConcept;
 };
 
 export type GenerationResult = {
@@ -197,8 +200,30 @@ export type GenerationResult = {
   trace: string[];
 };
 
-export type GenerationProfile = 'natural_random' | 'balanced_gallery' | 'class_showcase' | 'chaos';
+export type GenerationProfile = 'balanced_gallery' | 'classic_fantasy' | 'weird_but_good' | 'chaos' | 'manual_custom' | 'natural_random' | 'class_showcase';
 export type PromptCompilerMode = 'structured_seed_prompt' | 'artist_brief_prompt' | 'debug_verbose_prompt';
+export type ManualGenerationControls = {
+  class?: CharacterClass | 'random';
+  race?: RaceOption['name'] | 'random';
+  genderPresentation?: GenderPresentation | 'random';
+  ageBand?: ApparentAgeBand | 'random';
+  bodyType?: string | 'random';
+  stylePreset?: StylePreset | 'random';
+  generationProfile?: GenerationProfile;
+  promptCompilerMode?: PromptCompilerMode;
+  allowRare?: boolean;
+  allowChaos?: boolean;
+};
+export type CharacterConcept = {
+  conceptLine: string;
+  classArchetype: string;
+  raceInterpretation: string;
+  visualVerb: string;
+  bodyRead: string;
+  emotionalRead: string;
+  primarySilhouetteGoal: string;
+  styleIntent: string;
+};
 
 type MagicManifestationMode = 'none' | 'body' | 'weapon' | 'environment' | 'light' | 'companion' | 'subtle_aura';
 type RaceClassPlausibilityLevel = 'strong_default' | 'normal_default' | 'rare_reinterpreted' | 'chaos_only' | 'blocked_default';
@@ -325,6 +350,47 @@ const faceArchetypes = [
   'radiant severe face',
 ];
 
+
+
+const classVisualArchetypes: Record<CharacterClass, string[]> = {
+  fighter: ['disciplined weapon master', 'old mercenary captain', 'scarred duelist', 'battlefield survivor', 'royal guard veteran', 'monster-hunter swordsman'],
+  rogue: ['urban knife-fighter', 'noble infiltrator', 'relic thief', 'alley assassin', 'spy duelist', 'monster-hunter scout'],
+  warlock: ['pact aristocrat', 'void medium', 'cursed village oracle', 'patron-marked duelist', 'eclipse emissary', 'forbidden scholar'],
+  bard: ['court performer', 'battle skald', 'street storyteller', 'masked witblade', 'melancholic singer', 'festival trickster'],
+  druid: ['grove guardian', 'bog witch', 'weather shepherd', 'wildfire keeper', 'beast-bonded wanderer', 'spore hermit'],
+  cleric: ['battlefield healer', 'relic keeper', 'grave priest', 'plague minister', 'wandering chaplain', 'miracle worker'],
+  paladin: ['oathbound knight', 'fallen oath-warrior', 'relic guardian', 'judgement duelist', 'shield-bearer', 'grave oathkeeper'],
+  artificer: ['field mechanic', 'forge savant', 'relic engineer', 'alchemical duelist', 'clockwork sapper', 'siege-smith'],
+  barbarian: ['storm-scarred berserker', 'clan champion', 'wilderness survivor', 'beast-slayer', 'tavern brawler', 'raider veteran'],
+  wizard: ['academy mage', 'dream scholar', 'ritual architect', 'star oracle', 'forbidden researcher', 'battle-mage tactician'],
+  sorcerer: ['storm-blooded caster', 'void-touched vessel', 'dragon-blooded prodigy', 'dream-touched conduit', 'unstable magic heir', 'elemental scion'],
+  ranger: ['trail warden', 'frontier archer', 'monster tracker', 'coastal scout', 'swamp stalker', 'beast-bonded pathfinder'],
+  monk: ['temple guardian', 'disciplined wanderer', 'unarmed adept', 'dragon-style initiate', 'quiet exorcist', 'mountain hermit'],
+};
+
+function resolveCharacterConcept(seed: Pick<CharacterSeed, 'primaryClass' | 'race' | 'size' | 'visualTheme' | 'characterPresentation'>): CharacterConcept {
+  const classArchetype = weightedPick(classVisualArchetypes[seed.primaryClass].map((name) => ({ name, weight: 10 }))).name;
+  const raceInterpretation = seed.race.name === 'fairy'
+    ? seed.characterPresentation.fairyVariant ?? 'tiny winged adult fantasy figure'
+    : seed.race.name === 'dwarf'
+      ? 'compact grounded dwarf body read'
+      : `${seed.size} ${seed.race.name} body read`;
+  const visualVerb = ['standing', 'advancing', 'watching', 'guarding', 'channeling', 'turning'][Math.floor(Math.random() * 6)];
+  const bodyRead = `${seed.characterPresentation.bodyType}, ${seed.characterPresentation.postureTemperament}`;
+  const emotionalRead = seed.characterPresentation.faceArchetype;
+  const primarySilhouetteGoal = seed.primaryClass === 'rogue' ? 'lean angled silhouette' : seed.primaryClass === 'barbarian' ? 'powerful grounded silhouette' : 'clear class-readable silhouette';
+  const styleIntent = 'cinematic painted fantasy with rich atmospheric background';
+  return {
+    conceptLine: `${seed.race.name} ${seed.primaryClass} as ${classArchetype}`,
+    classArchetype,
+    raceInterpretation,
+    visualVerb,
+    bodyRead,
+    emotionalRead,
+    primarySilhouetteGoal,
+    styleIntent,
+  };
+}
 
 const fairyVisualVariants = [
   'bright young adult moth-wing performer',
@@ -527,6 +593,22 @@ const identityInfluence = {
 
 
 const stylePresets: Record<StylePreset, { phrase: string; use: string }> = {
+  cinematic_painted_fantasy: {
+    phrase: 'cinematic painted fantasy character concept, realistic painterly finish, dramatic atmospheric depth, expressive face, natural cloth leather and metal, clean readable silhouette, controlled detail, low surface noise, rich but uncluttered background, grounded realism',
+    use: 'Diceborn default cinematic style with real atmospheric background',
+  },
+  painted_character_study_clean: {
+    phrase: 'clean painted fantasy character study, refined brushwork, smooth value masses, restrained realism, natural materials, low texture density, focused character read',
+    use: 'clean character study and design review',
+  },
+  clean_concept_art: {
+    phrase: 'clean fantasy concept art, readable silhouette, controlled materials, expressive face, low-clutter atmospheric background, crisp character design',
+    use: 'simple readable concept art',
+  },
+  legacy_heroic_rpg: {
+    phrase: 'heroic D&D character concept art, realistic digital fantasy art, high-end RPG production art, dark high fantasy and heroic fantasy, premium concept-art quality, detailed but readable, cinematic character-focused lighting, strong clean silhouette, detailed costume and gear, grounded fantasy materials, subtle painterly finish, no excessive background clutter',
+    use: 'legacy heroic RPG prompt compatibility',
+  },
   heroic_dnd_concept_art: {
     phrase: 'heroic D&D character concept art, realistic digital fantasy art, high-end RPG production art, dark high fantasy and heroic fantasy, premium concept-art quality, detailed but readable, cinematic character-focused lighting, strong clean silhouette, detailed costume and gear, grounded fantasy materials, subtle painterly finish, no excessive background clutter',
     use: 'default stable D&D concept-art style',
@@ -1012,14 +1094,16 @@ function pickClasses(mode: Mode, context?: SmartSelectionContext): CharacterClas
     return [weightedPick(characterClasses).name];
   }
 
-  const recentClasses = recentSeedMemory.slice(-24).map((seed) => seed.primaryClass);
+  const recentClasses = recentSeedMemory.slice(-30).map((seed) => seed.primaryClass);
+  const classicWeights: Partial<Record<CharacterClass, number>> = { fighter: 9, rogue: 9, wizard: 8, cleric: 8, ranger: 8, bard: 8, druid: 8, barbarian: 7, paladin: 7, warlock: 7, sorcerer: 7, monk: 6, artificer: 6 };
   const balancedWeights = characterClasses.map((option) => {
     const className = option.name;
     const recentCount = recentClasses.filter((recentClass) => recentClass === className).length;
-    const starvationBoost = context?.generationProfile === 'balanced_gallery' && recentCount === 0 ? 14 : 0;
-    const druidVisibilityBoost = context?.generationProfile === 'balanced_gallery' && className === 'druid' ? 4 : 0;
-    const repetitionPenalty = Math.min(recentCount * 2, 10);
-    return { ...option, weight: Math.max(1, option.weight + starvationBoost + druidVisibilityBoost - repetitionPenalty) };
+    const profileBase = context?.generationProfile === 'classic_fantasy' ? (classicWeights[className] ?? option.weight) : option.weight;
+    const starvationBoost = ['balanced_gallery', 'manual_custom'].includes(context?.generationProfile ?? '') && recentCount === 0 ? 16 : 0;
+    const druidVisibilityBoost = ['balanced_gallery', 'manual_custom'].includes(context?.generationProfile ?? '') && className === 'druid' ? 4 : 0;
+    const repetitionPenalty = Math.min(recentCount * 2, 12);
+    return { ...option, weight: Math.max(1, profileBase + starvationBoost + druidVisibilityBoost - repetitionPenalty) };
   });
   return [weightedPick(balancedWeights).name];
 }
@@ -1027,7 +1111,7 @@ function pickClasses(mode: Mode, context?: SmartSelectionContext): CharacterClas
 function pickInitialRaceWithRecentCap(mode: Mode): RaceOption {
   const picked = weightedPick(races);
   const ordinaryMode = mode !== 'curated multiclass' && mode !== 'chaos';
-  const recentAasimar = recentSeedMemory.slice(-12).some((seed) => seed.race.name === 'aasimar');
+  const recentAasimar = recentSeedMemory.slice(-16).some((seed) => seed.race.name === 'aasimar');
   if (ordinaryMode && picked.name === 'aasimar' && recentAasimar) {
     return weightedPick(races.filter((race) => race.name !== 'aasimar'));
   }
@@ -2233,14 +2317,16 @@ function calculateClassAnchorScore(seed: Pick<CharacterSeed, 'primaryClass' | 'w
 function createSeed(context: SmartSelectionContext): CharacterSeed {
   const pickedMode = weightedPick(modeWeights).name;
   const mode: Mode = pickedMode === 'chaos' ? 'ordinary class' : pickedMode;
-  const generationProfile = context.generationProfile ?? 'balanced_gallery';
+  const generationProfile = context.generationProfile ?? 'classic_fantasy';
   const promptCompilerMode = context.promptCompilerMode ?? 'artist_brief_prompt';
-  const initialRace = pickInitialRaceWithRecentCap(mode);
+  const lockedRace = context.manualControls?.race && context.manualControls.race !== 'random' ? context.manualControls.race : null;
+  const initialRace = lockedRace ? (races.find((race) => race.name === lockedRace) ?? pickInitialRaceWithRecentCap(mode)) : pickInitialRaceWithRecentCap(mode);
   const initialSize = getRaceSize(initialRace);
   const curatedMulticlassProfile = mode === 'curated multiclass' ? selectCuratedMulticlassProfile(initialRace, initialSize, context) : null;
-  const classes = curatedMulticlassProfile ? [curatedMulticlassProfile.primaryClass, curatedMulticlassProfile.secondaryClass] : pickClasses(mode, { ...context, generationProfile });
+  const lockedClass = context.manualControls?.class && context.manualControls.class !== 'random' ? context.manualControls.class : null;
+  const classes = curatedMulticlassProfile ? [curatedMulticlassProfile.primaryClass, curatedMulticlassProfile.secondaryClass] : (lockedClass ? [lockedClass] : pickClasses(mode, { ...context, generationProfile }));
   const primaryClass = classes[0];
-  const race = curatedMulticlassProfile ? initialRace : choosePlausibleRaceForClass(initialRace, primaryClass, mode, context);
+  const race = lockedRace || curatedMulticlassProfile ? initialRace : choosePlausibleRaceForClass(initialRace, primaryClass, mode, context);
   const size = getRaceSize(race);
   const archetype = curatedMulticlassProfile ? pickCuratedArchetype(curatedMulticlassProfile, primaryClass, context) : pickArchetype(classes, primaryClass);
   const curatedTemplate = curatedMulticlassProfile ? buildTemplates.find((template) => template.id === curatedMulticlassProfile.buildTemplateId) : undefined;
@@ -2265,7 +2351,7 @@ function createSeed(context: SmartSelectionContext): CharacterSeed {
   const cultureDetails = pickCultureDetails(culturalOrigin);
   const compositionMode = context.compositionMode ?? 'full_body_character_art';
   const environmentDetailLevel = context.environmentDetailLevel ?? 'balanced';
-  const stylePreset = context.stylePreset ?? 'heroic_dnd_concept_art';
+  const stylePreset = (context.manualControls?.stylePreset && context.manualControls.stylePreset !== 'random' ? context.manualControls.stylePreset : context.stylePreset) ?? 'cinematic_painted_fantasy';
   const appearanceProfile = selectAppearanceProfile(race, size, primaryClass, buildTemplate, visualTheme, fantasyPillar, culturalOrigin, context);
   const armor = smartPickArmor(constrainedArmorOptions(buildTemplate, archetype, primaryClass, size, visualTheme), primaryClass, context);
   const armorLanguage = selectArmorLanguage(armor, { primaryClass, buildTemplate, visualTheme, fantasyPillar, culturalOrigin }, themeProfile, context);
@@ -2279,7 +2365,7 @@ function createSeed(context: SmartSelectionContext): CharacterSeed {
   const mood = smartPickSimpleOption('Mood', constrainedMoodOptions(buildTemplate, archetype, visualTheme, narrativeMotif, narrativeVariant), archetype.tags, context);
   const light = smartPickSimpleOption('Light', constrainedLightOptions(buildTemplate, archetype, visualTheme), archetype.tags, context);
   const fx = smartPickSimpleOption('FX', constrainedFxOptions(buildTemplate, archetype, visualTheme, narrativeMotif, visualThemeVariant, narrativeVariant), [...archetype.tags, ...visualTheme.archetypeTags], context);
-  const characterPresentation = selectCharacterPresentation({ race, size, primaryClass });
+  const characterPresentation = selectCharacterPresentation({ race, size, primaryClass }, context);
   const backdropLane = selectBackdropLane({ primaryClass, race, visualTheme, narrativeMotif, fantasyPillar });
   const compositionLane = selectCompositionLane({ primaryClass, race, size, pose, weapon });
   const equipmentFinish = selectEquipmentFinish({ buildTemplate, visualTheme, fantasyPillar, armorLanguage, weaponLanguage }, context);
@@ -2342,6 +2428,7 @@ function createSeed(context: SmartSelectionContext): CharacterSeed {
     characterPresentation,
     backdropLane,
     compositionLane,
+    characterConcept: resolveCharacterConcept({ primaryClass, race, size, visualTheme, characterPresentation }),
     generationProfile,
     promptCompilerMode,
   };
@@ -3611,19 +3698,22 @@ function faceArchetypeFor(primaryClass: CharacterClass): string {
   return weightedPick((byClass[primaryClass] ?? faceArchetypes).map((name) => ({ name, weight: 10 }))).name;
 }
 
-function selectCharacterPresentation(seed: Pick<CharacterSeed, 'race' | 'size' | 'primaryClass'>): CharacterPresentation {
+function selectCharacterPresentation(seed: Pick<CharacterSeed, 'race' | 'size' | 'primaryClass'>, context?: SmartSelectionContext): CharacterPresentation {
   const fairy = seed.race.name === 'fairy';
   const fairyVariant = fairy ? weightedPick(fairyVisualVariants.map((name) => ({ name, weight: 10 }))).name : undefined;
-  const genderPresentation = fairy
+  const lockedGender = context?.manualControls?.genderPresentation && context.manualControls.genderPresentation !== 'random' ? context.manualControls.genderPresentation : null;
+  const lockedAge = context?.manualControls?.ageBand && context.manualControls.ageBand !== 'random' ? context.manualControls.ageBand : null;
+  const genderPresentation = lockedGender ?? (fairy
     ? weightedPick([{ name: 'masculine' as GenderPresentation, weight: 32 }, { name: 'feminine' as GenderPresentation, weight: 38 }, { name: 'androgynous' as GenderPresentation, weight: 30 }]).name
-    : weightedPick(genderPresentationWeights).name;
-  const apparentAgeBand = fairy
+    : weightedPick(genderPresentationWeights).name);
+  const apparentAgeBand = lockedAge ?? (fairy
     ? weightedPick([{ name: 'young_adult' as ApparentAgeBand, weight: 38 }, { name: 'adult' as ApparentAgeBand, weight: 42 }, { name: 'middle_aged' as ApparentAgeBand, weight: 15 }, { name: 'elder' as ApparentAgeBand, weight: 5 }]).name
-    : weightedPick(ageBandWeights).name;
-  const bodyType = fairyVariant?.includes('plump') ? 'tiny rounded'
+    : weightedPick(ageBandWeights).name);
+  const lockedBody = context?.manualControls?.bodyType && context.manualControls.bodyType !== 'random' ? context.manualControls.bodyType : null;
+  const bodyType = lockedBody ?? (fairyVariant?.includes('plump') ? 'tiny rounded'
     : fairyVariant?.includes('soft round') ? 'soft tiny rounded'
       : fairyVariant?.includes('armored') ? 'tiny armored'
-        : bodyTypeFor(seed);
+        : bodyTypeFor(seed));
   return {
     genderPresentation,
     apparentAgeBand,
@@ -3855,7 +3945,7 @@ export function visualDirectorRisk(seed: CharacterSeed, imagePrompt: string): {
     noisyTexturePromptRisk: /heavy grain|noisy texture|speckled surface noise|gritty digital artifacts|crunchy texture/i.test(positive),
     heavyGrainRisk: /heavy grain|gritty digital artifacts/i.test(positive),
     microdetailOverusePromptRisk: /all-over microtexture|over-sharpened microdetail|micro-detail sprayed/i.test(positive),
-    renderHygienePhraseCoverage: /painted fantasy character study|Painted Character Study/i.test(imagePrompt) && /smooth value masses/i.test(imagePrompt) && /low texture density/i.test(imagePrompt),
+    renderHygienePhraseCoverage: /cinematic painted fantasy|painted fantasy character study|Painted Character Study/i.test(imagePrompt) && /atmospheric depth|smooth value masses/i.test(imagePrompt) && /low surface noise|low texture density/i.test(imagePrompt),
   };
 }
 
@@ -4165,7 +4255,11 @@ function sanitizeArtistLiteralObjects(text: string, seed: Pick<CharacterSeed, 'p
 }
 
 function artistRaceMarker(seed: CharacterSeed): string {
-  if (seed.race.name === 'dwarf') return 'compact broad body, square grounded silhouette, braided beard marker, broad hands and heavy boots';
+  if (seed.race.name === 'dwarf') {
+    if (seed.characterPresentation.genderPresentation === 'feminine') return 'compact broad body, thick braids, strong jaw, broad hands, heavy boots, square grounded silhouette';
+    if (seed.characterPresentation.genderPresentation === 'androgynous') return 'compact broad body, side braids, heavy brows, strong jaw, square grounded silhouette';
+    return 'compact broad body, square grounded silhouette, thick or braided beard, broad hands and heavy boots';
+  }
   if (seed.race.name === 'aasimar') {
     if (['cleric', 'paladin', 'sorcerer'].includes(seed.primaryClass)) return 'one muted celestial marker, pale silver eyes';
     return 'one subtle celestial marker, faint celestial scars without saintly glow';
@@ -4210,11 +4304,11 @@ function artistBackdropLight(seed: CharacterSeed, artDirection: ArtDirectionBrie
 
 function artistNegativeClause(seed: CharacterSeed): string {
   const aasimarClause = seed.race.name === 'aasimar' && !['cleric', 'paladin', 'sorcerer'].includes(seed.primaryClass) ? ', no halo or saint poster read' : '';
-  return `Avoid belt clutter, papers, maps, dangling items, extra props${aasimarClause}; no heavy grain, noisy overlay, mosaic, tiled/checker/diamond/rhombus pattern, all-over surface noise, or crunchy microdetail; no readable text, only illegible abstract marks.`;
+  return `Avoid belt clutter, dangling extras, duplicate props${aasimarClause}, text, logos, grainy surfaces, patterned artifacts, and noisy material planes.`;
 }
 
 function paintedCharacterStudyStyle(): string {
-  return 'Painted Character Study style with refined brushwork, smooth value masses, restrained realism, natural cloth and metal, premium painted illustration, low texture density, clean surfaces, controlled edges, broad readable shapes, soft depth, localized detail on face, primary tool, and armor.';
+  return 'Cinematic painted fantasy style with realistic painterly finish, dramatic atmospheric depth, expressive face, natural leather and metal, clean readable silhouette, controlled detail, low surface noise, and a rich but uncluttered background.';
 }
 
 function compileArtistBriefImagePrompt(seed: CharacterSeed, artDirection: ArtDirectionBrief): string {
@@ -4225,12 +4319,12 @@ function compileArtistBriefImagePrompt(seed: CharacterSeed, artDirection: ArtDir
   const pose = sanitizeArtistLiteralObjects(`${seed.compositionLane.phrase}; ${artDirection.poseDirective}`, seed);
   const story = artistStoryShorthand(seed, artDirection);
   const sentences = [
-    `Full-body painted fantasy character study of a ${seed.characterPresentation.genderPresentation} ${age} ${seed.race.name} ${seed.primaryClass}, ${classFantasy.coreFantasy.split(',')[0].trim()}.`,
+    `Full-body cinematic painted fantasy concept of a ${seed.characterPresentation.genderPresentation} ${age} ${seed.race.name} ${seed.primaryClass}, ${seed.characterConcept.classArchetype}, ${classFantasy.coreFantasy.split(',')[0].trim()}.`,
     `${pronoun.possessive} ${artistRaceMarker(seed)}; ${seed.characterPresentation.faceArchetype}, ${seed.characterPresentation.bodyType} body, ${seed.characterPresentation.postureTemperament}.`,
     `${artistCostumePhrase(seed)}.`,
     `${pronoun.subject} carries one primary tool, ${weapon}, in ${pose}.`,
     story ? `One lived-in trace: ${story}.` : null,
-    `${artistBackdropLight(seed, artDirection)}, no scene props.`,
+    `${artistBackdropLight(seed, artDirection)}, rich atmospheric background kept secondary and uncluttered.`,
     paintedCharacterStudyStyle(),
     artistNegativeClause(seed),
   ];
@@ -4527,11 +4621,11 @@ export function generateCharacterSeed(options: GenerationOptions = {}): Generati
   const diversityMode = options.diversityMode ?? 'soft';
   const compositionMode = options.compositionMode ?? 'full_body_character_art';
   const environmentDetailLevel = options.environmentDetailLevel ?? 'balanced';
-  const stylePreset = options.stylePreset ?? 'heroic_dnd_concept_art';
-  const generationProfile = options.generationProfile ?? 'balanced_gallery';
-  const promptCompilerMode = options.promptCompilerMode ?? 'artist_brief_prompt';
+  const stylePreset = (options.manualControls?.stylePreset && options.manualControls.stylePreset !== 'random' ? options.manualControls.stylePreset : options.stylePreset) ?? 'cinematic_painted_fantasy';
+  const generationProfile = options.manualControls?.generationProfile ?? options.generationProfile ?? 'classic_fantasy';
+  const promptCompilerMode = options.manualControls?.promptCompilerMode ?? options.promptCompilerMode ?? 'artist_brief_prompt';
   const trace: string[] = [`Starting v8 smart candidate pool generation (${useSmartPool ? 'smart pool' : 'baseline weighted'} mode; diversity ${diversityMode}).`];
-  const context: SmartSelectionContext = { useSmartPool, trace, compositionMode, environmentDetailLevel, stylePreset, generationProfile, promptCompilerMode };
+  const context: SmartSelectionContext = { useSmartPool, trace, compositionMode, environmentDetailLevel, stylePreset, generationProfile, promptCompilerMode, manualControls: options.manualControls };
   let seed = createSeed(context);
   let similarityStatus: SimilarityReport = { score: 0, tooSimilar: false, duplicateVisualCore: false, similarSummary: 'none' };
 

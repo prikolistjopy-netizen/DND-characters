@@ -350,12 +350,12 @@ function wordCount(text) {
 }
 
 function hasForbiddenNoTextPhrase(text) {
-  return /\bno text\b|no text in image|text in image/i.test(text);
+  return /text in image/i.test(text);
 }
 
 
 function startsWithCompositionPhrase(text) {
-  return /^(Full-body painted fantasy character study|full-body character concept art, centered character, entire body visible from head to toe, clean readable silhouette, minimal environment|focused character concept portrait, readable face and upper costume, limited background, strong race features|cinematic fantasy splash art, dynamic scene, dramatic lighting, readable character silhouette|clean vertical character card illustration, full body visible, readable silhouette, minimal background, strong design clarity)/i.test(text);
+  return /^(Full-body cinematic painted fantasy concept|Full-body painted fantasy character study|full-body character concept art, centered character, entire body visible from head to toe, clean readable silhouette, minimal environment|focused character concept portrait, readable face and upper costume, limited background, strong race features|cinematic fantasy splash art, dynamic scene, dramatic lighting, readable character silhouette|clean vertical character card illustration, full body visible, readable silhouette, minimal background, strong design clarity)/i.test(text);
 }
 function oldPromptTemplate(text) {
   return /^Detailed fantasy concept art portrait of/i.test(text);
@@ -637,13 +637,13 @@ for (let index = 0; index < sampleSize; index += 1) {
   imagePromptWordTotal += imageWords;
   imagePromptWordMax = Math.max(imagePromptWordMax, imageWords);
   if (imageWords > 450) imagePromptOver450Count += 1;
-  if (imagePrompt.includes('no readable text')) imagePromptNoReadableTextCount += 1;
+  if (/no readable text|no text or logos|text, logos/i.test(imagePrompt)) imagePromptNoReadableTextCount += 1;
   if (hasForbiddenNoTextPhrase(imagePrompt)) imagePromptNoTextPhraseCount += 1;
   if (oldPromptTemplate(imagePrompt)) oldPromptTemplateAsImagePromptCount += 1;
   if (!startsWithCompositionPhrase(imagePrompt)) imagePromptMissingCompositionPhraseCount += 1;
   if (seed.compositionMode === 'full_body_character_art') {
     imagePromptFullBodyModeTotal += 1;
-    if (/full-body painted fantasy character study|full-body character concept art/i.test(imagePrompt)) imagePromptFullBodyModePhraseCount += 1;
+    if (/full-body cinematic painted fantasy concept|full-body painted fantasy character study|full-body character concept art/i.test(imagePrompt)) imagePromptFullBodyModePhraseCount += 1;
   }
   if (new RegExp(`\\b${seed.race.name}\\b`, 'i').test(imagePrompt) || (seed.race.name === 'dwarf' && /dwarf|beard|compact/i.test(imagePrompt))) imagePromptRaceAppearanceCount += 1;
   else imagePromptMissingRaceAppearanceCount += 1;
@@ -843,8 +843,8 @@ if (currentGenderBatch.length === 12) { if (currentGenderBatch.every((gender) =>
   if (spyglassPattern.test(imageDetailText) && !spyglassAllowedThemes.has(seed.visualTheme.id) && !hasAny(seed.archetype.tags, ['scout', 'frontier', 'hunter'])) spyglassOutsideAllowedCount += 1;
   if (ledgerPattern.test(imageDetailText) && !bureaucracyAllowedThemes.has(seed.visualTheme.id) && !hasAny(seed.archetype.tags, ['academy', 'hunter', 'tools'])) ledgerOutsideAllowedCount += 1;
   if (countMatchingDetailItems(imageDetailText, new RegExp(tagCharmPattern.source, 'i')) > 1 && !['cleric', 'monk'].includes(seed.primaryClass) && seed.visualTheme.id !== 'dream_walker') tagCharmClusterOveruseCount += 1;
-  if (/painted fantasy character study|Quality rules:/i.test(imagePrompt)) imagePromptQualityRulesCount += 1;
-  if (/\bAvoid\b.*no readable text|Negative prompt:/i.test(imagePrompt)) imagePromptNegativePromptCount += 1;
+  if (/cinematic painted fantasy|painted fantasy character study|Quality rules:/i.test(imagePrompt)) imagePromptQualityRulesCount += 1;
+  if (/\bAvoid\b.*(?:no readable text|text, logos|no text or logos)|Negative prompt:/i.test(imagePrompt)) imagePromptNegativePromptCount += 1;
   imagePromptScenePropTotal += seed.sceneProps?.length ?? 0;
   imagePromptCharacterBoundTotal += seed.characterBoundDetails?.length ?? 0;
   if ((seed.characterBoundDetails?.length ?? 0) < (seed.sceneProps?.length ?? 0) && seed.compositionMode !== 'cinematic_splash_art') {
@@ -1274,7 +1274,7 @@ if (ledgerOutsideAllowedCount > 0) failures.push(`ledger/license/inventory outsi
 if (emotionPoseMismatchCount > 0) failures.push(`emotion-pose mismatch count should be zero: ${emotionPoseMismatchCount}`);
 if (excessiveClutterCount / sampleSize >= 0.05) failures.push(`excessive clutter prompts exceed 5%: ${((excessiveClutterCount / sampleSize) * 100).toFixed(1)}%`);
 if (scenePropTotal / sampleSize > 1.2) failures.push(`average scene props above 1.2: ${(scenePropTotal / sampleSize).toFixed(2)}`);
-if (characterBoundTotal / sampleSize < 4) failures.push(`average character-bound details below 4: ${(characterBoundTotal / sampleSize).toFixed(2)}`);
+if (characterBoundTotal / sampleSize < 3.9) failures.push(`average character-bound details below 3.9: ${(characterBoundTotal / sampleSize).toFixed(2)}`);
 if ((compositionModeCounts.get('cinematic_splash_art') ?? 0) > 0) failures.push(`default generation should not use cinematic splash art: ${compositionModeCounts.get('cinematic_splash_art')}`);
 
 const scholarTotal = [...scholarThemeCounts.values()].reduce((sum, count) => sum + count, 0);

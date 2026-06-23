@@ -557,16 +557,16 @@ export const culturalOrigins: Array<WeightedOption<CulturalOrigin>> = [
 export const races: Array<WeightedOption<RaceOption>> = [
   { name: 'human', tags: [], weight: 12 },
   { name: 'elf', tags: [], weight: 10 },
-  { name: 'dwarf', tags: [], weight: 9 },
+  { name: 'dwarf', tags: [], weight: 10 },
   { name: 'halfling', tags: ['small'], weight: 7 },
   { name: 'gnome', tags: ['small'], weight: 7 },
-  { name: 'tiefling', tags: ['shadow'], weight: 7 },
-  { name: 'dragonborn', tags: ['draconic'], weight: 6 },
-  { name: 'half-orc', tags: ['large-presence'], weight: 6 },
-  { name: 'aasimar', tags: ['celestial'], weight: 3 },
-  { name: 'firbolg', tags: ['large-presence', 'fey'], weight: 4 },
-  { name: 'satyr', tags: ['fey'], weight: 4 },
-  { name: 'fairy', tags: ['small', 'fey'], weight: 3 },
+  { name: 'tiefling', tags: ['shadow'], weight: 8 },
+  { name: 'dragonborn', tags: ['draconic'], weight: 8 },
+  { name: 'half-orc', tags: ['large-presence'], weight: 7 },
+  { name: 'aasimar', tags: ['celestial'], weight: 2 },
+  { name: 'firbolg', tags: ['large-presence', 'fey'], weight: 5 },
+  { name: 'satyr', tags: ['fey'], weight: 5 },
+  { name: 'fairy', tags: ['small', 'fey'], weight: 4 },
 ];
 
 
