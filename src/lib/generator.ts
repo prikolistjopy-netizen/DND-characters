@@ -189,6 +189,8 @@ export type CharacterSeed = {
   generationProfile: GenerationProfile;
   promptCompilerMode: PromptCompilerMode;
   characterConcept: CharacterConcept;
+  performanceDirection: CharacterPerformanceDirection;
+  dragonbornMorphology: DragonbornMorphologyProfile | null;
 };
 
 export type GenerationResult = {
@@ -224,6 +226,35 @@ export type CharacterConcept = {
   primarySilhouetteGoal: string;
   styleIntent: string;
 };
+
+export type MotionEnergy = 'still' | 'low_motion' | 'active' | 'explosive';
+export type CameraAngle = 'front_three_quarter' | 'side_three_quarter' | 'rear_three_quarter' | 'profile' | 'low_angle' | 'slight_high_angle' | 'frontal_iconic';
+export type CharacterPerformanceDirection = {
+  motionEnergy: MotionEnergy;
+  actionVerb: string;
+  actionDescription: string;
+  emotion: string;
+  facialExpression: string;
+  gazeDirection: string;
+  torsoDirection: string;
+  cameraAngle: CameraAngle;
+  grounding: string;
+  allowedInteractionProp?: string;
+};
+export type DragonbornMorphologyProfile = {
+  presentation: GenderPresentation;
+  buildProfile: string;
+  shoulderLine: string;
+  torsoShape: string;
+  neckAndJaw: string;
+  facialRead: string;
+  hornProfile: string;
+  crestProfile: string;
+  scalePalette: string;
+  armorTailoring: string;
+  postureRead: string;
+};
+type PromptFragmentRole = 'subject' | 'appearance' | 'clothing' | 'silhouette' | 'primary_tool' | 'secondary_detail' | 'action' | 'emotion' | 'facial_expression' | 'camera' | 'lived_in_trace' | 'magic' | 'light' | 'background' | 'style' | 'avoid';
 
 type MagicManifestationMode = 'none' | 'body' | 'weapon' | 'environment' | 'light' | 'companion' | 'subtle_aura';
 type RaceClassPlausibilityLevel = 'strong_default' | 'normal_default' | 'rare_reinterpreted' | 'chaos_only' | 'blocked_default';
@@ -389,6 +420,176 @@ function resolveCharacterConcept(seed: Pick<CharacterSeed, 'primaryClass' | 'rac
     emotionalRead,
     primarySilhouetteGoal,
     styleIntent,
+  };
+}
+
+
+type PerformanceAction = { verb: string; description: string; energy: MotionEnergy; prop?: string };
+const classPerformanceActions: Record<CharacterClass, PerformanceAction[]> = {
+  fighter: [
+    { verb: 'braces', description: 'braces behind practical weapon mechanics', energy: 'active' },
+    { verb: 'turns', description: 'turns toward an approaching threat with weapon ready', energy: 'active' },
+    { verb: 'tests', description: 'tests the balance of the weapon while shifting into guard', energy: 'low_motion' },
+    { verb: 'advances', description: 'advances with controlled intent and disciplined footwork', energy: 'active' },
+    { verb: 'catches', description: 'catches the weapon across the body in a dueling stance', energy: 'active' },
+  ],
+  barbarian: [
+    { verb: 'roars', description: 'roars over one shoulder with the weapon clenched low', energy: 'explosive' },
+    { verb: 'leans', description: 'leans forward before charging through mud and ash', energy: 'explosive' },
+    { verb: 'rises', description: 'rises after taking a heavy blow', energy: 'active' },
+    { verb: 'drags', description: 'drags the weapon through mud with dangerous battle joy', energy: 'active' },
+    { verb: 'snarls', description: 'bares teeth in a threatening snarl', energy: 'explosive' },
+  ],
+  bard: [
+    { verb: 'plays', description: 'plays while stepping into a duel and gesturing to an unseen audience', energy: 'active' },
+    { verb: 'sings', description: 'throws the head back while singing with cloak and instrument movement', energy: 'active' },
+    { verb: 'laughs', description: 'laughs toward an unseen audience with one open hand', energy: 'low_motion' },
+    { verb: 'bows', description: 'performs a theatrical bow from a low stage edge', energy: 'low_motion', prop: 'low stage edge' },
+    { verb: 'leans', description: 'leans on a simple tavern barrel while striking a bright chord', energy: 'low_motion', prop: 'barrel' },
+  ],
+  ranger: [
+    { verb: 'aims', description: 'draws the bow fully and sights along the arrow', energy: 'active' },
+    { verb: 'kneels', description: 'kneels while tracking a fresh trail', energy: 'low_motion' },
+    { verb: 'turns', description: 'turns sharply with an arrow ready', energy: 'active' },
+    { verb: 'listens', description: 'listens for movement beyond frame with weapon ready', energy: 'low_motion' },
+    { verb: 'runs', description: 'runs between cover positions with field gear tight to the body', energy: 'explosive' },
+  ],
+  rogue: [
+    { verb: 'hides', description: 'hides a blade along the forearm while watching an exit', energy: 'low_motion' },
+    { verb: 'crouches', description: 'crouches before a sudden movement', energy: 'active' },
+    { verb: 'signals', description: 'signals for silence while retreating into shadow', energy: 'low_motion' },
+    { verb: 'turns', description: 'turns immediately after a strike', energy: 'active' },
+    { verb: 'balances', description: 'balances on a ledge with one blade low', energy: 'active' },
+  ],
+  monk: [
+    { verb: 'pivots', description: 'pivots around a planted foot through a martial form', energy: 'active' },
+    { verb: 'redirects', description: 'catches and redirects a staff mid-motion', energy: 'active' },
+    { verb: 'balances', description: 'balances in a controlled one-leg stance', energy: 'low_motion' },
+    { verb: 'strikes', description: 'raises an open palm before striking', energy: 'active' },
+    { verb: 'flows', description: 'finishes a movement as cloth settles', energy: 'low_motion' },
+  ],
+  cleric: [
+    { verb: 'reaches', description: 'reaches forward with healing intent', energy: 'active' },
+    { verb: 'shields', description: 'shields a small flame from wind', energy: 'low_motion' },
+    { verb: 'raises', description: 'raises one compact relic in solemn urgency', energy: 'low_motion' },
+    { verb: 'blesses', description: 'blesses someone before them with focused compassion', energy: 'active' },
+    { verb: 'kneels', description: 'kneels beside ritual chalk with service posture', energy: 'low_motion' },
+  ],
+  druid: [
+    { verb: 'raises', description: 'raises one hand as wind catches clothing and hair', energy: 'active' },
+    { verb: 'listens', description: 'listens to the ground with calm intent', energy: 'low_motion' },
+    { verb: 'turns', description: 'turns with leaves or mist following the movement', energy: 'active' },
+    { verb: 'walks', description: 'walks into heavy rain while weather gathers around the palm', energy: 'active' },
+    { verb: 'channels', description: 'channels weather through body posture', energy: 'active' },
+  ],
+  wizard: [
+    { verb: 'draws', description: 'draws a controlled spell through one precise hand', energy: 'active' },
+    { verb: 'studies', description: 'studies a held focus while moving around arcane pressure', energy: 'low_motion' },
+    { verb: 'traces', description: 'traces one precise gesture with disciplined focus', energy: 'low_motion' },
+    { verb: 'braces', description: 'braces against arcane pressure', energy: 'active' },
+    { verb: 'protects', description: 'protects a fragile spell with the body', energy: 'active' },
+  ],
+  sorcerer: [
+    { verb: 'flares', description: 'magic breaks through the hands, eyes, or breath', energy: 'explosive' },
+    { verb: 'twists', description: 'twists under unstable magical force', energy: 'explosive' },
+    { verb: 'steps', description: 'steps forward as weather answers', energy: 'active' },
+    { verb: 'contains', description: 'contains power through clenched hands', energy: 'active' },
+    { verb: 'turns', description: 'turns while body-bound magic trails behind', energy: 'active' },
+  ],
+  warlock: [
+    { verb: 'listens', description: 'listens to an unseen patron over one shoulder', energy: 'low_motion' },
+    { verb: 'resists', description: 'stands asymmetrically as if resisting influence', energy: 'low_motion' },
+    { verb: 'advances', description: 'advances while a subtle aura pulls backward', energy: 'active' },
+    { verb: 'speaks', description: 'speaks quietly toward empty space', energy: 'low_motion' },
+    { verb: 'holds', description: 'holds one hand under restrained occult pressure', energy: 'active' },
+  ],
+  paladin: [
+    { verb: 'braces', description: 'braces a shield between danger and another person', energy: 'active' },
+    { verb: 'raises', description: 'raises a weapon in judgement', energy: 'active' },
+    { verb: 'turns', description: 'turns while guarding the rear', energy: 'low_motion' },
+    { verb: 'advances', description: 'advances under controlled sacred light', energy: 'active' },
+    { verb: 'plants', description: 'plants the feet before an incoming strike', energy: 'active' },
+  ],
+  artificer: [
+    { verb: 'adjusts', description: 'adjusts one active mechanism while moving', energy: 'low_motion' },
+    { verb: 'deploys', description: 'deploys one compact device', energy: 'active' },
+    { verb: 'braces', description: 'braces against recoil from a compact implement', energy: 'active' },
+    { verb: 'tightens', description: 'tightens a mechanism with one hand', energy: 'low_motion' },
+    { verb: 'tests', description: 'tests a newly activated weapon component', energy: 'active' },
+  ],
+};
+
+const cameraAngles: Array<WeightedOption<{ name: CameraAngle }>> = [
+  { name: 'front_three_quarter', weight: 28 }, { name: 'side_three_quarter', weight: 20 }, { name: 'rear_three_quarter', weight: 15 }, { name: 'profile', weight: 15 }, { name: 'low_angle', weight: 10 }, { name: 'slight_high_angle', weight: 5 }, { name: 'frontal_iconic', weight: 7 },
+];
+const torsoDirections = ['three-quarter turn', 'side-on torso', 'back toward viewer with head turned', 'torso twisted across frame', 'leaning into motion', 'crouched and angled', 'kneeling with active torso'];
+
+function resolveActionEmotion(action: PerformanceAction, primaryClass: CharacterClass) {
+  if (action.verb === 'aims') return { emotion: 'cold concentration', facialExpression: 'narrowed eyes, tense jaw, controlled breath', gazeDirection: 'gaze follows the arrow' };
+  if (primaryClass === 'barbarian' || /roars|snarls/.test(action.verb)) return { emotion: 'threatening fury', facialExpression: 'bared teeth and tense brow', gazeDirection: 'gaze cuts toward the threat' };
+  if (primaryClass === 'bard') return { emotion: 'joyful bravado', facialExpression: action.verb === 'sings' ? 'open singing mouth and expressive brows' : 'animated grin and bright eyes', gazeDirection: 'gaze reaches toward an unseen audience' };
+  if (primaryClass === 'rogue') return { emotion: 'alert suspicion', facialExpression: 'watchful eyes and restrained mouth', gazeDirection: 'gaze checks the nearest exit' };
+  if (primaryClass === 'cleric') return { emotion: 'focused compassion', facialExpression: 'soft concentration and fatigue', gazeDirection: 'gaze fixes on the person being helped outside frame' };
+  if (primaryClass === 'fighter') return { emotion: 'disciplined focus', facialExpression: 'unsmiling face and controlled aggression', gazeDirection: 'gaze tracks the approaching threat' };
+  if (primaryClass === 'ranger') return { emotion: 'alert suspicion', facialExpression: 'narrowed eyes and controlled breath', gazeDirection: 'gaze follows the trail line' };
+  if (primaryClass === 'sorcerer') return { emotion: 'strained intensity', facialExpression: 'wide focused eyes and clenched jaw', gazeDirection: 'gaze follows the body-bound magic' };
+  if (primaryClass === 'warlock') return { emotion: 'restrained dread', facialExpression: 'haunted eyes and tight mouth', gazeDirection: 'gaze turns toward an impossible presence' };
+  return { emotion: 'focused intent', facialExpression: 'intent eyes and active expression', gazeDirection: 'gaze follows the action' };
+}
+
+function resolveCharacterPerformanceDirection(seed: Pick<CharacterSeed, 'primaryClass' | 'race' | 'generationProfile'>): CharacterPerformanceDirection {
+  const actions = classPerformanceActions[seed.primaryClass];
+  const recent = recentSeedMemory.slice(-8).map((item) => item.performanceDirection).filter(Boolean);
+  const scored = actions.map((action) => {
+    const repeatPenalty = recent.some((dir) => dir.actionVerb === action.verb && dir.motionEnergy === action.energy) ? -30 : 0;
+    const classBoost = seed.primaryClass === 'barbarian' && action.energy === 'explosive' ? 18 : seed.primaryClass === 'sorcerer' && action.energy === 'explosive' ? 12 : 0;
+    return { name: action, weight: Math.max(1, 10 + repeatPenalty + classBoost) };
+  });
+  const action = weightedPick(scored).name;
+  const camera = weightedPick(cameraAngles.map((angle) => {
+    const repeatPenalty = recent.some((dir) => dir.cameraAngle === angle.name) ? -12 : 0;
+    return { ...angle, weight: Math.max(1, angle.weight + repeatPenalty) };
+  })).name;
+  const coherence = resolveActionEmotion(action, seed.primaryClass);
+  const torsoDirection = camera === 'rear_three_quarter' ? 'back toward viewer with head turned' : camera === 'profile' ? 'side-on torso' : weightedPick(torsoDirections.map((name) => ({ name, weight: recent.some((dir) => dir.torsoDirection === name) ? 3 : 10 }))).name;
+  return {
+    motionEnergy: action.energy,
+    actionVerb: action.verb,
+    actionDescription: action.description,
+    emotion: coherence.emotion,
+    facialExpression: coherence.facialExpression,
+    gazeDirection: coherence.gazeDirection,
+    torsoDirection,
+    cameraAngle: camera,
+    grounding: action.energy === 'explosive' ? 'weight driven through the feet with visible momentum' : 'feet grounded with readable full-body balance',
+    allowedInteractionProp: action.prop,
+  };
+}
+
+const dragonbornPalettes = ['ember red with dark horn tips', 'burnished copper and gold', 'cobalt and storm blue', 'jade and moss green', 'ivory and pearl', 'obsidian and violet', 'turquoise and sea-glass', 'crimson and charcoal', 'amber and bright orange', 'pale silver with blue undertones', 'deep plum with iridescent highlights'];
+const dragonbornHorns = ['swept-back horns', 'short crown horns', 'branching crest', 'fin-like crest', 'broken veteran horn', 'smooth backward crest', 'asymmetric horn', 'compact brow horns'];
+const dragonbornBuilds: Record<GenderPresentation, string[]> = {
+  masculine: ['massive_guardian', 'athletic_duelist', 'broad_veteran', 'lean_serpentine_caster', 'draconic_bruiser'],
+  feminine: ['elegant_draconic_duelist', 'athletic_shield_warrior', 'bright_scaled_noble', 'serpentine_arcane_caster', 'powerful_refined_veteran'],
+  androgynous: ['balanced_serpentine_guardian', 'elegant_neutral_duelist', 'storm_scaled_wanderer', 'compact_draconic_oracle'],
+};
+
+function selectDragonbornMorphology(presentation: CharacterPresentation): DragonbornMorphologyProfile | null {
+  const buildProfile = weightedPick(dragonbornBuilds[presentation.genderPresentation].map((name) => ({ name, weight: 10 }))).name;
+  const feminine = presentation.genderPresentation === 'feminine';
+  const masculine = presentation.genderPresentation === 'masculine';
+  return {
+    presentation: presentation.genderPresentation,
+    buildProfile,
+    shoulderLine: masculine ? 'very broad shoulders' : feminine ? 'strong but narrower shoulders' : 'balanced shoulder line',
+    torsoShape: masculine ? 'V-shaped draconic torso' : feminine ? 'athletic torso with readable waist and hip line under armor' : 'neutral draconic torso proportions',
+    neckAndJaw: masculine ? 'thick neck and heavy jaw' : feminine ? 'elegant neck with refined jaw and brow' : 'elegant neutral jaw and neck',
+    facialRead: feminine ? 'expressive feminine draconic face without humanizing the anatomy' : masculine ? 'powerful masculine draconic face' : 'androgynous draconic face',
+    hornProfile: weightedPick(dragonbornHorns.map((name) => ({ name, weight: 10 }))).name,
+    crestProfile: weightedPick(['raised crest', 'low smooth crest', 'fin-like crest', 'broken veteran crest', 'compact brow crest'].map((name) => ({ name, weight: 10 }))).name,
+    scalePalette: weightedPick(dragonbornPalettes.map((name) => ({ name, weight: 10 }))).name,
+    armorTailoring: feminine ? 'feminine armor tailoring with practical coverage and no cleavage' : masculine ? 'armor tailored around heavy chest and forearms' : 'neutral armor tailoring over reptilian anatomy',
+    postureRead: feminine ? 'confident feminine stance preserving reptilian anatomy' : masculine ? 'grounded powerful draconic stance' : 'adaptable balanced stance',
   };
 }
 
@@ -2366,6 +2567,9 @@ function createSeed(context: SmartSelectionContext): CharacterSeed {
   const light = smartPickSimpleOption('Light', constrainedLightOptions(buildTemplate, archetype, visualTheme), archetype.tags, context);
   const fx = smartPickSimpleOption('FX', constrainedFxOptions(buildTemplate, archetype, visualTheme, narrativeMotif, visualThemeVariant, narrativeVariant), [...archetype.tags, ...visualTheme.archetypeTags], context);
   const characterPresentation = selectCharacterPresentation({ race, size, primaryClass }, context);
+  const characterConcept = resolveCharacterConcept({ primaryClass, race, size, visualTheme, characterPresentation });
+  const performanceDirection = resolveCharacterPerformanceDirection({ primaryClass, race, generationProfile });
+  const dragonbornMorphology = race.name === 'dragonborn' ? selectDragonbornMorphology(characterPresentation) : null;
   const backdropLane = selectBackdropLane({ primaryClass, race, visualTheme, narrativeMotif, fantasyPillar });
   const compositionLane = selectCompositionLane({ primaryClass, race, size, pose, weapon });
   const equipmentFinish = selectEquipmentFinish({ buildTemplate, visualTheme, fantasyPillar, armorLanguage, weaponLanguage }, context);
@@ -2428,7 +2632,9 @@ function createSeed(context: SmartSelectionContext): CharacterSeed {
     characterPresentation,
     backdropLane,
     compositionLane,
-    characterConcept: resolveCharacterConcept({ primaryClass, race, size, visualTheme, characterPresentation }),
+    characterConcept,
+    performanceDirection,
+    dragonbornMorphology,
     generationProfile,
     promptCompilerMode,
   };
@@ -3457,9 +3663,12 @@ function sanitizeWeaponNameForImagePrompt(seed: CharacterSeed): string {
   if (seed.primaryClass === 'rogue' && /map|compass|scroll case|journal/i.test(seed.weapon.name)) return 'hidden blade and scout knife';
   if (seed.primaryClass === 'druid' && !seed.classes.includes('bard') && /lute|flute|instrument|songbook|rapier|cane sword/i.test(seed.weapon.name)) return 'organic staff and natural focus';
   if (seed.primaryClass === 'ranger' && /map|compass|scroll case|journal/i.test(seed.weapon.name)) return 'hunting bow and scout knife';
-  if (seed.primaryClass === 'bard' && /orb|crystal orb|generic focus/i.test(seed.weapon.name)) return 'voice-led performance focus';
+  if (seed.primaryClass === 'bard' && /orb|crystal orb|generic focus|grimoire|spellbook|book|journal/i.test(seed.weapon.name)) return 'voice, instrument, and theatrical gesture';
+  if (seed.primaryClass === 'fighter' && /ritual|holy|sacred|symbol|spell|focus|staff/i.test(seed.weapon.name)) return hasAny(seed.weapon.tags, ['hammer', 'mace']) ? 'plain warhammer' : 'practical martial weapon';
   if (/staff/i.test(seed.weapon.name) && /ornament|tag|ribbon|chain|symbol/i.test(seed.weapon.name)) return 'plain ritual staff with one carved focus';
-  return sanitizeAccessoryWording(seed.weapon.name, seed, 'weapon') || seed.weapon.name;
+  const cleaned = sanitizeAccessoryWording(seed.weapon.name, seed, 'weapon') || seed.weapon.name;
+  if (/\band\b/i.test(cleaned) && !/shield|paired|dual|voice|instrument/i.test(cleaned)) return cleaned.split(/\band\b/i)[0].trim();
+  return cleaned.replace(/tracking metal collar trim/gi, '').replace(/holy book and ritual staff/gi, 'plain ritual staff').trim();
 }
 
 function sanitizeWeaponLanguageForImagePrompt(seed: CharacterSeed): string {
@@ -3646,10 +3855,15 @@ function raceClassReinterpretationFor(seed: Pick<CharacterSeed, 'race' | 'primar
 
 function choosePlausibleRaceForClass(race: RaceOption, primaryClass: CharacterClass, mode: Mode, context: SmartSelectionContext): RaceOption {
   const plausibility = raceClassPlausibilityFor(race.name, primaryClass);
-  if (mode === 'chaos' || (plausibility !== 'chaos_only' && plausibility !== 'blocked_default')) return race;
+  const profile = context.generationProfile ?? 'classic_fantasy';
+  if (mode === 'chaos' || profile === 'chaos' || profile === 'manual_custom') return race;
+  const rareKeepChance = profile === 'weird_but_good' ? 1 : profile === 'balanced_gallery' ? 0.2 : 0.12;
+  const shouldRerollRare = plausibility === 'rare_reinterpreted' && Math.random() > rareKeepChance;
+  if (!shouldRerollRare && plausibility !== 'chaos_only' && plausibility !== 'blocked_default') return race;
   const pool = races.filter((candidate) => {
     const level = raceClassPlausibilityFor(candidate.name, primaryClass);
-    return level === 'strong_default' || level === 'normal_default' || level === 'rare_reinterpreted';
+    if (profile === 'weird_but_good') return level === 'strong_default' || level === 'normal_default' || level === 'rare_reinterpreted';
+    return level === 'strong_default' || level === 'normal_default';
   });
   const replacement = weightedPick(pool.length > 0 ? pool : races);
   context.trace.push(`Race-class plausibility reroll: ${race.name}/${primaryClass} (${plausibility}) -> ${replacement.name}.`);
@@ -3931,7 +4145,7 @@ export function visualDirectorRisk(seed: CharacterSeed, imagePrompt: string): {
   return {
     beltClutter: /belt clutter|crowded waist|pouches on belt|papers on belt|maps? on belt|journal on belt|tool roll on belt/i.test(positive),
     visiblePropBudgetExceeded: /multiple (?:tools|pouches|books|maps|weapons)|tool clusters?|prop soup|wearable library|several scrolls/i.test(positive),
-    paperMapCompassLeak: /battle reports?|campaign maps?|\bmap\b|\bmaps\b|compass|journal|loose papers?|documents?|scrolls?/i.test(positive),
+    paperMapCompassLeak: /battle reports?|campaign maps?|\bmaps?\b|\bcompass\b|journal|loose papers?|documents?|scrolls?/i.test(positive),
     rogueMapCompassPrimary: seed.primaryClass === 'rogue' && /map|compass/.test(weaponText),
     fighterFocusObject: seed.primaryClass === 'fighter' && /orb|focus|book|grimoire|map|compass/.test(weaponText),
     artificerPropSoup: seed.primaryClass === 'artificer' && /many tools|tool cluster|prop soup|many pouches|bottles|chains/i.test(positive),
@@ -4251,6 +4465,12 @@ function sanitizeArtistLiteralObjects(text: string, seed: Pick<CharacterSeed, 'p
     .replace(/pouches|belt items|satchels?|tool rolls?/gi, seed.primaryClass === 'artificer' || seed.primaryClass === 'rogue' ? 'single compact case' : 'clean belt line')
     .replace(/inventory/gi, 'worn use marks');
   sanitized = sanitized.replace(/\b(map|maps|compass|journal|report|letter|token|coin|scroll|papers|pass|inventory|genealogy|tassels|pouches|satchel|tool roll)\b/gi, '').replace(/\s+/g, ' ').trim();
+  sanitized = sanitized
+    .replace(/faded sleeve repair windows/gi, 'plain shuttered windows')
+    .replace(/weathered travel seams beside ritual chalk/gi, 'worn travel marks near a simple ritual circle')
+    .replace(/reading weathered travel seams/gi, 'reading the weather and road')
+    .replace(/tracking metal collar trim/gi, 'weathered metal collar trim')
+    .replace(/holy book and ritual staff/gi, 'single ritual staff');
   return sanitized;
 }
 
@@ -4265,7 +4485,11 @@ function artistRaceMarker(seed: CharacterSeed): string {
     return 'one subtle celestial marker, faint celestial scars without saintly glow';
   }
   if (seed.race.name === 'fairy') return `tiny adult fairy build, ${seed.characterPresentation.fairyVariant ?? 'varied winged silhouette'}`;
-  if (seed.race.name === 'dragonborn') return 'scaled snout and crest with a strong draconic silhouette';
+  if (seed.race.name === 'dragonborn') {
+    const morph = seed.dragonbornMorphology;
+    if (morph) return `${morph.scalePalette}, ${morph.hornProfile}, ${morph.shoulderLine}, ${morph.torsoShape}, ${morph.neckAndJaw}, ${morph.armorTailoring}`;
+    return 'scaled snout and crest with a strong draconic silhouette';
+  }
   if (seed.race.name === 'tiefling') return 'horns and tail kept readable without extra ornaments';
   if (seed.race.name === 'satyr') return 'small horns and goat-legged stance';
   if (seed.race.name === 'firbolg') return 'large gentle build, long ears and woodland features';
@@ -4298,8 +4522,30 @@ function artistBackdropLight(seed: CharacterSeed, artDirection: ArtDirectionBrie
   const light = sanitizeArtistLiteralObjects(lightPhraseForImagePrompt(seed, artDirection), seed)
     .replace(/generic holy backlight/gi, 'controlled rim light')
     .replace(/golden divine rays/gi, 'muted edge light');
+  const fighterSafeLight = seed.primaryClass === 'fighter' ? light.replace(/sacred|holy|divine|candlelit ritual|cathedral/gi, 'battle-worn') : light;
   const backdrop = sanitizeArtistLiteralObjects(seed.backdropLane.phrase, seed);
-  return `${light} against ${backdrop}`;
+  const fighterSafeBackdrop = seed.primaryClass === 'fighter' ? backdrop.replace(/candlelit ritual atmosphere/gi, 'torchlit atmospheric depth') : backdrop;
+  return `${fighterSafeLight} against ${fighterSafeBackdrop}`;
+}
+
+
+function artistPrimaryTool(seed: CharacterSeed): string {
+  let tool = sanitizeWeaponNameForImagePrompt(seed);
+  if (seed.primaryClass === 'bard' && /book|grimoire|focus|orb|journal/i.test(tool)) tool = 'voice, instrument, and theatrical gesture';
+  if (seed.primaryClass === 'fighter' && /spell|sacred|holy|ritual|focus|staff/i.test(tool)) tool = 'practical martial weapon';
+  if (/map|compass|journal|scroll|papers|report|letter|token|coin/i.test(tool)) {
+    tool = ['wizard', 'warlock', 'sorcerer', 'cleric'].includes(seed.primaryClass) ? 'compact mystical focus' : seed.primaryClass === 'artificer' ? 'single compact device' : seed.primaryClass === 'ranger' ? 'hunting bow' : 'practical class tool';
+  }
+  if (/\band\b/i.test(tool) && !/shield|paired|dual|voice|instrument/i.test(tool)) tool = tool.split(/\band\b/i)[0].trim();
+  return tool.replace(/\s+/g, ' ').trim();
+}
+
+function performanceActionSentence(seed: CharacterSeed): string {
+  const pronoun = pronounForPresentation(seed.characterPresentation);
+  const perf = seed.performanceDirection;
+  const tool = artistPrimaryTool(seed);
+  const prop = perf.allowedInteractionProp ? ` beside one simple ${perf.allowedInteractionProp}` : '';
+  return `${pronoun.subject} ${perf.actionDescription}${prop}, ${perf.torsoDirection} from a ${perf.cameraAngle.replace(/_/g, ' ')} view in an active full-body pose, using ${tool} as the primary weapon/tool. ${pronoun.possessive} expression shows ${perf.emotion}: ${perf.facialExpression}; ${perf.gazeDirection}.`;
 }
 
 function artistNegativeClause(seed: CharacterSeed): string {
@@ -4315,14 +4561,12 @@ function compileArtistBriefImagePrompt(seed: CharacterSeed, artDirection: ArtDir
   const classFantasy = classFantasyBible[seed.primaryClass];
   const pronoun = pronounForPresentation(seed.characterPresentation);
   const age = seed.characterPresentation.apparentAgeBand.replace('_', ' ');
-  const weapon = sanitizeArtistLiteralObjects(sanitizeWeaponNameForImagePrompt(seed), seed);
-  const pose = sanitizeArtistLiteralObjects(`${seed.compositionLane.phrase}; ${artDirection.poseDirective}`, seed);
   const story = artistStoryShorthand(seed, artDirection);
   const sentences = [
     `Full-body cinematic painted fantasy concept of a ${seed.characterPresentation.genderPresentation} ${age} ${seed.race.name} ${seed.primaryClass}, ${seed.characterConcept.classArchetype}, ${classFantasy.coreFantasy.split(',')[0].trim()}.`,
     `${pronoun.possessive} ${artistRaceMarker(seed)}; ${seed.characterPresentation.faceArchetype}, ${seed.characterPresentation.bodyType} body, ${seed.characterPresentation.postureTemperament}.`,
     `${artistCostumePhrase(seed)}.`,
-    `${pronoun.subject} carries one primary tool, ${weapon}, in ${pose}.`,
+    performanceActionSentence(seed),
     story ? `One lived-in trace: ${story}.` : null,
     `${artistBackdropLight(seed, artDirection)}, rich atmospheric background kept secondary and uncluttered.`,
     paintedCharacterStudyStyle(),
