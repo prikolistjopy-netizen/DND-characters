@@ -4,16 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview",
+    "dev": "next dev",
+    "build": "next build",
+    "preview": "next start",
     "debug-check": "node scripts/debug-check.cjs",
     "identity-analysis": "node scripts/identity-analysis.cjs",
-    "validate-data": "node scripts/validate-data.cjs"
+    "validate-data": "node scripts/validate-data.cjs",
+    "start": "next start",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "next": "14.2.18"
   },
   "devDependencies": {
     "@types/node": "20.17.10",
