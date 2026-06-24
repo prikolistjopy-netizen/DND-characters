@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button';
 const navItems = [
   { href: '/generate', label: 'Generate' },
   { href: '/collection', label: 'Collection' },
-  { href: '/#discover', label: 'How It Works' },
+  { href: '/#how-it-works', label: 'How It Works' },
 ];
 
 export function SiteHeader() {
