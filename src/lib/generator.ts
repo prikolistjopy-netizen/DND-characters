@@ -190,6 +190,9 @@ export type CharacterSeed = {
   promptCompilerMode: PromptCompilerMode;
   characterConcept: CharacterConcept;
   performanceDirection: CharacterPerformanceDirection;
+  identityProfile: CharacterIdentityProfile;
+  sceneMoment: SceneMoment | null;
+  magicVisualLanguage: MagicVisualLanguage;
   dragonbornMorphology: DragonbornMorphologyProfile | null;
 };
 
@@ -200,6 +203,7 @@ export type GenerationResult = {
   imagePrompt: string;
   fullGenerationText: string;
   trace: string[];
+  dicebornResult: DicebornGenerationResult;
 };
 
 export type GenerationProfile = 'balanced_gallery' | 'classic_fantasy' | 'weird_but_good' | 'chaos' | 'manual_custom' | 'natural_random' | 'class_showcase';
@@ -229,6 +233,7 @@ export type CharacterConcept = {
 
 export type MotionEnergy = 'still' | 'low_motion' | 'active' | 'explosive';
 export type CameraAngle = 'front_three_quarter' | 'side_three_quarter' | 'rear_three_quarter' | 'profile' | 'low_angle' | 'slight_high_angle' | 'frontal_iconic';
+export type GazeMode = 'follows_action' | 'watches_threat' | 'looks_over_shoulder' | 'direct_to_viewer' | 'looks_at_tool' | 'looks_at_magic' | 'scans_environment' | 'looks_at_implied_person';
 export type CharacterPerformanceDirection = {
   motionEnergy: MotionEnergy;
   actionVerb: string;
@@ -236,10 +241,69 @@ export type CharacterPerformanceDirection = {
   emotion: string;
   facialExpression: string;
   gazeDirection: string;
+  gazeMode: GazeMode;
   torsoDirection: string;
   cameraAngle: CameraAngle;
   grounding: string;
   allowedInteractionProp?: string;
+};
+
+export type FaceShape = 'long_angular' | 'broad_square' | 'round_soft' | 'heart_shaped' | 'narrow_hollow' | 'heavy_jawed' | 'high_cheekboned' | 'weathered_oval';
+export type CharacterIdentityProfile = {
+  faceShape: FaceShape;
+  noseProfile: string;
+  eyeProfile: string;
+  browProfile: string;
+  jawProfile: string;
+  hairStructure: string;
+  hairColor: string;
+  hairlineOrHairAge: string;
+  skinDetail: string;
+  asymmetry: string;
+  distinctiveFeature: string;
+  attractivenessRegister: string;
+  ageRead: string;
+};
+export type SceneMomentCategory = 'travel' | 'combat' | 'ritual' | 'performance' | 'stealth' | 'rest' | 'craft' | 'social' | 'transformation' | 'investigation';
+export type SceneMoment = {
+  category: SceneMomentCategory;
+  action: string;
+  environmentInteraction?: string;
+  supportingElement?: string;
+  narrativeIntent: string;
+};
+export type MagicVisualLanguage = {
+  source: string;
+  palette: string;
+  shape: string;
+  behavior: string;
+  patronHint?: string;
+};
+export type DicebornGenerationResult = {
+  id: string;
+  version: string;
+  generatedAt: string;
+  generationProfile: GenerationProfile;
+  manualSettings: ManualGenerationControls;
+  character: {
+    title: string;
+    race: string;
+    primaryClass: string;
+    archetype: string;
+    presentation: string;
+    ageBand: string;
+    bodyType: string;
+  };
+  concept: CharacterConcept;
+  identity: CharacterIdentityProfile;
+  performance: CharacterPerformanceDirection;
+  sceneMoment: SceneMoment | null;
+  dragonbornMorphology: DragonbornMorphologyProfile | null;
+  imagePrompt: string;
+  promptDraft: string;
+  seedOutput: string;
+  seedJson: CharacterSeed;
+  trace: string[];
 };
 export type DragonbornMorphologyProfile = {
   presentation: GenderPresentation;
@@ -424,6 +488,125 @@ function resolveCharacterConcept(seed: Pick<CharacterSeed, 'primaryClass' | 'rac
 }
 
 
+const faceShapes: FaceShape[] = ['long_angular', 'broad_square', 'round_soft', 'heart_shaped', 'narrow_hollow', 'heavy_jawed', 'high_cheekboned', 'weathered_oval'];
+const noseProfiles = ['broken nose', 'straight narrow nose', 'wide soft nose', 'hooked nose', 'crooked nose', 'flat strong nose', 'long aristocratic nose', 'small blunt nose'];
+const eyeProfiles = ['wide-set eyes', 'deep-set eyes', 'heavy-lidded eyes', 'bright watchful eyes', 'tired eyelids', 'sharp narrow eyes', 'soft dark eyes', 'pale reflective eyes'];
+const browProfiles = ['heavy brows', 'one raised brow', 'straight severe brows', 'arched expressive brows', 'scar-split brow', 'soft furrowed brow'];
+const jawProfiles = ['square jaw', 'small chin', 'long jawline', 'strong jaw', 'narrow pointed chin', 'weathered jaw with old scars'];
+const hairStructures = ['tightly curled hair', 'straight cropped hair', 'coarse red hair', 'dark braided hair', 'loose black waves', 'shaved head', 'short rough hair', 'white curls', 'silver temples', 'bald crown with long side hair'];
+const hairColors = ['black', 'dark brown', 'ash blond', 'coarse red', 'silver gray', 'white', 'deep auburn', 'pale straw', 'blue-black', 'salt-and-pepper'];
+const attractivenessRegisters = ['striking', 'severe', 'weathered', 'unusual', 'plain', 'elegant', 'rough', 'approachable', 'intimidating'];
+const distinctiveFeatures = ['scar through one eyebrow', 'freckles across the nose', 'one chipped tooth', 'asymmetric smile line', 'old burn mark at the jaw', 'small cheek scar', 'tired under-eye shadows', 'one cloudy eye', 'wind-chapped skin', 'ritual scar near the temple'];
+
+function selectCharacterIdentityProfile(seed: Pick<CharacterSeed, 'race' | 'characterPresentation'>): CharacterIdentityProfile {
+  const recent = recentSeedMemory.slice(-12).map((item) => item.identityProfile).filter(Boolean);
+  const pickRecentSafe = <T extends string>(items: T[], key: keyof CharacterIdentityProfile): T => weightedPick(items.map((name) => ({ name, weight: recent.some((profile) => profile[key] === name) ? 2 : 10 }))).name;
+  const age = seed.characterPresentation.apparentAgeBand;
+  const hairlineOrHairAge = age === 'elder' ? pickRecentSafe(['white curls', 'bald crown with long side hair', 'thin silver hair', 'cropped gray hair'], 'hairlineOrHairAge') : age === 'middle_aged' ? pickRecentSafe(['receding hairline', 'silver temples', 'weathered hairline', 'cropped graying hair'], 'hairlineOrHairAge') : pickRecentSafe(['strong hairline', 'messy cropped hair', 'shaved sides', 'loose practical hair'], 'hairlineOrHairAge');
+  const skinDetail = age === 'young_adult' ? pickRecentSafe(['freckles', 'wind-chapped cheeks', 'small healed scar', 'sun-browned skin'], 'skinDetail') : age === 'adult' ? pickRecentSafe(['crow-foot hints', 'field-worn skin', 'old scar tissue', 'tired eyelids'], 'skinDetail') : age === 'middle_aged' ? pickRecentSafe(['visible eye lines', 'weathered skin', 'creased brow', 'silver at the temples'], 'skinDetail') : pickRecentSafe(['deep facial lines', 'thin weathered skin', 'age-spotted hands', 'sharp elder eyes'], 'skinDetail');
+  return {
+    faceShape: pickRecentSafe(faceShapes, 'faceShape'),
+    noseProfile: pickRecentSafe(noseProfiles, 'noseProfile'),
+    eyeProfile: pickRecentSafe(eyeProfiles, 'eyeProfile'),
+    browProfile: pickRecentSafe(browProfiles, 'browProfile'),
+    jawProfile: pickRecentSafe(jawProfiles, 'jawProfile'),
+    hairStructure: pickRecentSafe(hairStructures, 'hairStructure'),
+    hairColor: pickRecentSafe(hairColors, 'hairColor'),
+    hairlineOrHairAge,
+    skinDetail,
+    asymmetry: pickRecentSafe(['subtle asymmetry', 'crooked half-smile', 'one brow higher', 'scar pulls one cheek', 'uneven old nose break'], 'asymmetry'),
+    distinctiveFeature: pickRecentSafe(distinctiveFeatures, 'distinctiveFeature'),
+    attractivenessRegister: pickRecentSafe(attractivenessRegisters, 'attractivenessRegister'),
+    ageRead: `${age.replace('_', ' ')} read through ${skinDetail} and ${hairlineOrHairAge}`,
+  };
+}
+
+const sceneMoments: Record<CharacterClass, SceneMoment[]> = {
+  fighter: [
+    { category: 'combat', action: 'guards a doorway against an unseen strike', environmentInteraction: 'one doorway edge', narrativeIntent: 'weapon-first tactical protection' },
+    { category: 'combat', action: 'checks damaged armor while watching an approaching enemy', narrativeIntent: 'battlefield survivor read' },
+    { category: 'combat', action: 'signals an advance through battlefield smoke', environmentInteraction: 'thin smoke only', narrativeIntent: 'captain and veteran read' },
+  ],
+  barbarian: [
+    { category: 'combat', action: 'rises from mud before a charge', environmentInteraction: 'mud underfoot', narrativeIntent: 'primal endurance' },
+    { category: 'combat', action: 'breaks a damaged chain with a snarl', supportingElement: 'one broken chain', narrativeIntent: 'raw force without joke framing' },
+    { category: 'combat', action: 'turns after hearing a challenge', narrativeIntent: 'expressive threat' },
+  ],
+  bard: [
+    { category: 'performance', action: 'sings from a low stage edge', supportingElement: 'low stage edge', narrativeIntent: 'performance-first bard read' },
+    { category: 'performance', action: 'plays to an implied audience', narrativeIntent: 'social catalyst' },
+    { category: 'performance', action: 'performs a theatrical duel flourish', narrativeIntent: 'bardic duelist, not wizard' },
+  ],
+  ranger: [
+    { category: 'investigation', action: 'kneels over a fresh track', environmentInteraction: 'single broken branch', narrativeIntent: 'tracker and hunter read' },
+    { category: 'combat', action: 'aims from brush cover', environmentInteraction: 'one brush edge', narrativeIntent: 'archery and terrain awareness' },
+    { category: 'travel', action: 'crosses shallow water while keeping the weapon ready', environmentInteraction: 'shallow water', narrativeIntent: 'pathfinder readiness' },
+  ],
+  rogue: [
+    { category: 'stealth', action: 'peers around a doorway with a concealed blade', environmentInteraction: 'one doorway edge', narrativeIntent: 'stealth problem-solving' },
+    { category: 'stealth', action: 'presses against a wall while listening', environmentInteraction: 'plain wall', narrativeIntent: 'subtle violence and escape route' },
+    { category: 'investigation', action: 'crouches over one simple lock', supportingElement: 'one lock', narrativeIntent: 'precision thief read' },
+  ],
+  monk: [
+    { category: 'combat', action: 'completes a rotating form on one low stone', supportingElement: 'one low stone', narrativeIntent: 'disciplined motion' },
+    { category: 'combat', action: 'redirects an unseen attack', narrativeIntent: 'body control' },
+    { category: 'rest', action: 'meditates while cloth moves in wind', narrativeIntent: 'calm internal power' },
+  ],
+  cleric: [
+    { category: 'ritual', action: 'blesses someone just outside frame', narrativeIntent: 'service and faith' },
+    { category: 'ritual', action: 'shields a small flame from wind', supportingElement: 'one small flame', narrativeIntent: 'divine mediator' },
+    { category: 'travel', action: 'supports an exhausted traveller outside frame', narrativeIntent: 'compassionate service' },
+  ],
+  druid: [
+    { category: 'transformation', action: 'begins a subtle beast change through eyes and posture', environmentInteraction: 'wind in grass', narrativeIntent: 'nature in the body' },
+    { category: 'ritual', action: 'grows roots around one hand', environmentInteraction: 'root lift at the feet', narrativeIntent: 'land relationship' },
+    { category: 'travel', action: 'walks into a storm as rain bends around them', environmentInteraction: 'rain', narrativeIntent: 'weather shepherd' },
+  ],
+  wizard: [
+    { category: 'ritual', action: 'stabilizes one precise arcane effect', narrativeIntent: 'scholarly control' },
+    { category: 'investigation', action: 'inspects a floating geometric anomaly', supportingElement: 'one floating geometric effect', narrativeIntent: 'arcane study' },
+    { category: 'combat', action: 'redirects a spell away from the body', narrativeIntent: 'controlled wizard action' },
+  ],
+  sorcerer: [
+    { category: 'transformation', action: 'power breaks through the hands and breath', narrativeIntent: 'innate magic embodied' },
+    { category: 'combat', action: 'steps into supernatural wind', environmentInteraction: 'supernatural wind', narrativeIntent: 'body-as-source magic' },
+    { category: 'transformation', action: 'struggles to contain energy under the skin', narrativeIntent: 'unstable bloodline read' },
+  ],
+  warlock: [
+    { category: 'social', action: 'hears an unseen patron behind them', supportingElement: 'second shadow', narrativeIntent: 'bargain made visible' },
+    { category: 'investigation', action: 'watches a reflection move differently', supportingElement: 'one dark reflection', narrativeIntent: 'patron consequence' },
+    { category: 'transformation', action: 'holds a pact mark as it awakens', supportingElement: 'one pact mark', narrativeIntent: 'occult consequence' },
+  ],
+  paladin: [
+    { category: 'combat', action: 'shields someone outside frame', narrativeIntent: 'frontline oath protection' },
+    { category: 'combat', action: 'guards a threshold', environmentInteraction: 'one threshold line', narrativeIntent: 'oath and protection' },
+    { category: 'ritual', action: 'kneels beside one oath mark', supportingElement: 'one oath mark', narrativeIntent: 'moral burden' },
+  ],
+  artificer: [
+    { category: 'craft', action: 'adjusts one active mechanism', supportingElement: 'one compact mechanism', narrativeIntent: 'maker intelligence in objects' },
+    { category: 'craft', action: 'works at one clean bench edge', supportingElement: 'one bench edge', narrativeIntent: 'purposeful hands' },
+    { category: 'combat', action: 'braces against mechanical recoil', narrativeIntent: 'engineered action' },
+  ],
+};
+
+function selectSceneMoment(seed: Pick<CharacterSeed, 'primaryClass'>): SceneMoment | null {
+  const recent = recentSeedMemory.slice(-10).map((item) => item.sceneMoment?.action).filter(Boolean);
+  const moments = sceneMoments[seed.primaryClass];
+  return weightedPick(moments.map((moment) => ({ name: moment, weight: recent.includes(moment.action) ? 2 : 10 }))).name;
+}
+
+function magicVisualLanguageFor(seed: Pick<CharacterSeed, 'primaryClass' | 'visualTheme'>): MagicVisualLanguage {
+  if (seed.primaryClass === 'cleric') return { source: 'relic or hand blessing', palette: 'warm white and sun amber', shape: 'soft protective radiance', behavior: 'heals or blesses without paladin charge' };
+  if (seed.primaryClass === 'paladin') return { source: 'weapon edge or shield mark', palette: 'controlled gold and white', shape: 'oath-edged light', behavior: 'guards and judges through the weapon' };
+  if (seed.primaryClass === 'wizard') return { source: 'external controlled spell', palette: 'blue, cyan, violet, or cold white', shape: 'precise geometry without readable text', behavior: 'stabilized by deliberate study' };
+  if (seed.primaryClass === 'sorcerer') return { source: 'body, eyes, breath, and hands', palette: 'bloodline color and weather light', shape: 'unstable energetic trails', behavior: 'emerges through motion' };
+  if (seed.primaryClass === 'warlock') return { source: 'pact mark and patron consequence', palette: 'ink violet, void blue, sickly jade, or restrained crimson', shape: 'asymmetric shadow aura', behavior: 'pulls against the body', patronHint: weightedPick(['second shadow', 'distant eyes in fog', 'impossible reflection', 'hand-shaped shadow', 'oceanic shape in mist'].map((name) => ({ name, weight: 10 }))).name };
+  if (seed.primaryClass === 'druid') return { source: 'body and environment', palette: 'moss green, rain light, root glow, pollen, or wildfire ember', shape: 'organic weather or root motion', behavior: 'connects body to land' };
+  if (seed.primaryClass === 'bard') return { source: 'voice, breath, fabric, and instrument resonance', palette: 'stage-warm or cool performance light', shape: 'sound-like motion without magic circle', behavior: 'follows performance' };
+  if (seed.primaryClass === 'artificer') return { source: 'tool-bound mechanism', palette: 'amber mechanism light or blue-white arc', shape: 'contained seam glow', behavior: 'stays inside one device' };
+  return { source: 'subtle class-safe cue', palette: 'natural light', shape: 'minimal non-caster effect', behavior: 'supports action without caster circle' };
+}
+
 type PerformanceAction = { verb: string; description: string; energy: MotionEnergy; prop?: string };
 const classPerformanceActions: Record<CharacterClass, PerformanceAction[]> = {
   fighter: [
@@ -520,24 +703,25 @@ const classPerformanceActions: Record<CharacterClass, PerformanceAction[]> = {
 };
 
 const cameraAngles: Array<WeightedOption<{ name: CameraAngle }>> = [
-  { name: 'front_three_quarter', weight: 28 }, { name: 'side_three_quarter', weight: 20 }, { name: 'rear_three_quarter', weight: 15 }, { name: 'profile', weight: 15 }, { name: 'low_angle', weight: 10 }, { name: 'slight_high_angle', weight: 5 }, { name: 'frontal_iconic', weight: 7 },
+  { name: 'front_three_quarter', weight: 36 }, { name: 'side_three_quarter', weight: 23 }, { name: 'rear_three_quarter', weight: 8 }, { name: 'profile', weight: 14 }, { name: 'low_angle', weight: 7 }, { name: 'slight_high_angle', weight: 5 }, { name: 'frontal_iconic', weight: 10 },
 ];
-const torsoDirections = ['three-quarter turn', 'side-on torso', 'back toward viewer with head turned', 'torso twisted across frame', 'leaning into motion', 'crouched and angled', 'kneeling with active torso'];
+const torsoDirections = ['three-quarter turn', 'side-on torso', 'torso twisted across frame', 'leaning into motion', 'crouched and angled', 'kneeling with active torso'];
 
 function resolveActionEmotion(action: PerformanceAction, primaryClass: CharacterClass) {
-  if (action.verb === 'aims') return { emotion: 'cold concentration', facialExpression: 'narrowed eyes, tense jaw, controlled breath', gazeDirection: 'gaze follows the arrow' };
-  if (primaryClass === 'barbarian' || /roars|snarls/.test(action.verb)) return { emotion: 'threatening fury', facialExpression: 'bared teeth and tense brow', gazeDirection: 'gaze cuts toward the threat' };
-  if (primaryClass === 'bard') return { emotion: 'joyful bravado', facialExpression: action.verb === 'sings' ? 'open singing mouth and expressive brows' : 'animated grin and bright eyes', gazeDirection: 'gaze reaches toward an unseen audience' };
-  if (primaryClass === 'rogue') return { emotion: 'alert suspicion', facialExpression: 'watchful eyes and restrained mouth', gazeDirection: 'gaze checks the nearest exit' };
-  if (primaryClass === 'cleric') return { emotion: 'focused compassion', facialExpression: 'soft concentration and fatigue', gazeDirection: 'gaze fixes on the person being helped outside frame' };
-  if (primaryClass === 'fighter') return { emotion: 'disciplined focus', facialExpression: 'unsmiling face and controlled aggression', gazeDirection: 'gaze tracks the approaching threat' };
-  if (primaryClass === 'ranger') return { emotion: 'alert suspicion', facialExpression: 'narrowed eyes and controlled breath', gazeDirection: 'gaze follows the trail line' };
-  if (primaryClass === 'sorcerer') return { emotion: 'strained intensity', facialExpression: 'wide focused eyes and clenched jaw', gazeDirection: 'gaze follows the body-bound magic' };
-  if (primaryClass === 'warlock') return { emotion: 'restrained dread', facialExpression: 'haunted eyes and tight mouth', gazeDirection: 'gaze turns toward an impossible presence' };
-  return { emotion: 'focused intent', facialExpression: 'intent eyes and active expression', gazeDirection: 'gaze follows the action' };
+  if (action.verb === 'aims') return { emotion: 'cold concentration', facialExpression: 'eyes narrowed along the arrow, breath held, jaw still', gazeDirection: 'gaze follows the arrow', gazeMode: 'follows_action' as GazeMode };
+  if (primaryClass === 'barbarian' || /roars|snarls/.test(action.verb)) return { emotion: 'threatening fury', facialExpression: 'teeth bared, nostrils flared, brow compressed with fury', gazeDirection: Math.random() < 0.25 ? 'direct glare toward the viewer after the threat' : 'gaze cuts toward the threat', gazeMode: Math.random() < 0.25 ? 'direct_to_viewer' as GazeMode : 'watches_threat' as GazeMode };
+  if (primaryClass === 'bard') return { emotion: 'theatrical confidence', facialExpression: action.verb === 'sings' ? 'mouth open as the note peaks, brows lifted with delight' : 'bright grin and lifted brows', gazeDirection: Math.random() < 0.45 ? 'direct performance gaze toward the viewer' : 'gaze reaches toward an unseen audience', gazeMode: Math.random() < 0.45 ? 'direct_to_viewer' as GazeMode : 'looks_at_implied_person' as GazeMode };
+  if (primaryClass === 'rogue') return { emotion: 'alert suspicion', facialExpression: 'eyes flick toward the exit, mouth held in a knowing line', gazeDirection: Math.random() < 0.3 ? 'direct caught-in-the-act glance' : 'gaze checks the nearest exit', gazeMode: Math.random() < 0.3 ? 'direct_to_viewer' as GazeMode : 'scans_environment' as GazeMode };
+  if (primaryClass === 'cleric') return { emotion: 'focused compassion', facialExpression: 'tired eyes softened by concentration, mouth tense with concern', gazeDirection: 'gaze fixes on the person being helped outside frame', gazeMode: 'looks_at_implied_person' as GazeMode };
+  if (primaryClass === 'fighter') return { emotion: 'disciplined aggression', facialExpression: 'jaw set hard, eyes fixed on the incoming threat', gazeDirection: 'gaze tracks the approaching threat', gazeMode: 'watches_threat' as GazeMode };
+  if (primaryClass === 'ranger') return { emotion: 'alert suspicion', facialExpression: 'eyes narrowed along the trail, breath held and jaw still', gazeDirection: 'gaze follows the trail line', gazeMode: 'scans_environment' as GazeMode };
+  if (primaryClass === 'sorcerer') return { emotion: 'strained intensity', facialExpression: 'wide focused eyes and clenched jaw as power surfaces', gazeDirection: 'gaze follows the body-bound magic', gazeMode: 'looks_at_magic' as GazeMode };
+  if (primaryClass === 'warlock') return { emotion: 'restrained dread', facialExpression: 'eyes pulled toward something no one else can see, lips parted at a whisper', gazeDirection: Math.random() < 0.35 ? 'direct knowing stare toward the viewer' : 'gaze turns toward an impossible presence', gazeMode: Math.random() < 0.35 ? 'direct_to_viewer' as GazeMode : 'looks_at_magic' as GazeMode };
+  if (primaryClass === 'druid') return { emotion: 'weather-calm intent', facialExpression: 'face calm against weather, eyes attentive to movement in the earth', gazeDirection: 'gaze follows the land and weather', gazeMode: 'scans_environment' as GazeMode };
+  return { emotion: 'class-ready focus', facialExpression: 'distinct class-specific concentration in the eyes and mouth', gazeDirection: 'gaze follows the scene moment', gazeMode: 'follows_action' as GazeMode };
 }
 
-function resolveCharacterPerformanceDirection(seed: Pick<CharacterSeed, 'primaryClass' | 'race' | 'generationProfile'>): CharacterPerformanceDirection {
+function resolveCharacterPerformanceDirection(seed: Pick<CharacterSeed, 'primaryClass' | 'race' | 'size' | 'generationProfile'>): CharacterPerformanceDirection {
   const actions = classPerformanceActions[seed.primaryClass];
   const recent = recentSeedMemory.slice(-8).map((item) => item.performanceDirection).filter(Boolean);
   const scored = actions.map((action) => {
@@ -547,8 +731,10 @@ function resolveCharacterPerformanceDirection(seed: Pick<CharacterSeed, 'primary
   });
   const action = weightedPick(scored).name;
   const camera = weightedPick(cameraAngles.map((angle) => {
-    const repeatPenalty = recent.some((dir) => dir.cameraAngle === angle.name) ? -12 : 0;
-    return { ...angle, weight: Math.max(1, angle.weight + repeatPenalty) };
+    const repeatPenalty = recent.some((dir) => dir.cameraAngle === angle.name) ? -14 : 0;
+    const classPenalty = angle.name === 'rear_three_quarter' && ['bard', 'cleric', 'wizard'].includes(seed.primaryClass) ? -6 : 0;
+    const smallRacePenalty = angle.name === 'rear_three_quarter' && ['tiny', 'small'].includes(seed.size) ? -5 : 0;
+    return { ...angle, weight: Math.max(1, angle.weight + repeatPenalty + classPenalty + smallRacePenalty) };
   })).name;
   const coherence = resolveActionEmotion(action, seed.primaryClass);
   const torsoDirection = camera === 'rear_three_quarter' ? 'back toward viewer with head turned' : camera === 'profile' ? 'side-on torso' : weightedPick(torsoDirections.map((name) => ({ name, weight: recent.some((dir) => dir.torsoDirection === name) ? 3 : 10 }))).name;
@@ -559,6 +745,7 @@ function resolveCharacterPerformanceDirection(seed: Pick<CharacterSeed, 'primary
     emotion: coherence.emotion,
     facialExpression: coherence.facialExpression,
     gazeDirection: coherence.gazeDirection,
+    gazeMode: coherence.gazeMode,
     torsoDirection,
     cameraAngle: camera,
     grounding: action.energy === 'explosive' ? 'weight driven through the feet with visible momentum' : 'feet grounded with readable full-body balance',
@@ -2567,8 +2754,11 @@ function createSeed(context: SmartSelectionContext): CharacterSeed {
   const light = smartPickSimpleOption('Light', constrainedLightOptions(buildTemplate, archetype, visualTheme), archetype.tags, context);
   const fx = smartPickSimpleOption('FX', constrainedFxOptions(buildTemplate, archetype, visualTheme, narrativeMotif, visualThemeVariant, narrativeVariant), [...archetype.tags, ...visualTheme.archetypeTags], context);
   const characterPresentation = selectCharacterPresentation({ race, size, primaryClass }, context);
+  const identityProfile = selectCharacterIdentityProfile({ race, characterPresentation });
   const characterConcept = resolveCharacterConcept({ primaryClass, race, size, visualTheme, characterPresentation });
-  const performanceDirection = resolveCharacterPerformanceDirection({ primaryClass, race, generationProfile });
+  const sceneMoment = selectSceneMoment({ primaryClass });
+  const performanceDirection = resolveCharacterPerformanceDirection({ primaryClass, race, size, generationProfile });
+  const magicVisualLanguage = magicVisualLanguageFor({ primaryClass, visualTheme });
   const dragonbornMorphology = race.name === 'dragonborn' ? selectDragonbornMorphology(characterPresentation) : null;
   const backdropLane = selectBackdropLane({ primaryClass, race, visualTheme, narrativeMotif, fantasyPillar });
   const compositionLane = selectCompositionLane({ primaryClass, race, size, pose, weapon });
@@ -2634,6 +2824,9 @@ function createSeed(context: SmartSelectionContext): CharacterSeed {
     compositionLane,
     characterConcept,
     performanceDirection,
+    identityProfile,
+    sceneMoment,
+    magicVisualLanguage,
     dragonbornMorphology,
     generationProfile,
     promptCompilerMode,
@@ -4482,17 +4675,17 @@ function artistRaceMarker(seed: CharacterSeed): string {
   }
   if (seed.race.name === 'aasimar') {
     if (['cleric', 'paladin', 'sorcerer'].includes(seed.primaryClass)) return 'one muted celestial marker, pale silver eyes';
-    return 'one subtle celestial marker, faint celestial scars without saintly glow';
+    return 'one subtle celestial marker, faint celestial scars with muted non-halo light';
   }
   if (seed.race.name === 'fairy') return `tiny adult fairy build, ${seed.characterPresentation.fairyVariant ?? 'varied winged silhouette'}`;
   if (seed.race.name === 'dragonborn') {
     const morph = seed.dragonbornMorphology;
-    if (morph) return `${morph.scalePalette}, ${morph.hornProfile}, ${morph.shoulderLine}, ${morph.torsoShape}, ${morph.neckAndJaw}, ${morph.armorTailoring}`;
+    if (morph) return `${morph.scalePalette}, ${morph.hornProfile}, ${morph.torsoShape}, ${morph.neckAndJaw}`;
     return 'scaled snout and crest with a strong draconic silhouette';
   }
   if (seed.race.name === 'tiefling') return 'horns and tail kept readable without extra ornaments';
   if (seed.race.name === 'satyr') return 'small horns and goat-legged stance';
-  if (seed.race.name === 'firbolg') return 'large gentle build, long ears and woodland features';
+  if (seed.race.name === 'firbolg') return 'large gentle firbolg frame, broad unusual face, wide soft nose, large ears, earth-toned skin, oversized hands';
   if (seed.race.name === 'half-orc') return 'tusked jaw and powerful shoulders';
   if (seed.race.name === 'halfling') return 'small nimble proportions and grounded feet';
   if (seed.race.name === 'gnome') return 'small expressive face and compact clever build';
@@ -4501,9 +4694,8 @@ function artistRaceMarker(seed: CharacterSeed): string {
 }
 
 function artistCostumePhrase(seed: CharacterSeed): string {
-  const armor = sanitizeArtistLiteralObjects(seed.armor.name, seed);
-  const silhouette = sanitizeArtistLiteralObjects(sanitizeSilhouetteForImagePrompt(seed), seed);
-  return `${armor} and ${silhouette} form large readable clothing and armor masses`;
+  const armor = sanitizeArtistLiteralObjects(seed.armor.name, seed).split(/\s+/).slice(0, 7).join(' ');
+  return `${armor} forms large clean clothing and armor masses with a readable silhouette`;
 }
 
 function artistStoryShorthand(seed: CharacterSeed, artDirection: ArtDirectionBrief): string | null {
@@ -4521,11 +4713,14 @@ function artistStoryShorthand(seed: CharacterSeed, artDirection: ArtDirectionBri
 function artistBackdropLight(seed: CharacterSeed, artDirection: ArtDirectionBrief): string {
   const light = sanitizeArtistLiteralObjects(lightPhraseForImagePrompt(seed, artDirection), seed)
     .replace(/generic holy backlight/gi, 'controlled rim light')
-    .replace(/golden divine rays/gi, 'muted edge light');
+    .replace(/golden divine rays/gi, seed.primaryClass === 'wizard' ? 'cool precise arcane light' : 'muted edge light')
+    .replace(/holy gold circle|golden magic circle/gi, seed.primaryClass === 'wizard' ? 'cool geometric spell structure' : 'controlled sacred light');
   const fighterSafeLight = seed.primaryClass === 'fighter' ? light.replace(/sacred|holy|divine|candlelit ritual|cathedral/gi, 'battle-worn') : light;
   const backdrop = sanitizeArtistLiteralObjects(seed.backdropLane.phrase, seed);
   const fighterSafeBackdrop = seed.primaryClass === 'fighter' ? backdrop.replace(/candlelit ritual atmosphere/gi, 'torchlit atmospheric depth') : backdrop;
-  return `${fighterSafeLight} against ${fighterSafeBackdrop}`;
+  const magic = seed.magicVisualLanguage;
+  const patron = magic.patronHint && Math.random() < 0.45 ? `, ${magic.patronHint}` : '';
+  return `${fighterSafeLight}; ${magic.palette} ${magic.shape}${patron} against ${fighterSafeBackdrop}`;
 }
 
 
@@ -4533,6 +4728,7 @@ function artistPrimaryTool(seed: CharacterSeed): string {
   let tool = sanitizeWeaponNameForImagePrompt(seed);
   if (seed.primaryClass === 'bard' && /book|grimoire|focus|orb|journal/i.test(tool)) tool = 'voice, instrument, and theatrical gesture';
   if (seed.primaryClass === 'fighter' && /spell|sacred|holy|ritual|focus|staff/i.test(tool)) tool = 'practical martial weapon';
+  if (seed.primaryClass === 'wizard' && /holy|sacred|prayer/i.test(tool)) tool = 'compact arcane focus';
   if (/map|compass|journal|scroll|papers|report|letter|token|coin/i.test(tool)) {
     tool = ['wizard', 'warlock', 'sorcerer', 'cleric'].includes(seed.primaryClass) ? 'compact mystical focus' : seed.primaryClass === 'artificer' ? 'single compact device' : seed.primaryClass === 'ranger' ? 'hunting bow' : 'practical class tool';
   }
@@ -4540,21 +4736,29 @@ function artistPrimaryTool(seed: CharacterSeed): string {
   return tool.replace(/\s+/g, ' ').trim();
 }
 
+function sceneMomentPhrase(seed: CharacterSeed): string {
+  const moment = seed.sceneMoment;
+  if (!moment) return '';
+  const support = moment.environmentInteraction ?? moment.supportingElement;
+  return support ? ` while ${moment.action} near ${support}` : ` while ${moment.action}`;
+}
+
 function performanceActionSentence(seed: CharacterSeed): string {
   const pronoun = pronounForPresentation(seed.characterPresentation);
   const perf = seed.performanceDirection;
   const tool = artistPrimaryTool(seed);
   const prop = perf.allowedInteractionProp ? ` beside one simple ${perf.allowedInteractionProp}` : '';
-  return `${pronoun.subject} ${perf.actionDescription}${prop}, ${perf.torsoDirection} from a ${perf.cameraAngle.replace(/_/g, ' ')} view in an active full-body pose, using ${tool} as the primary weapon/tool. ${pronoun.possessive} expression shows ${perf.emotion}: ${perf.facialExpression}; ${perf.gazeDirection}.`;
+  const scene = sceneMomentPhrase(seed);
+  return `${pronoun.subject} ${perf.actionDescription}${prop}${scene}, ${perf.torsoDirection} from a ${perf.cameraAngle.replace(/_/g, ' ')} view in a class-readable active pose, using ${tool} as the primary weapon/tool. ${pronoun.possessive} ${perf.facialExpression}; ${perf.gazeDirection}.`;
 }
 
 function artistNegativeClause(seed: CharacterSeed): string {
-  const aasimarClause = seed.race.name === 'aasimar' && !['cleric', 'paladin', 'sorcerer'].includes(seed.primaryClass) ? ', no halo or saint poster read' : '';
+  const aasimarClause = seed.race.name === 'aasimar' && !['cleric', 'paladin', 'sorcerer'].includes(seed.primaryClass) ? ', no halo or radiant icon read' : '';
   return `Avoid belt clutter, dangling extras, duplicate props${aasimarClause}, text, logos, grainy surfaces, patterned artifacts, and noisy material planes.`;
 }
 
 function paintedCharacterStudyStyle(): string {
-  return 'Cinematic painted fantasy style with realistic painterly finish, dramatic atmospheric depth, expressive face, natural leather and metal, clean readable silhouette, controlled detail, low surface noise, and a rich but uncluttered background.';
+  return 'Cinematic painted fantasy style, realistic painterly finish, dramatic atmospheric depth, expressive face, natural materials, clean silhouette, controlled detail, low surface noise, rich uncluttered background.';
 }
 
 function compileArtistBriefImagePrompt(seed: CharacterSeed, artDirection: ArtDirectionBrief): string {
@@ -4564,10 +4768,10 @@ function compileArtistBriefImagePrompt(seed: CharacterSeed, artDirection: ArtDir
   const story = artistStoryShorthand(seed, artDirection);
   const sentences = [
     `Full-body cinematic painted fantasy concept of a ${seed.characterPresentation.genderPresentation} ${age} ${seed.race.name} ${seed.primaryClass}, ${seed.characterConcept.classArchetype}, ${classFantasy.coreFantasy.split(',')[0].trim()}.`,
-    `${pronoun.possessive} ${artistRaceMarker(seed)}; ${seed.characterPresentation.faceArchetype}, ${seed.characterPresentation.bodyType} body, ${seed.characterPresentation.postureTemperament}.`,
+    `${pronoun.possessive} ${artistRaceMarker(seed)}; ${seed.identityProfile.faceShape.replace('_', ' ')} face, ${seed.identityProfile.noseProfile}, ${seed.identityProfile.hairColor} ${seed.identityProfile.hairStructure}, ${seed.identityProfile.distinctiveFeature}, ${seed.identityProfile.attractivenessRegister} ${seed.characterPresentation.bodyType} body.`,
     `${artistCostumePhrase(seed)}.`,
     performanceActionSentence(seed),
-    story ? `One lived-in trace: ${story}.` : null,
+    story ? `Lived-in trace: ${story}.` : null,
     `${artistBackdropLight(seed, artDirection)}, rich atmospheric background kept secondary and uncluttered.`,
     paintedCharacterStudyStyle(),
     artistNegativeClause(seed),
@@ -4860,6 +5064,55 @@ function diversityThreshold(mode: DiversityMode, seedMode: Mode): number {
   return Number.POSITIVE_INFINITY;
 }
 
+
+const DICEBORN_GENERATOR_VERSION = 'diceborn-generator-v1';
+
+function createGenerationId(): string {
+  const cryptoLike = globalThis as typeof globalThis & { crypto?: { randomUUID?: () => string } };
+  if (cryptoLike.crypto?.randomUUID) return cryptoLike.crypto.randomUUID();
+  return `diceborn-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function buildDicebornGenerationResult(result: Omit<GenerationResult, 'dicebornResult'>, manualSettings: ManualGenerationControls = {}): DicebornGenerationResult {
+  const seed = result.seed;
+  return {
+    id: createGenerationId(),
+    version: DICEBORN_GENERATOR_VERSION,
+    generatedAt: new Date().toISOString(),
+    generationProfile: seed.generationProfile,
+    manualSettings,
+    character: {
+      title: `${seed.race.name} ${seed.primaryClass} — ${seed.characterConcept.classArchetype}`,
+      race: seed.race.name,
+      primaryClass: seed.primaryClass,
+      archetype: seed.characterConcept.classArchetype,
+      presentation: seed.characterPresentation.genderPresentation,
+      ageBand: seed.characterPresentation.apparentAgeBand,
+      bodyType: seed.characterPresentation.bodyType,
+    },
+    concept: seed.characterConcept,
+    identity: seed.identityProfile,
+    performance: seed.performanceDirection,
+    sceneMoment: seed.sceneMoment,
+    dragonbornMorphology: seed.dragonbornMorphology,
+    imagePrompt: result.imagePrompt,
+    promptDraft: result.promptDraft,
+    seedOutput: result.seedOutput,
+    seedJson: seed,
+    trace: result.trace,
+  };
+}
+
+export function serializeGenerationResult(result: DicebornGenerationResult): string {
+  return JSON.stringify(result);
+}
+
+export function deserializeGenerationResult(json: string): DicebornGenerationResult {
+  const parsed = JSON.parse(json) as DicebornGenerationResult;
+  if (!parsed.version || !parsed.imagePrompt || !parsed.seedJson) throw new Error('Invalid DicebornGenerationResult payload.');
+  return parsed;
+}
+
 export function generateCharacterSeed(options: GenerationOptions = {}): GenerationResult {
   const useSmartPool = options.useSmartPool ?? true;
   const diversityMode = options.diversityMode ?? 'soft';
@@ -4946,12 +5199,17 @@ export function generateCharacterSeed(options: GenerationOptions = {}): Generati
   trace.push('[Stage composeImagePrompt] Image Prompt composed.');
   trace.push('[Stage composeFullGenerationText] Seed Output + Image Prompt composed for one-click copy.');
 
-  return {
+  const baseResult = {
     seed: resolvedSeed,
     seedOutput,
     promptDraft,
     imagePrompt,
     fullGenerationText,
     trace,
+  };
+  const dicebornResult = buildDicebornGenerationResult(baseResult, options.manualControls ?? {});
+  return {
+    ...baseResult,
+    dicebornResult,
   };
 }
