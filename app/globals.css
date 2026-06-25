@@ -254,7 +254,7 @@ h3 { margin: 0 0 var(--space-12); font-size: 1.08rem; }
 }
 
 .panel-card p, .result-canvas p, .empty-state p { color: var(--color-text-secondary); }
-.example-card { min-height: 170px; display: flex; align-items: end; color: var(--color-text-secondary); }
+.example-card { min-height: 170px; display: flex; align-items: flex-end; color: var(--color-text-secondary); }
 
 .final-cta {
   text-align: center;
