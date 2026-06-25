@@ -1,0 +1,12 @@
+node_modules
+dist
+*.local
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+
+.debug-check-build
+
+.identity-analysis-build
+
+.validate-data-build
