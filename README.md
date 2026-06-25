@@ -4,6 +4,8 @@
 
 Diceborn is a cinematic fantasy character generator foundation. The generator core is feature-frozen for the Alpha web phase: future UI work should consume the public generator result contract instead of changing generation weights, prompt compiler behavior, or content data.
 
+Deployment configuration refreshed for Next.js on Vercel.
+
 ## Architecture
 
 - `src/lib/generator.ts` — frozen Diceborn generator core, public types, serialization helpers, and prompt output contract.
