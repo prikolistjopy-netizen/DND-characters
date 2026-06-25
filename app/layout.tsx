@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import './polish.css';
 import { SiteHeader } from '@/components/layout/SiteHeader';
 
 export const metadata: Metadata = {
