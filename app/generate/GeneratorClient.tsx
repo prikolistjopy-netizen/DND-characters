@@ -15,6 +15,7 @@ import { FeedbackState } from '@/components/ui/FeedbackState';
 import { Panel } from '@/components/ui/Panel';
 import { Tag } from '@/components/ui/Tag';
 import styles from './generator.module.css';
+import polish from './generator-polish.module.css';
 
 type GeneratorMode = 'random' | 'custom';
 type Feedback = { kind: 'empty' | 'generating' | 'result' | 'saved' | 'error'; message?: string };
@@ -43,11 +44,7 @@ function pretty(value: string): string {
 
 function buildTraits(result: DicebornGenerationResult): string[] {
   const seed = result.seedJson;
-  return [
-    seed.archetype.name,
-    seed.mood.name,
-    seed.narrativeMotif.label,
-  ].filter(Boolean).slice(0, 3);
+  return [seed.archetype.name, seed.mood.name, seed.narrativeMotif.label].filter(Boolean).slice(0, 3);
 }
 
 function buildStoryHook(result: DicebornGenerationResult): string {
@@ -128,7 +125,7 @@ export function GeneratorClient({ initialMode }: { initialMode: GeneratorMode })
   }
 
   return (
-    <div className={styles.workspace}>
+    <div className={`${styles.workspace} ${polish.polish}`}>
       <Panel className={styles.controls} aria-labelledby="create-controls-title">
         <div className={styles.panelHeading}>
           <span>1</span>
@@ -136,105 +133,38 @@ export function GeneratorClient({ initialMode }: { initialMode: GeneratorMode })
         </div>
 
         <div className={styles.modeGrid} role="tablist" aria-label="Generation mode">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'random'}
-            className={mode === 'random' ? styles.modeActive : styles.modeCard}
-            onClick={() => setMode('random')}
-          >
-            <strong>Random</strong>
-            <span>Fate decides</span>
+          <button type="button" role="tab" aria-selected={mode === 'random'} className={mode === 'random' ? styles.modeActive : styles.modeCard} onClick={() => setMode('random')}>
+            <strong>Random</strong><span>Fate decides</span>
           </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'custom'}
-            className={mode === 'custom' ? styles.modeActive : styles.modeCard}
-            onClick={() => setMode('custom')}
-          >
-            <strong>Custom</strong>
-            <span>You guide</span>
+          <button type="button" role="tab" aria-selected={mode === 'custom'} className={mode === 'custom' ? styles.modeActive : styles.modeCard} onClick={() => setMode('custom')}>
+            <strong>Custom</strong><span>You guide</span>
           </button>
         </div>
 
-        <div className={styles.panelHeading}>
-          <span>2</span>
-          <h2>Set your parameters</h2>
-        </div>
+        <div className={styles.panelHeading}><span>2</span><h2>Set your parameters</h2></div>
 
         <div className={styles.fieldList}>
-          <label>
-            <span>Race</span>
-            <select value={race} onChange={(event) => setRace(event.target.value)}>
-              <option value="random">Any race</option>
-              {races.map((item) => <option value={item} key={item}>{pretty(item)}</option>)}
-            </select>
-          </label>
-          <label>
-            <span>Class</span>
-            <select value={characterClass} onChange={(event) => setCharacterClass(event.target.value)}>
-              <option value="random">Any class</option>
-              {classes.map((item) => <option value={item} key={item}>{pretty(item)}</option>)}
-            </select>
-          </label>
-          <label>
-            <span>Direction</span>
-            <select value={direction} onChange={(event) => setDirection(event.target.value as GenerationProfile | 'random')}>
-              {directions.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}
-            </select>
-          </label>
+          <label><span>Race</span><select value={race} onChange={(event) => setRace(event.target.value)}><option value="random">Any race</option>{races.map((item) => <option value={item} key={item}>{pretty(item)}</option>)}</select></label>
+          <label><span>Class</span><select value={characterClass} onChange={(event) => setCharacterClass(event.target.value)}><option value="random">Any class</option>{classes.map((item) => <option value={item} key={item}>{pretty(item)}</option>)}</select></label>
+          <label><span>Direction</span><select value={direction} onChange={(event) => setDirection(event.target.value as GenerationProfile | 'random')}>{directions.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
         </div>
 
         <Accordion title="More options" helper="Presentation, age and visual style">
           <div className={styles.fieldList}>
-            <label>
-              <span>Presentation</span>
-              <select value={presentation} onChange={(event) => setPresentation(event.target.value as ManualGenerationControls['genderPresentation'])}>
-                <option value="random">Any presentation</option>
-                <option value="masculine">Masculine</option>
-                <option value="feminine">Feminine</option>
-                <option value="androgynous">Androgynous</option>
-              </select>
-            </label>
-            <label>
-              <span>Age</span>
-              <select value={ageBand} onChange={(event) => setAgeBand(event.target.value as ManualGenerationControls['ageBand'])}>
-                <option value="random">Any age</option>
-                <option value="young_adult">Young adult</option>
-                <option value="adult">Adult</option>
-                <option value="middle_aged">Middle aged</option>
-                <option value="elder">Elder</option>
-              </select>
-            </label>
-            <label>
-              <span>Visual style</span>
-              <select value={stylePreset} onChange={(event) => setStylePreset(event.target.value as ManualGenerationControls['stylePreset'])}>
-                <option value="random">Diceborn default</option>
-                <option value="cinematic_painted_fantasy">Cinematic painted fantasy</option>
-                <option value="painted_character_study_clean">Painted character study</option>
-                <option value="clean_concept_art">Clean concept art</option>
-                <option value="realistic_dark_fantasy">Realistic dark fantasy</option>
-              </select>
-            </label>
+            <label><span>Presentation</span><select value={presentation} onChange={(event) => setPresentation(event.target.value as ManualGenerationControls['genderPresentation'])}><option value="random">Any presentation</option><option value="masculine">Masculine</option><option value="feminine">Feminine</option><option value="androgynous">Androgynous</option></select></label>
+            <label><span>Age</span><select value={ageBand} onChange={(event) => setAgeBand(event.target.value as ManualGenerationControls['ageBand'])}><option value="random">Any age</option><option value="young_adult">Young adult</option><option value="adult">Adult</option><option value="middle_aged">Middle aged</option><option value="elder">Elder</option></select></label>
+            <label><span>Visual style</span><select value={stylePreset} onChange={(event) => setStylePreset(event.target.value as ManualGenerationControls['stylePreset'])}><option value="random">Diceborn default</option><option value="cinematic_painted_fantasy">Cinematic painted fantasy</option><option value="painted_character_study_clean">Painted character study</option><option value="clean_concept_art">Clean concept art</option><option value="realistic_dark_fantasy">Realistic dark fantasy</option></select></label>
           </div>
         </Accordion>
 
         <p className={styles.helper}>Leave everything open for a fully random result, or guide the roll with your preferences.</p>
-        <Button className={styles.primaryAction} loading={feedback.kind === 'generating'} onClick={() => generate(false)}>
-          {mode === 'random' ? 'Roll Character' : 'Generate Character'}
-        </Button>
-        <Button variant="ghost" className={styles.surpriseAction} onClick={() => generate(true)}>
-          Surprise Me
-        </Button>
+        <Button className={styles.primaryAction} loading={feedback.kind === 'generating'} onClick={() => generate(false)}>{mode === 'random' ? 'Roll Character' : 'Generate Character'}</Button>
+        <Button variant="ghost" className={styles.surpriseAction} onClick={() => generate(true)}>Surprise Me</Button>
       </Panel>
 
       <Panel variant="result" className={styles.resultPanel} aria-labelledby="result-title">
         <header className={styles.resultHeader}>
-          <div>
-            <p className="eyebrow">Result</p>
-            <h2 id="result-title">{result ? 'Your character is ready' : 'Your character begins here'}</h2>
-          </div>
+          <div><p className="eyebrow">Result</p><h2 id="result-title">{result ? 'Your character is ready' : 'Your character begins here'}</h2></div>
           {result ? <Tag variant="status">Seeded</Tag> : null}
         </header>
 
@@ -247,37 +177,11 @@ export function GeneratorClient({ initialMode }: { initialMode: GeneratorMode })
           <div className={styles.resultBody}>
             <ArtworkPlaceholder state="empty" title={result.character.title} description="Artwork generation coming later" />
             <div className={styles.resultContent}>
-              <div>
-                <h3>{result.character.title}</h3>
-                <p className={styles.identity}>{pretty(result.character.race)} · {pretty(result.character.primaryClass)}</p>
-                <p className={styles.archetype}>{result.character.archetype}</p>
-              </div>
-
-              {traits.length ? (
-                <div>
-                  <h4>Traits</h4>
-                  <div className={styles.tags}>{traits.map((trait) => <Tag key={trait}>{trait}</Tag>)}</div>
-                </div>
-              ) : null}
-
-              <div>
-                <h4>Story Hook</h4>
-                <p>{buildStoryHook(result)}</p>
-              </div>
-
-              <div>
-                <h4>Prompt Preview</h4>
-                <p className={styles.promptPreview}>{result.imagePrompt}</p>
-                <details className={styles.fullPrompt}>
-                  <summary>View full prompt</summary>
-                  <p>{result.imagePrompt}</p>
-                </details>
-              </div>
-
-              <div className={styles.seedRow}>
-                <span><strong>Seed</strong><small>{result.id.slice(0, 12)}</small></span>
-                <button type="button" onClick={() => navigator.clipboard.writeText(result.id)} aria-label="Copy seed">Copy</button>
-              </div>
+              <div><h3>{result.character.title}</h3><p className={styles.identity}>{pretty(result.character.race)} · {pretty(result.character.primaryClass)}</p><p className={styles.archetype}>{result.character.archetype}</p></div>
+              {traits.length ? <div><h4>Traits</h4><div className={styles.tags}>{traits.map((trait) => <Tag key={trait}>{trait}</Tag>)}</div></div> : null}
+              <div><h4>Story Hook</h4><p>{buildStoryHook(result)}</p></div>
+              <div><h4>Prompt Preview</h4><p className={styles.promptPreview}>{result.imagePrompt}</p><details className={styles.fullPrompt}><summary>View full prompt</summary><p>{result.imagePrompt}</p></details></div>
+              <div className={styles.seedRow}><span><strong>Seed</strong><small>{result.id.slice(0, 12)}</small></span><button type="button" onClick={() => navigator.clipboard.writeText(result.id)} aria-label="Copy seed">Copy</button></div>
             </div>
           </div>
         )}
@@ -293,25 +197,13 @@ export function GeneratorClient({ initialMode }: { initialMode: GeneratorMode })
       </Panel>
 
       <Panel className={styles.refine} aria-labelledby="refine-title">
-        <div className={styles.panelHeading}>
-          <span>3</span>
-          <h2 id="refine-title">Refine your character</h2>
-        </div>
+        <div className={styles.panelHeading}><span>3</span><h2 id="refine-title">Refine your character</h2></div>
         <p className={styles.helper}>Optional refinements use generator-supported presentation and visual controls.</p>
-        <Accordion title="Presentation" helper="Gender presentation and age">
-          <p>Use the controls in More Options to preserve the same choices on the next roll.</p>
-        </Accordion>
-        <Accordion title="Visual Style" helper="Rendering direction">
-          <p>The selected visual style is applied to the next generated prompt.</p>
-        </Accordion>
-        <Accordion title="Generation Direction" helper="Classic, balanced, strange or chaotic">
-          <p>Direction changes the generator profile without rewriting the generated prompt in the UI.</p>
-        </Accordion>
+        <Accordion title="Presentation" helper="Gender presentation and age"><p>Use the controls in More Options to preserve the same choices on the next roll.</p></Accordion>
+        <Accordion title="Visual Style" helper="Rendering direction"><p>The selected visual style is applied to the next generated prompt.</p></Accordion>
+        <Accordion title="Generation Direction" helper="Classic, balanced, strange or chaotic"><p>Direction changes the generator profile without rewriting the generated prompt in the UI.</p></Accordion>
         <Button variant="secondary" disabled={!result} onClick={() => generate(false)}>Regenerate with Refinements</Button>
-        <div className={styles.tip}>
-          <strong>Tip</strong>
-          <p>You can refine or re-roll until the character feels right.</p>
-        </div>
+        <div className={styles.tip}><strong>Tip</strong><p>You can refine or re-roll until the character feels right.</p></div>
       </Panel>
     </div>
   );
