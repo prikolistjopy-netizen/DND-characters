@@ -38,7 +38,7 @@ const directions: Array<{ value: GenerationProfile | 'random'; label: string }> 
 ];
 
 function pretty(value: string): string {
-  return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function buildTraits(result: DicebornGenerationResult): string[] {
@@ -79,8 +79,8 @@ export function GeneratorClient({ initialMode }: { initialMode: GeneratorMode })
     };
 
     return {
-      class: mode === 'custom' ? characterClass as ManualGenerationControls['class'] : (characterClass as ManualGenerationControls['class']),
-      race: mode === 'custom' ? race : race,
+      class: characterClass as ManualGenerationControls['class'],
+      race,
       genderPresentation: presentation,
       ageBand,
       stylePreset,
