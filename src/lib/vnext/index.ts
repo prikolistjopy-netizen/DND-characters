@@ -3,5 +3,6 @@ export * from './resolver';
 export * from './ruleEngine';
 export * from './resolverWithRules';
 export * from './resolverControlled';
+export * from './incrementalResolver';
 export * from './semanticCard';
 export * from './coverage';
