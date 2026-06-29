@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "diceborn-semantic-facts-0.1",
+  "facts": [
+    {"id":"age.young-adult","domain":"psychology","label":"Young adult","tags":["age"],"baseWeight":0.85,"rarity":0.2,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"high"}},
+    {"id":"age.adult","domain":"psychology","label":"Adult","tags":["age"],"baseWeight":1.2,"rarity":0.1,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"high"}},
+    {"id":"age.middle-aged","domain":"psychology","label":"Middle aged","tags":["age"],"baseWeight":1,"rarity":0.25,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"high"}},
+    {"id":"age.elder","domain":"psychology","label":"Elder","tags":["age"],"baseWeight":0.55,"rarity":0.45,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"high"}},
+
+    {"id":"desire.protect-someone","domain":"psychology","label":"Protect someone who depends on them","tags":["desire","care","obligation"],"baseWeight":1,"rarity":0.2,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"desire.expose-truth","domain":"psychology","label":"Expose a truth others benefit from hiding","tags":["desire","truth","risk"],"baseWeight":0.9,"rarity":0.3,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"desire.repair-harm","domain":"psychology","label":"Repair harm they helped cause","tags":["desire","guilt","repair"],"baseWeight":0.85,"rarity":0.38,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"desire.earn-belonging","domain":"psychology","label":"Earn a place in a community that distrusts them","tags":["desire","belonging","status"],"baseWeight":0.9,"rarity":0.3,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"desire.understand-power","domain":"psychology","label":"Understand the true nature of their power","tags":["desire","knowledge","power"],"baseWeight":0.8,"rarity":0.3,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+
+    {"id":"fear.lose-memory","domain":"psychology","label":"Losing memories that anchor their identity","tags":["fear","memory","identity"],"baseWeight":0.7,"rarity":0.4,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"fear.fail-dependent","domain":"psychology","label":"Failing someone who relies on them","tags":["fear","care","obligation"],"baseWeight":1,"rarity":0.15,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"fear.become-instrument","domain":"psychology","label":"Becoming an instrument of another will","tags":["fear","agency","power"],"baseWeight":0.8,"rarity":0.35,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"fear.public-disgrace","domain":"psychology","label":"Public disgrace that destroys their ability to help","tags":["fear","status","reputation"],"baseWeight":0.75,"rarity":0.3,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"fear.truth-harms-innocent","domain":"psychology","label":"The truth harming someone innocent","tags":["fear","truth","care"],"baseWeight":0.8,"rarity":0.35,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+
+    {"id":"belief.duty-before-comfort","domain":"psychology","label":"Duty matters more than personal comfort","tags":["belief","duty"],"baseWeight":1,"rarity":0.15,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"belief.everything-has-price","domain":"psychology","label":"Every useful power has a price","tags":["belief","power","cost"],"baseWeight":0.85,"rarity":0.3,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"belief.proof-before-trust","domain":"psychology","label":"Trust should follow evidence, not rank","tags":["belief","evidence","authority"],"baseWeight":0.9,"rarity":0.25,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"belief.mercy-needs-boundaries","domain":"psychology","label":"Mercy without boundaries can become harm","tags":["belief","care","judgment"],"baseWeight":0.75,"rarity":0.38,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+
+    {"id":"contradiction.healer-harmful-power","domain":"psychology","label":"A healer whose power can harm the people they treat","tags":["contradiction","care","power"],"baseWeight":0.65,"rarity":0.5,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"contradiction.protector-fears-contact","domain":"psychology","label":"A protector who fears close contact","tags":["contradiction","protection","fear"],"baseWeight":0.65,"rarity":0.5,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"contradiction.truth-seeker-keeps-secret","domain":"psychology","label":"A truth-seeker protecting one necessary lie","tags":["contradiction","truth","secrecy"],"baseWeight":0.8,"rarity":0.4,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"contradiction.public-authority-private-doubt","domain":"psychology","label":"A public authority privately unsure of the rules they enforce","tags":["contradiction","authority","doubt"],"baseWeight":0.85,"rarity":0.35,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"contradiction.borrowed-power-independent-mind","domain":"psychology","label":"A fiercely independent person dependent on borrowed power","tags":["contradiction","agency","power"],"baseWeight":0.75,"rarity":0.45,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+
+    {"id":"coping.precise-routine","domain":"psychology","label":"Relies on precise routine when afraid","tags":["coping","control"],"baseWeight":1,"rarity":0.2,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"coping.dry-humor","domain":"psychology","label":"Uses dry humor to keep others calm","tags":["coping","social"],"baseWeight":0.8,"rarity":0.3,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"coping.overprepares","domain":"psychology","label":"Overprepares for situations they cannot control","tags":["coping","control","fear"],"baseWeight":0.9,"rarity":0.25,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+
+    {"id":"status.respected-distrusted","domain":"social","label":"Respected for competence but distrusted personally","tags":["status","reputation","tension"],"baseWeight":0.85,"rarity":0.35,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"status.modest-essential","domain":"social","label":"Modest in rank but essential to the community","tags":["status","service"],"baseWeight":1,"rarity":0.2,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"status.former-insider","domain":"social","label":"A former insider now kept at the edge of power","tags":["status","institution","loss"],"baseWeight":0.75,"rarity":0.42,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+
+    {"id":"obligation.dependent-family","domain":"social","label":"Support a dependent family member","tags":["obligation","family","care"],"baseWeight":1,"rarity":0.2,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"obligation.professional-oath","domain":"social","label":"Keep a professional oath under impossible conditions","tags":["obligation","profession","duty"],"baseWeight":0.9,"rarity":0.28,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"obligation.hidden-debt","domain":"social","label":"Repay a hidden debt to someone dangerous","tags":["obligation","debt","secrecy"],"baseWeight":0.75,"rarity":0.42,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"obligation.community-role","domain":"social","label":"Fulfil a role the community cannot easily replace","tags":["obligation","community","service"],"baseWeight":1,"rarity":0.18,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+
+    {"id":"power-source.none","domain":"power","label":"No supernatural power source","tags":["power-source","mundane"],"baseWeight":1,"rarity":0.1,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"high"}},
+    {"id":"power-source.external-intelligence","domain":"power","label":"An external intelligence with its own agenda","tags":["power-source","external","agency"],"baseWeight":0.8,"rarity":0.35,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"power-source.institutional-faith","domain":"power","label":"Power mediated through faith, office, and ritual practice","tags":["power-source","institution","faith"],"baseWeight":0.9,"rarity":0.25,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"power-source.internal-discipline","domain":"power","label":"Power expressed through trained internal discipline","tags":["power-source","internal","discipline"],"baseWeight":0.9,"rarity":0.2,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+
+    {"id":"power-relationship.transactional","domain":"power","label":"Transactional and carefully negotiated","tags":["power-relationship","bargain"],"baseWeight":0.9,"rarity":0.25,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"power-relationship.coerced","domain":"power","label":"Coerced and resisted","tags":["power-relationship","coercion","agency"],"baseWeight":0.7,"rarity":0.45,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"power-relationship.inherited","domain":"power","label":"Inherited before they understood the consequences","tags":["power-relationship","inheritance"],"baseWeight":0.75,"rarity":0.4,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"power-relationship.service","domain":"power","label":"Accepted as service to a community or institution","tags":["power-relationship","service"],"baseWeight":0.9,"rarity":0.25,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"power-relationship.self-reliant","domain":"power","label":"Understood as personal discipline and trained capacity","tags":["power-relationship","self"],"baseWeight":1,"rarity":0.15,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+
+    {"id":"power-control.controlled","domain":"power","label":"Controlled through practiced limits","tags":["power-control","controlled"],"baseWeight":1,"rarity":0.15,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"power-control.suppressed","domain":"power","label":"Actively suppressed","tags":["power-control","suppressed"],"baseWeight":0.7,"rarity":0.4,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"power-control.unstable","domain":"power","label":"Unstable under emotional pressure","tags":["power-control","unstable"],"baseWeight":0.65,"rarity":0.45,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+
+    {"id":"power-visibility.none","domain":"power","label":"No visible supernatural manifestation","tags":["power-visibility","none"],"baseWeight":1.2,"rarity":0.1,"version":1,"provenance":{"source":"Diceborn visual taxonomy","confidence":"high"}},
+    {"id":"power-visibility.latent","domain":"power","label":"Latent and only implied by consequence","tags":["power-visibility","latent"],"baseWeight":1,"rarity":0.2,"version":1,"provenance":{"source":"Diceborn visual taxonomy","confidence":"high"}},
+    {"id":"power-visibility.behavioral","domain":"power","label":"Visible through involuntary behavior","tags":["power-visibility","behavioral"],"baseWeight":0.9,"rarity":0.3,"version":1,"provenance":{"source":"Diceborn visual taxonomy","confidence":"high"}},
+    {"id":"power-visibility.object-based","domain":"power","label":"Visible through an altered tool or personal object","tags":["power-visibility","object"],"baseWeight":1,"rarity":0.25,"version":1,"provenance":{"source":"Diceborn visual taxonomy","confidence":"high"}},
+    {"id":"power-visibility.reflected","domain":"power","label":"Visible only in reflection or indirect image","tags":["power-visibility","reflection"],"baseWeight":0.65,"rarity":0.5,"version":1,"provenance":{"source":"Diceborn visual taxonomy","confidence":"high"}},
+    {"id":"power-visibility.full-apparition","domain":"power","label":"A full supernatural entity visibly manifests","tags":["power-visibility","apparition"],"baseWeight":0.12,"rarity":0.9,"stereotypeRisk":0.85,"version":1,"provenance":{"source":"Diceborn visual taxonomy","confidence":"high"}},
+
+    {"id":"power-cost.memory","domain":"power","label":"Memory loss","tags":["power-cost","memory"],"baseWeight":0.7,"rarity":0.45,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"power-cost.sleep","domain":"power","label":"Loss of restorative sleep","tags":["power-cost","sleep"],"baseWeight":0.8,"rarity":0.35,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"power-cost.reputation","domain":"power","label":"Damage to reputation and trust","tags":["power-cost","reputation"],"baseWeight":0.9,"rarity":0.3,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"power-cost.obligation","domain":"power","label":"Binding service or obligation","tags":["power-cost","obligation"],"baseWeight":1,"rarity":0.25,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+
+    {"id":"economic.modest","domain":"material-life","label":"Modest but stable means","tags":["economic-condition"],"baseWeight":1,"rarity":0.1,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"economic.precarious","domain":"material-life","label":"Precarious means and careful repair","tags":["economic-condition","scarcity"],"baseWeight":0.8,"rarity":0.35,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"medium"}},
+    {"id":"tool-familiarity.expert","domain":"material-life","label":"Expert, habitual handling","tags":["tool-familiarity"],"baseWeight":1,"rarity":0.1,"version":1,"provenance":{"source":"Diceborn semantic pilot","confidence":"high"}},
+
+    {"id":"goal.diagnose-anomaly","domain":"current-moment","label":"Diagnose an anomaly before it worsens","tags":["goal","diagnosis","time-pressure"],"baseWeight":0.75,"rarity":0.4,"version":1,"provenance":{"source":"Diceborn scene pilot","confidence":"medium"}},
+    {"id":"goal.protect-crossing","domain":"current-moment","label":"Get someone safely across a dangerous threshold","tags":["goal","protection","crossing"],"baseWeight":0.85,"rarity":0.3,"version":1,"provenance":{"source":"Diceborn scene pilot","confidence":"medium"}},
+    {"id":"goal.verify-evidence","domain":"current-moment","label":"Verify evidence before an irreversible accusation","tags":["goal","evidence","judgment"],"baseWeight":0.9,"rarity":0.25,"version":1,"provenance":{"source":"Diceborn scene pilot","confidence":"medium"}},
+    {"id":"goal.keep-oath","domain":"current-moment","label":"Keep an oath without obeying a harmful interpretation","tags":["goal","oath","moral-choice"],"baseWeight":0.75,"rarity":0.42,"version":1,"provenance":{"source":"Diceborn scene pilot","confidence":"medium"}},
+
+    {"id":"obstacle.power-linked-to-subject","domain":"current-moment","label":"The problem is directly linked to their own source of power","tags":["obstacle","power","personal"],"baseWeight":0.7,"rarity":0.45,"version":1,"provenance":{"source":"Diceborn scene pilot","confidence":"medium"}},
+    {"id":"obstacle.authority-demands-speed","domain":"current-moment","label":"An authority demands a decision before the evidence is complete","tags":["obstacle","authority","time-pressure"],"baseWeight":0.9,"rarity":0.25,"version":1,"provenance":{"source":"Diceborn scene pilot","confidence":"medium"}},
+    {"id":"obstacle.trusted-person-implicated","domain":"current-moment","label":"A trusted person is implicated","tags":["obstacle","relationship","evidence"],"baseWeight":0.8,"rarity":0.38,"version":1,"provenance":{"source":"Diceborn scene pilot","confidence":"medium"}},
+    {"id":"obstacle.tool-behaves-wrongly","domain":"current-moment","label":"A familiar tool behaves in an impossible way","tags":["obstacle","tool","anomaly"],"baseWeight":0.85,"rarity":0.35,"version":1,"provenance":{"source":"Diceborn scene pilot","confidence":"medium"}},
+
+    {"id":"action.examine","domain":"current-moment","label":"Examine with controlled precision","tags":["action","precision"],"baseWeight":1,"rarity":0.15,"version":1,"provenance":{"source":"Diceborn scene pilot","confidence":"high"}},
+    {"id":"action.interpose","domain":"current-moment","label":"Step between the threat and another person","tags":["action","protection"],"baseWeight":0.9,"rarity":0.25,"version":1,"provenance":{"source":"Diceborn scene pilot","confidence":"high"}},
+    {"id":"action.compare","domain":"current-moment","label":"Compare conflicting evidence","tags":["action","evidence"],"baseWeight":0.9,"rarity":0.2,"version":1,"provenance":{"source":"Diceborn scene pilot","confidence":"high"}},
+    {"id":"action.refuse-order","domain":"current-moment","label":"Refuse an order without abandoning responsibility","tags":["action","authority","moral-choice"],"baseWeight":0.7,"rarity":0.45,"version":1,"provenance":{"source":"Diceborn scene pilot","confidence":"high"}},
+
+    {"id":"pressure.controlled-alarm","domain":"current-moment","label":"Controlled alarm","tags":["pressure","restraint"],"baseWeight":1,"rarity":0.15,"version":1,"provenance":{"source":"Diceborn scene pilot","confidence":"medium"}},
+    {"id":"pressure.public-scrutiny","domain":"current-moment","label":"Public scrutiny","tags":["pressure","reputation"],"baseWeight":0.85,"rarity":0.3,"version":1,"provenance":{"source":"Diceborn scene pilot","confidence":"medium"}},
+    {"id":"pressure.divided-loyalty","domain":"current-moment","label":"Divided loyalty","tags":["pressure","relationship"],"baseWeight":0.8,"rarity":0.35,"version":1,"provenance":{"source":"Diceborn scene pilot","confidence":"medium"}}
+  ]
+}
