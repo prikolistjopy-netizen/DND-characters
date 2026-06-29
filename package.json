@@ -10,6 +10,7 @@
     "debug-check": "node scripts/debug-check.cjs",
     "identity-analysis": "node scripts/identity-analysis.cjs",
     "validate-data": "node scripts/validate-data.cjs",
+    "validate-vnext": "node scripts/validate-vnext-data.cjs",
     "start": "next start",
     "type-check": "tsc --noEmit"
   },
