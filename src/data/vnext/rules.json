@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "diceborn-rules-0.1",
+  "influences": [
+    {"id":"warlock-prefers-power-cost","kind":"prefers","when":["class.warlock"],"targets":["power-cost"],"weight":1.4,"reason":"Warlock identity is strengthened by a consequential relation to power, not by a mandatory visual effect.","version":1},
+    {"id":"warlock-prefers-indirect-manifestation","kind":"prefers","when":["class.warlock"],"targets":["power-visibility.object-based","power-visibility.behavioral","power-visibility.reflected","power-visibility.latent"],"weight":0.8,"reason":"Indirect manifestations preserve class readability while reducing apparition concentration.","version":1},
+    {"id":"warlock-discourages-full-apparition","kind":"discourages","when":["class.warlock"],"targets":["power-visibility.full-apparition"],"weight":-1.8,"reason":"A full patron apparition should be exceptional and justified by current moment, control, and cost.","version":1},
+    {"id":"fighter-prefers-embodied-action","kind":"prefers","when":["class.fighter"],"targets":["action.interpose","action.brace","action.hold-line","action.advance-under-pressure"],"weight":1.2,"reason":"Fighter readability should come from trained action and equipment familiarity.","version":1},
+    {"id":"cleric-prefers-service-or-obligation","kind":"prefers","when":["class.cleric"],"targets":["social.obligation","current-moment.service","current-moment.ritual-responsibility"],"weight":1.1,"reason":"Cleric identity can be expressed through service and institution rather than automatic holy light.","version":1},
+    {"id":"cleric-discourages-default-gold-light","kind":"discourages","when":["class.cleric"],"targets":["palette.class-gold","power-visibility.environmental-halo"],"weight":-1.2,"reason":"Gold light is a possible accent, not the default class solution.","version":1},
+
+    {"id":"physician-prefers-diagnostic-action","kind":"prefers","when":["profession.physician"],"targets":["action.examine","action.diagnose","handling.precise","posture.controlled"],"weight":1.4,"reason":"Profession should alter action, hands, and posture rather than only costume.","version":1},
+    {"id":"archivist-prefers-absence-evidence","kind":"prefers","when":["profession.archivist"],"targets":["obstacle.missing-record","action.compare-records","personal-object.index-token"],"weight":1.1,"reason":"Archivist competence is expressed through custody, sequence, and missing information.","version":1},
+    {"id":"ferryman-prefers-crossing-moment","kind":"prefers","when":["profession.ferryman"],"targets":["scene.crossing","action.balance","environment.weathered-waterway"],"weight":1.0,"reason":"Ferryman bodily habit and scene affordances should emerge from crossings and weather.","version":1},
+    {"id":"locksmith-prefers-mechanism-contact","kind":"prefers","when":["profession.locksmith"],"targets":["action.inspect-mechanism","handling.fine-tool","prop.compact-tool-roll"],"weight":1.2,"reason":"Tool familiarity and close observation are stronger than a costume symbol.","version":1},
+    {"id":"court-translator-prefers-social-reading","kind":"prefers","when":["profession.court-translator"],"targets":["action.listen","pressure.ambiguous-wording","posture.audience-aware"],"weight":1.1,"reason":"Language mediation should shape gaze, body orientation, and immediate conflict.","version":1},
+    {"id":"undertaker-prefers-practical-care","kind":"prefers","when":["profession.undertaker"],"targets":["action.prepare-body","handling.careful","scene.aftermath"],"weight":1.0,"reason":"Death-care is practical and relational, not automatically gothic decoration.","version":1},
+    {"id":"stage-performer-prefers-public-private-contrast","kind":"prefers","when":["profession.stage-performer"],"targets":["contradiction.public-private","posture.audience-aware","scene.performance-interruption"],"weight":1.0,"reason":"Performance introduces a meaningful boundary between persona and private intent.","version":1},
+    {"id":"mason-prefers-load-reading","kind":"prefers","when":["profession.mason"],"targets":["action.inspect-structure","handling.measure","posture.load-aware"],"weight":1.1,"reason":"Mason identity is visible through structural inference, body wear, and measurement.","version":1},
+
+    {"id":"dwarf-discourages-default-smith","kind":"discourages","when":["species.dwarf"],"targets":["profession.blacksmith","culture.mountain-clan","prop.hammer-default"],"weight":-0.9,"reason":"Dwarf morphology must not force a single profession or culture.","version":1},
+    {"id":"tiefling-discourages-moral-essentialism","kind":"discourages","when":["species.tiefling"],"targets":["psychology.evil-default","palette.infernal-red-default","class.warlock-default"],"weight":-1.4,"reason":"Morphology is independent from morality, class, and culture.","version":1},
+
+    {"id":"profession-must-influence-body","kind":"implies","when":["domain.profession"],"targets":["bodily-habit","handling-style"],"weight":1.5,"reason":"Every selected profession should influence at least one bodily habit and one handling behavior.","version":1},
+    {"id":"current-moment-before-scene","kind":"implies","when":["current-moment.complete"],"targets":["scene.resolve-after-current-moment"],"weight":2.0,"reason":"Scene family must derive from goal, obstacle, action, and pressure rather than class.","version":1},
+    {"id":"power-after-life-layer","kind":"implies","when":["visual.life-layer-complete"],"targets":["visual.resolve-power-layer"],"weight":1.5,"reason":"Power manifestation must integrate into body, action, profession, and scene.","version":1}
+  ],
+  "constraints": [
+    {"id":"no-full-apparition-with-no-visibility","kind":"conflicts","when":["power-visibility.none"],"targets":["power-visibility.full-apparition","power-visibility.partial-apparition"],"reason":"Visibility states are mutually exclusive.","version":1},
+    {"id":"no-unresolved-palette-alternatives","kind":"excludes","when":["surface-prompt.final"],"targets":["palette.unresolved-or-list"],"reason":"Final prompts must contain resolved palette decisions, not alternative colors joined by or.","version":1},
+    {"id":"maximum-primary-readability-anchors","kind":"excludes","when":["visual.readability"],"targets":["readability.primary-anchor-count>2"],"reason":"More than two primary anchors increases clutter and stereotype stacking.","version":1},
+    {"id":"profession-needs-affordance","kind":"requires","when":["domain.profession"],"targets":["visual-affordance","narrative-affordance"],"reason":"A profession fact must change behavior or material life, not act as a label only.","version":1},
+    {"id":"fact-needs-provenance","kind":"requires","when":["library-fact.production"],"targets":["provenance.source","provenance.confidence"],"reason":"Production facts must remain reviewable and traceable.","version":1}
+  ]
+}
