@@ -15,6 +15,7 @@
     "semantic-rule-comparison": "node scripts/semantic-rule-comparison.cjs",
     "semantic-legacy-comparison": "node scripts/semantic-legacy-comparison.cjs",
     "semantic-incremental-analysis": "node scripts/semantic-incremental-analysis.cjs",
+    "semantic-situation-analysis": "node scripts/semantic-situation-analysis.cjs",
     "start": "next start",
     "type-check": "tsc --noEmit"
   },
