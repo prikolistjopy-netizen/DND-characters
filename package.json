@@ -17,6 +17,7 @@
     "semantic-incremental-analysis": "node scripts/semantic-incremental-analysis.cjs",
     "semantic-situation-analysis": "node scripts/semantic-situation-analysis.cjs",
     "visual-director-analysis": "node scripts/visual-director-vnext-analysis.cjs",
+    "prompt-compiler-analysis": "node scripts/prompt-compiler-vnext-analysis.cjs",
     "start": "next start",
     "type-check": "tsc --noEmit"
   },
