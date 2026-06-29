@@ -5,4 +5,5 @@ export * from './resolverWithRules';
 export * from './resolverControlled';
 export * from './incrementalResolver';
 export * from './semanticCard';
+export * from './situationGraph';
 export * from './coverage';
