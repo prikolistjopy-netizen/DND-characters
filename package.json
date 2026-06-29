@@ -16,6 +16,7 @@
     "semantic-legacy-comparison": "node scripts/semantic-legacy-comparison.cjs",
     "semantic-incremental-analysis": "node scripts/semantic-incremental-analysis.cjs",
     "semantic-situation-analysis": "node scripts/semantic-situation-analysis.cjs",
+    "visual-director-analysis": "node scripts/visual-director-vnext-analysis.cjs",
     "start": "next start",
     "type-check": "tsc --noEmit"
   },
