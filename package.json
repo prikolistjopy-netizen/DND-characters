@@ -12,6 +12,7 @@
     "validate-data": "node scripts/validate-data.cjs",
     "validate-vnext": "node scripts/validate-vnext-data.cjs",
     "semantic-analysis": "node scripts/semantic-vnext-analysis.cjs",
+    "semantic-rule-comparison": "node scripts/semantic-rule-comparison.cjs",
     "start": "next start",
     "type-check": "tsc --noEmit"
   },
