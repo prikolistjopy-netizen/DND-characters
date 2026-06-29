@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { buildLegacyVNextComparisonReport } from '@/src/lib/vnext/legacyComparison';
 
 export const dynamic = 'force-dynamic';
@@ -16,16 +17,16 @@ const labelStyle = {
   textTransform: 'uppercase',
 } as const;
 
-function Score({ label, value }: { label: string; value: number }) {
+function Metric({ label, value, suffix = '%' }: { label: string; value: number; suffix?: string }) {
   return (
     <div style={{ display: 'grid', gap: 6 }}>
       <span style={labelStyle}>{label}</span>
-      <strong style={{ fontSize: 28 }}>{value}%</strong>
+      <strong style={{ fontSize: 28 }}>{value}{suffix}</strong>
     </div>
   );
 }
 
-function TextBlock({ title, children }: { title: string; children: React.ReactNode }) {
+function TextBlock({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section style={{ display: 'grid', gap: 8 }}>
       <h3 style={{ margin: 0, fontSize: 15, color: 'rgba(255,255,255,0.72)' }}>{title}</h3>
@@ -50,10 +51,10 @@ export default function VNextLabPage() {
         </header>
 
         <section style={{ ...cardStyle, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 20 }}>
-          <Score label="Cases" value={report.summary.caseCount} />
-          <Score label="Semantic complete" value={report.summary.averageSemanticCompleteness} />
-          <Score label="Visual complete" value={report.summary.averageVisualCompleteness} />
-          <Score label="Prompt ready" value={report.summary.averagePromptReadiness} />
+          <Metric label="Cases" value={report.summary.caseCount} suffix="" />
+          <Metric label="Semantic complete" value={report.summary.averageSemanticCompleteness} />
+          <Metric label="Visual complete" value={report.summary.averageVisualCompleteness} />
+          <Metric label="Prompt ready" value={report.summary.averagePromptReadiness} />
         </section>
 
         {report.summary.blockers.length ? (
@@ -79,9 +80,9 @@ export default function VNextLabPage() {
                       <p style={{ margin: '8px 0 0', color: 'rgba(255,255,255,0.64)' }}>{seed.identity.profession.label} · {seed.identity.ageBand.label}</p>
                     </div>
                     <div style={{ display: 'flex', gap: 18 }}>
-                      <Score label="Semantic" value={item.assessment.semanticCompleteness} />
-                      <Score label="Visual" value={item.assessment.visualCompleteness} />
-                      <Score label="Prompt" value={item.assessment.promptReadiness} />
+                      <Metric label="Semantic" value={item.assessment.semanticCompleteness} />
+                      <Metric label="Visual" value={item.assessment.visualCompleteness} />
+                      <Metric label="Prompt" value={item.assessment.promptReadiness} />
                     </div>
                   </div>
 
