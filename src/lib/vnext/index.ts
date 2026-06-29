@@ -9,4 +9,5 @@ export * from './situationGraph';
 export * from './visualDirector';
 export * from './promptCompiler';
 export * from './generateVNext';
+export * from './legacyComparison';
 export * from './coverage';
