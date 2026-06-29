@@ -6,4 +6,5 @@ export * from './resolverControlled';
 export * from './incrementalResolver';
 export * from './semanticCard';
 export * from './situationGraph';
+export * from './visualDirector';
 export * from './coverage';
