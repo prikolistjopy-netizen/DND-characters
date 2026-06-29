@@ -1,65 +1,83 @@
-import { getSemanticComparisonRows } from '@/src/lib/vnext/comparison';
+import { getLegacyVNextComparisons } from '@/src/lib/vnext';
 import styles from './vnext.module.css';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Legacy vs Semantic Core vNext',
-  description: 'Internal Diceborn comparison between the Legacy generator read and Semantic Core vNext interpretation.',
+  description: 'Internal Diceborn comparison between Legacy output style and Semantic Core vNext.',
 };
 
 export default function VNextComparisonPage() {
-  const rows = getSemanticComparisonRows();
+  const comparisons = getLegacyVNextComparisons();
 
   return (
     <main className={styles.shell} aria-labelledby="vnext-title">
       <section className={styles.hero}>
-        <p className="eyebrow">Internal QA</p>
-        <h1 id="vnext-title" className={styles.title}>Diceborn Legacy vs Semantic Core vNext</h1>
+        <p className="eyebrow">Internal QA · Feature isolated</p>
+        <h1 id="vnext-title" className={styles.title}>Diceborn Semantic Core vNext</h1>
         <p className={styles.lede}>
-          Six deterministic comparison cases show how the current Legacy read and the vNext semantic contract express class, species, tool, posture, moment, composition, and QA flags.
+          Deterministic pilot comparison for Warlock Physician, Warlock Locksmith, Fighter Ferryman, Fighter Investigator, Cleric Undertaker, and Cleric Tutor. Legacy /generate remains unchanged.
         </p>
       </section>
 
       <section className={styles.caseGrid} aria-label="Legacy and Semantic Core vNext comparison cases">
-        {rows.map((row, index) => (
-          <article className={styles.caseCard} key={row.id}>
-            <header className={styles.caseHeader}>
-              <span className={styles.caseNumber}>{String(index + 1).padStart(2, '0')}</span>
-              <div>
-                <h2>{row.species} {row.className}</h2>
-                <p>{row.profession}</p>
+        {comparisons.map((comparison, index) => {
+          const seed = comparison.vnext.semanticSeed;
+          const visual = comparison.vnext.visualDirection;
+          return (
+            <article className={styles.caseCard} key={comparison.id}>
+              <header className={styles.caseHeader}>
+                <span className={styles.caseNumber}>{String(index + 1).padStart(2, '0')}</span>
+                <div>
+                  <h2>{seed.identity.classId} · {seed.identity.profession}</h2>
+                  <p>{seed.identity.speciesId} in {seed.world.environment}</p>
+                </div>
+              </header>
+
+              <dl className={styles.factGrid}>
+                <div><dt>Class</dt><dd>{seed.identity.classId}</dd></div>
+                <div><dt>Species</dt><dd>{seed.identity.speciesId}</dd></div>
+                <div><dt>Profession</dt><dd>{seed.identity.profession}</dd></div>
+                <div><dt>Power visibility</dt><dd>{seed.power.visibility}</dd></div>
+                <div><dt>Current moment</dt><dd>{seed.currentMoment.currentAction}</dd></div>
+                <div><dt>Contradiction</dt><dd>{seed.psychology.contradiction}</dd></div>
+                <div><dt>Posture</dt><dd>{visual.embodiment.posture}</dd></div>
+                <div><dt>Gesture</dt><dd>{visual.embodiment.gesture}</dd></div>
+                <div><dt>Primary tool</dt><dd>{visual.life.primaryTool}</dd></div>
+                <div><dt>Lived-in trace</dt><dd>{visual.life.livedInTrace}</dd></div>
+                <div><dt>Manifestation</dt><dd>{visual.power.manifestation}</dd></div>
+                <div><dt>Composition</dt><dd>{visual.artDirection.composition}</dd></div>
+              </dl>
+
+              <div className={styles.promptCompare}>
+                <section aria-labelledby={`${comparison.id}-legacy`}>
+                  <h3 id={`${comparison.id}-legacy`}>Legacy prompt</h3>
+                  <p>{comparison.legacyPrompt}</p>
+                </section>
+                <section aria-labelledby={`${comparison.id}-vnext`}>
+                  <h3 id={`${comparison.id}-vnext`}>vNext prompt</h3>
+                  <p>{comparison.vnext.prompt}</p>
+                  <details>
+                    <summary>Negative prompt</summary>
+                    <p>{comparison.vnext.negativePrompt}</p>
+                  </details>
+                </section>
               </div>
-            </header>
 
-            <dl className={styles.factGrid}>
-              <div><dt>Class</dt><dd>{row.className}</dd></div>
-              <div><dt>Species</dt><dd>{row.species}</dd></div>
-              <div><dt>Profession</dt><dd>{row.profession}</dd></div>
-              <div><dt>Power visibility</dt><dd>{row.powerVisibility}</dd></div>
-              <div><dt>Current moment</dt><dd>{row.currentMoment}</dd></div>
-              <div><dt>Contradiction</dt><dd>{row.contradiction}</dd></div>
-              <div><dt>Posture</dt><dd>{row.posture}</dd></div>
-              <div><dt>Primary tool</dt><dd>{row.primaryTool}</dd></div>
-              <div><dt>Composition</dt><dd>{row.composition}</dd></div>
-            </dl>
+              <div className={styles.traceBox}>
+                <strong>Score / trace summary</strong>
+                <p>{comparison.scoreSummary}</p>
+                <p>{comparison.vnext.trace.join(' · ')}</p>
+              </div>
 
-            <div className={styles.promptCompare}>
-              <section aria-labelledby={`${row.id}-legacy`}>
-                <h3 id={`${row.id}-legacy`}>Legacy prompt</h3>
-                <p>{row.legacyPrompt}</p>
-              </section>
-              <section aria-labelledby={`${row.id}-vnext`}>
-                <h3 id={`${row.id}-vnext`}>vNext prompt</h3>
-                <p>{row.vnextPrompt}</p>
-              </section>
-            </div>
-
-            <ul className={styles.flags} aria-label="QA flags">
-              {row.qaFlags.map((flag) => <li key={flag}>{flag}</li>)}
-            </ul>
-          </article>
-        ))}
+              <ul className={styles.flags} aria-label="QA flags">
+                {comparison.vnext.qa.flags.map((flag) => <li key={flag}>{flag}</li>)}
+                {comparison.vnext.qa.blockingErrors.map((flag) => <li className={styles.errorFlag} key={flag}>{flag}</li>)}
+              </ul>
+            </article>
+          );
+        })}
       </section>
     </main>
   );

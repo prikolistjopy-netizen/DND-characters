@@ -1,0 +1,38 @@
+{
+  "classes": [
+    {"id":"fighter","label":"Fighter","affordances":["trained weight distribution","protective positioning","weapon discipline","threat reading"],"evidence":["guarding footwork","controlled reach","practical armor choices"]},
+    {"id":"cleric","label":"Cleric","affordances":["ritual responsibility","care under pressure","community obligation","power restraint"],"evidence":["protective touch","witness posture","measured invocation"]},
+    {"id":"warlock","label":"Warlock","affordances":["bargained power","concealment","listening to unseen pressure","cost awareness"],"evidence":["asymmetric stillness","guarded hand","attention split between world and source"]}
+  ],
+  "species": [
+    {"id":"human","label":"Human","markers":["varied human proportions","specific lived-in face","culture-shaped clothing"],"avoid":["blank default template"]},
+    {"id":"dwarf","label":"Dwarf","markers":["compact powerful build","low center of gravity","broad hands","dense practical clothing"],"avoid":["automatic smith stereotype"]},
+    {"id":"tiefling","label":"Tiefling","markers":["horn silhouette","tail balance","nonhuman eyes","intentional skin undertone"],"avoid":["automatic red skin","sexualized costume","automatic fire"]}
+  ],
+  "cultures": [
+    {"id":"river_towns","label":"river-town commons","materials":["oiled wool","rope fiber","dark wet timber"],"tensions":["flood debt","crossing rights","missing passengers"]},
+    {"id":"border_city","label":"border city wards","materials":["patched linen","smoked brick","blackened iron"],"tensions":["curfew pressure","guild suspicion","refugee obligation"]},
+    {"id":"hill_parish","label":"hill parish","materials":["limestone dust","worn wool","candle soot"],"tensions":["burial dispute","winter stores","old vow"]},
+    {"id":"salt_archive","label":"salt archive district","materials":["salt-stained leather","aged paper","blue-gray stone"],"tensions":["sealed records","lost inheritance","forbidden testimony"]}
+  ],
+  "environments": [
+    {"id":"rain_doorway","label":"rain-dark doorway","weather":"cold rain","architecture":"narrow stone threshold"},
+    {"id":"river_crossing","label":"low ferry crossing","weather":"river mist","architecture":"wet planks and rope rail"},
+    {"id":"parish_room","label":"quiet parish room","weather":"still indoor chill","architecture":"plain plaster wall and candle niche"},
+    {"id":"archive_alley","label":"archive alley","weather":"salt haze","architecture":"tall records wall and shadowed arch"},
+    {"id":"workroom_edge","label":"workroom edge","weather":"dust in window light","architecture":"single bench edge and tool marks"}
+  ],
+  "psychology": {
+    "drives": ["protect the vulnerable","finish an owed duty","expose a hidden truth","keep dangerous power contained","bring someone safely across a threshold"],
+    "values": ["competence","mercy","truth","debt","privacy","steadiness"],
+    "fears": ["causing harm through hesitation","being owned by power","failing a dependent person","letting a community lie stand"],
+    "contradictions": ["uses feared power to prevent worse harm","is trained for violence but trying to de-escalate","serves a community that distrusts them","keeps professional calm while personally implicated"],
+    "coping": ["economical movement","dry humor","ritualized breathing","checking tools twice","naming the risk plainly"],
+    "restraint": ["tight jaw","quiet voice","measured gaze","still shoulders","controlled hand pressure"]
+  },
+  "powerSources": [
+    {"id":"none","label":"no visible supernatural source","classes":["fighter"],"visibility":["none","behavioral","social"]},
+    {"id":"oath_witness","label":"witnessed sacred obligation","classes":["cleric"],"visibility":["latent","object","symbolic","relational","environmental"]},
+    {"id":"bargained_shadow","label":"private bargain with a distant power","classes":["warlock"],"visibility":["latent","behavioral","shadow","reflected","object","partial"]}
+  ]
+}

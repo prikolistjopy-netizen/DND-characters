@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "diceborn-semantic-vnext-pilot-1",
+  "pilotScope": {
+    "classes": ["fighter", "cleric", "warlock"],
+    "species": ["human", "dwarf", "tiefling"],
+    "minimumProfessionCount": 20,
+    "powerVisibilityModes": ["none", "latent", "behavioral", "bodily", "object", "reflected", "shadow", "environmental", "symbolic", "relational", "social", "partial", "full_apparition"]
+  },
+  "dormantFacts": []
+}
