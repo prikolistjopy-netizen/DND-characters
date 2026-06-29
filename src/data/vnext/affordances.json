@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "diceborn-affordances-0.1",
+  "affordances": [
+    {"id":"habit.precise-hands","kind":"bodily-habit","label":"Precise controlled hands","tags":["precision","care","diagnosis"],"supports":["profession.physician","profession.locksmith","profession.relic-appraiser"],"version":1},
+    {"id":"habit.load-aware-stance","kind":"bodily-habit","label":"Load-aware grounded stance","tags":["structure","balance","protection"],"supports":["profession.mason","profession.ferryman","profession.guard-captain"],"version":1},
+    {"id":"habit.audience-aware-torso","kind":"bodily-habit","label":"Audience-aware torso and gesture","tags":["performance","status","language"],"supports":["profession.stage-performer","profession.court-translator","profession.tutor"],"version":1},
+    {"id":"handling.diagnostic","kind":"handling-style","label":"Diagnostic handling","tags":["inspect","compare","measure"],"supports":["profession.physician","profession.investigator","profession.relic-appraiser"],"version":1},
+    {"id":"handling.fine-tool","kind":"handling-style","label":"Fine-tool handling","tags":["precision","mechanism","repair"],"supports":["profession.locksmith","profession.mason"],"version":1},
+    {"id":"handling.low-threat","kind":"handling-style","label":"Low-threat calming handling","tags":["care","trust","animals"],"supports":["profession.animal-handler","profession.shepherd","profession.physician"],"version":1},
+    {"id":"trace.cleaned-wear","kind":"material-trace","label":"Cleaned wear zones around frequently used tools","tags":["care","maintenance","habit"],"supports":["profession.physician","profession.undertaker","profession.cook"],"version":1},
+    {"id":"trace.metal-filings","kind":"material-trace","label":"Fine metal filings in seams and cuffs","tags":["mechanism","craft","precision"],"supports":["profession.locksmith"],"version":1},
+    {"id":"trace.weather-salt","kind":"material-trace","label":"Salt and weather wear on outer layers","tags":["weather","water","isolation"],"supports":["profession.ferryman","profession.lighthouse-keeper","profession.messenger"],"version":1},
+    {"id":"signal.public-duty","kind":"social-signal","label":"Visible public-duty authority","tags":["authority","service","status"],"supports":["profession.guard-captain","profession.tax-collector","class.cleric"],"version":1},
+    {"id":"signal.discreet-care","kind":"social-signal","label":"Discreet practical care","tags":["care","privacy","trust"],"supports":["profession.physician","profession.undertaker","profession.tutor"],"version":1},
+    {"id":"signal.custodian","kind":"social-signal","label":"Custodian of records or objects","tags":["custody","records","provenance"],"supports":["profession.archivist","profession.relic-appraiser","profession.cartographer"],"version":1}
+  ]
+}
