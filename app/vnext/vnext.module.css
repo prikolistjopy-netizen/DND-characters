@@ -1,0 +1,147 @@
+.shell {
+  display: grid;
+  gap: var(--space-48);
+  padding-block: clamp(2rem, 5vw, 4rem) var(--layout-section-space);
+}
+
+.hero {
+  max-width: 880px;
+}
+
+.title {
+  max-width: 12ch;
+  font-size: clamp(2.7rem, 7vw, 5.8rem);
+  line-height: 0.98;
+}
+
+.lede {
+  max-width: 72ch;
+  margin-block-start: var(--space-16);
+  color: var(--color-text-secondary);
+  font-size: clamp(1rem, 1.6vw, 1.16rem);
+}
+
+.caseGrid {
+  display: grid;
+  gap: var(--space-24);
+}
+
+.caseCard {
+  display: grid;
+  gap: var(--space-24);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-panel);
+  padding: clamp(1rem, 2.5vw, 1.75rem);
+  background: linear-gradient(180deg, rgba(14, 28, 48, 0.76), rgba(7, 14, 27, 0.7));
+  box-shadow: var(--shadow-surface);
+}
+
+.caseHeader {
+  display: flex;
+  gap: var(--space-16);
+  align-items: start;
+}
+
+.caseHeader h2 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.6vw, 2.4rem);
+  line-height: 1.05;
+}
+
+.caseHeader p {
+  margin-block-start: var(--space-4);
+  color: var(--color-text-secondary);
+  text-transform: capitalize;
+}
+
+.caseNumber {
+  min-width: 3rem;
+  color: var(--color-accent-cyan);
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  font-weight: 750;
+  letter-spacing: 0.16em;
+}
+
+.factGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-12);
+  margin: 0;
+}
+
+.factGrid div {
+  min-width: 0;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-large);
+  padding: var(--space-12);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.factGrid dt {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 740;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.factGrid dd {
+  margin: var(--space-4) 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.promptCompare {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-16);
+}
+
+.promptCompare section {
+  border-radius: var(--radius-large);
+  padding: var(--space-16);
+  background: rgba(1, 8, 18, 0.46);
+}
+
+.promptCompare h3 {
+  margin: 0 0 var(--space-8);
+  color: var(--color-text-primary);
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  font-weight: 760;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.promptCompare p {
+  color: var(--color-text-secondary);
+  font-size: 0.94rem;
+  line-height: 1.58;
+}
+
+.flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flags li {
+  border: 1px solid rgba(94, 231, 255, 0.24);
+  border-radius: var(--radius-pill);
+  padding: 0.42rem 0.7rem;
+  color: var(--color-text-secondary);
+  background: rgba(94, 231, 255, 0.06);
+  font-size: 0.78rem;
+}
+
+@media (max-width: 960px) {
+  .factGrid,
+  .promptCompare {
+    grid-template-columns: 1fr;
+  }
+}
