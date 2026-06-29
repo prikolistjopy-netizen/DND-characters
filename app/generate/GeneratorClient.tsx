@@ -48,7 +48,17 @@ function buildTraits(result: DicebornGenerationResult): string[] {
 }
 
 function buildStoryHook(result: DicebornGenerationResult): string {
-  return result.concept.conceptLine || result.sceneMoment?.narrativeIntent || result.promptDraft;
+  const seedSceneIntent = (result.seedJson as { sceneMoment?: { narrativeIntent?: string } }).sceneMoment?.narrativeIntent;
+  return (
+    result.concept.conceptLine ||
+    result.sceneMoment?.narrativeIntent ||
+    seedSceneIntent ||
+    `${pretty(result.character.race)} ${pretty(result.character.primaryClass)} shaped by ${result.character.archetype}`
+  );
+}
+
+function shortArtworkLabel(result: DicebornGenerationResult): string {
+  return `${pretty(result.character.race)} · ${pretty(result.character.primaryClass)} · ${result.character.archetype}`;
 }
 
 export function GeneratorClient({ initialMode }: { initialMode: GeneratorMode }) {
@@ -88,9 +98,11 @@ export function GeneratorClient({ initialMode }: { initialMode: GeneratorMode })
     };
   }
 
-  function generate(forceRandom = false) {
+  async function generate(forceRandom = false) {
     setFeedback({ kind: 'generating' });
     setCopyLabel('Copy Prompt');
+    const startedAt = performance.now();
+
     try {
       const generated = generateCharacterSeed({
         useSmartPool: true,
@@ -99,6 +111,10 @@ export function GeneratorClient({ initialMode }: { initialMode: GeneratorMode })
         environmentDetailLevel: 'balanced',
         manualControls: buildControls(forceRandom),
       });
+
+      const remaining = Math.max(0, 280 - (performance.now() - startedAt));
+      if (remaining > 0) await new Promise((resolve) => window.setTimeout(resolve, remaining));
+
       setResult(generated.dicebornResult);
       setFeedback({ kind: 'result' });
     } catch (error) {
@@ -127,11 +143,7 @@ export function GeneratorClient({ initialMode }: { initialMode: GeneratorMode })
   return (
     <div className={`${styles.workspace} ${polish.polish}`}>
       <Panel className={styles.controls} aria-labelledby="create-controls-title">
-        <div className={styles.panelHeading}>
-          <span>1</span>
-          <h2 id="create-controls-title">Choose your path</h2>
-        </div>
-
+        <div className={styles.panelHeading}><span>1</span><h2 id="create-controls-title">Choose your path</h2></div>
         <div className={styles.modeGrid} role="tablist" aria-label="Generation mode">
           <button type="button" role="tab" aria-selected={mode === 'random'} className={mode === 'random' ? styles.modeActive : styles.modeCard} onClick={() => setMode('random')}>
             <strong>Random</strong><span>Fate decides</span>
@@ -142,7 +154,6 @@ export function GeneratorClient({ initialMode }: { initialMode: GeneratorMode })
         </div>
 
         <div className={styles.panelHeading}><span>2</span><h2>Set your parameters</h2></div>
-
         <div className={styles.fieldList}>
           <label><span>Race</span><select value={race} onChange={(event) => setRace(event.target.value)}><option value="random">Any race</option>{races.map((item) => <option value={item} key={item}>{pretty(item)}</option>)}</select></label>
           <label><span>Class</span><select value={characterClass} onChange={(event) => setCharacterClass(event.target.value)}><option value="random">Any class</option>{classes.map((item) => <option value={item} key={item}>{pretty(item)}</option>)}</select></label>
@@ -175,7 +186,7 @@ export function GeneratorClient({ initialMode }: { initialMode: GeneratorMode })
           </div>
         ) : (
           <div className={styles.resultBody}>
-            <ArtworkPlaceholder state="empty" title={result.character.title} description="Artwork generation coming later" />
+            <ArtworkPlaceholder state="empty" title={shortArtworkLabel(result)} description="Artwork generation coming later" />
             <div className={styles.resultContent}>
               <div><h3>{result.character.title}</h3><p className={styles.identity}>{pretty(result.character.race)} · {pretty(result.character.primaryClass)}</p><p className={styles.archetype}>{result.character.archetype}</p></div>
               {traits.length ? <div><h4>Traits</h4><div className={styles.tags}>{traits.map((trait) => <Tag key={trait}>{trait}</Tag>)}</div></div> : null}
@@ -187,9 +198,9 @@ export function GeneratorClient({ initialMode }: { initialMode: GeneratorMode })
         )}
 
         <div className={styles.actions} aria-label="Character actions">
-          <Button variant="primary" disabled={!result} onClick={saveCharacter}>Save Character</Button>
-          <Button variant="secondary" disabled={!result} onClick={copyPrompt}>{copyLabel}</Button>
-          <Button variant="ghost" disabled={!result} onClick={() => generate(false)}>Roll Again</Button>
+          <Button variant="primary" disabled={!result || feedback.kind === 'generating'} onClick={saveCharacter}>Save Character</Button>
+          <Button variant="secondary" disabled={!result || feedback.kind === 'generating'} onClick={copyPrompt}>{copyLabel}</Button>
+          <Button variant="ghost" disabled={!result || feedback.kind === 'generating'} onClick={() => generate(false)}>Roll Again</Button>
           <Button variant="ghost" disabled title="Sharing will be added after stable character links">Share Later</Button>
         </div>
         {result && feedback.kind === 'saved' ? <FeedbackState kind="saved" /> : null}
@@ -202,7 +213,7 @@ export function GeneratorClient({ initialMode }: { initialMode: GeneratorMode })
         <Accordion title="Presentation" helper="Gender presentation and age"><p>Use the controls in More Options to preserve the same choices on the next roll.</p></Accordion>
         <Accordion title="Visual Style" helper="Rendering direction"><p>The selected visual style is applied to the next generated prompt.</p></Accordion>
         <Accordion title="Generation Direction" helper="Classic, balanced, strange or chaotic"><p>Direction changes the generator profile without rewriting the generated prompt in the UI.</p></Accordion>
-        <Button variant="secondary" disabled={!result} onClick={() => generate(false)}>Regenerate with Refinements</Button>
+        <Button variant="secondary" disabled={!result || feedback.kind === 'generating'} onClick={() => generate(false)}>Regenerate with Refinements</Button>
         <div className={styles.tip}><strong>Tip</strong><p>You can refine or re-roll until the character feels right.</p></div>
       </Panel>
     </div>
