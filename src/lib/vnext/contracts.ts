@@ -87,6 +87,7 @@ export type SemanticSeed = {
     expectationVsBehavior: string;
   };
   currentMoment: {
+    sceneArchetype: string;
     currentAction: string;
     immediateTask: string;
     goal: string;
@@ -101,6 +102,7 @@ export type SemanticSeed = {
     failurePoint: string;
     motionEnergy: string;
     narrativeIntent: string;
+    visualConsequence: string;
     consequenceOfFailure: string;
   };
   power: {
@@ -164,11 +166,27 @@ export type CompiledPrompt = {
   compilerTrace: string[];
 };
 
+export type ImageReviewFields = {
+  silhouette_readable: boolean | null;
+  profession_visible: boolean | null;
+  class_evidence_visible: boolean | null;
+  action_visible: boolean | null;
+  gaze_target_visible: boolean | null;
+  tool_unique: boolean | null;
+  power_visibility_correct: boolean | null;
+  patron_leak: boolean | null;
+  prop_clutter: boolean | null;
+  stereotype_leak: boolean | null;
+  composition_matches: boolean | null;
+  overall_coherence: boolean | null;
+};
+
 export type VNextQaReport = {
   passed: boolean;
   flags: string[];
   blockingErrors: string[];
   metrics: Record<string, number>;
+  imageReview: ImageReviewFields;
 };
 
 export type VNextResult = {

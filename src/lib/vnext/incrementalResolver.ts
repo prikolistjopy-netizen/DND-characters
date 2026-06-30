@@ -41,7 +41,7 @@ const goals = ['prevent immediate harm', 'prove a hidden truth', 'finish a dange
 const obstacles = ['locked threshold', 'frightened witness', 'unstable weather', 'hostile suspicion', 'failing structure', 'contradictory evidence', 'crowd expectation'];
 const risks = ['public panic', 'harmful power exposure', 'lost evidence', 'community blame', 'physical injury', 'broken trust', 'a dependent person abandoned'];
 const pressures = ['time is narrowing', 'someone is watching', 'the room is losing trust', 'weather is worsening', 'authority is arriving', 'the tool may fail'];
-const motionStates = ['contained forward motion', 'braced stillness', 'measured crouch', 'controlled turn toward the threat', 'hands moving faster than the body', 'balanced step into pressure'];
+const motionStates = ['contained forward motion', 'braced stillness', 'measured crouch', 'controlled turn toward the threat', 'hands moving faster than the body', 'balanced step into pressure', 'interrupted recovery', 'quiet lateral repositioning', 'public stillness under pressure', 'tool-led forward lean'];
 
 function relationshipToPower(classId: string) {
   const relationships: Record<string, string> = {
@@ -106,7 +106,9 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
   const dailyHabit = pick(profession.habits, rng, 'life.dailyHabit', scoreTrace);
   const tool = pick(profession.tools, rng, 'life.tool', scoreTrace);
   const responsibility = pick(profession.responsibilities, rng, 'life.responsibility', scoreTrace);
-  const scene = pick(profession.scenes, rng, 'currentMoment.scene', scoreTrace);
+  const sceneArchetypeId = pick(profession.sceneArchetypes, rng, 'currentMoment.sceneArchetype', scoreTrace);
+  const sceneArchetype = vnextFacts.sceneArchetypes.find((item) => item.id === sceneArchetypeId) ?? vnextFacts.sceneArchetypes[0];
+  const scene = pick(profession.scenes, rng, 'currentMoment.scene', scoreTrace, (item) => item.includes(sceneArchetype.label) ? 20 : 0);
   const professionTension = pick(profession.tensions, rng, 'tension.profession', scoreTrace);
   const matchingContradiction = vnextFacts.tensionTemplates.roleContradictions.find((item) => item.includes(classId) && item.includes(profession.id.replace(/_/g, ' ')));
   const roleContradiction = matchingContradiction ?? `${classFact.label.toLowerCase()} ${profession.label} balancing ${professionTension}`;
@@ -116,7 +118,7 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
   const sacredVsProfane = pick(vnextFacts.tensionTemplates.sacredProfane, rng, 'tension.sacredProfane', scoreTrace);
   const expectationVsBehavior = pick(vnextFacts.tensionTemplates.expectations, rng, 'tension.expectation', scoreTrace);
   const goal = pick(goals, rng, 'moment.goal', scoreTrace);
-  const obstacle = pick(obstacles, rng, 'moment.obstacle', scoreTrace);
+  const obstacle = pick([...sceneArchetype.obstacles, ...obstacles], rng, 'moment.obstacle', scoreTrace);
   const risk = pick(risks, rng, 'moment.risk', scoreTrace);
   const pressure = pick(pressures, rng, 'moment.pressure', scoreTrace);
   const motionEnergy = pick(motionStates, rng, 'moment.motionEnergy', scoreTrace);
@@ -165,6 +167,7 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
       expectationVsBehavior,
     },
     currentMoment: {
+      sceneArchetype: sceneArchetype.id,
       currentAction: scene,
       immediateTask: scene,
       goal,
@@ -176,9 +179,10 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
       hiddenPressure: socialTension,
       targetOfAttention: responsibility,
       urgency: 'immediate but controlled',
-      failurePoint: `the ${tool} or ${dailyHabit} fails under pressure`,
+      failurePoint: `${sceneArchetype.label} fails because the ${tool} or ${dailyHabit} gives way`,
       motionEnergy,
-      narrativeIntent: `${scene}; the image should show ${roleContradiction} through ${dailyHabit}`,
+      narrativeIntent: `${scene}; the image should make ${roleContradiction} visible through ${sceneArchetype.gesture[0]} and ${dailyHabit}`,
+      visualConsequence: `${sceneArchetype.label} requires ${sceneArchetype.posture[0]}, ${sceneArchetype.gesture[0]}, and ${sceneArchetype.composition[0]}`,
       consequenceOfFailure: `the ${responsibility} fails and the community pays the cost`,
     },
     power: {
@@ -207,10 +211,10 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
       silhouettePrinciple: `${speciesFact.markers[0]} shaped by ${classFact.affordances[0]}`,
       primaryAnchor: scene,
       secondaryAnchor: `${profession.label} handling of ${tool} while ${professionTension}`,
-      focalHierarchy: ['face and action', tool, 'profession wear', 'power only if visible', 'environment secondary'],
+      focalHierarchy: sceneArchetype.focalOrder,
       detailBudget: 'controlled',
       mood: `${input.noveltyMode === 'strong' ? 'unusual but grounded' : 'restrained cinematic'} pressure shaped by ${roleContradiction}`,
-      compositionIntent: 'full-body character concept caught in a specific working moment',
+      compositionIntent: sceneArchetype.composition[0],
     },
     scoreTrace,
     appliedRules: ruleResult.applied,

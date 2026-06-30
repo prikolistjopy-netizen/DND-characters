@@ -22,7 +22,10 @@
         "protect a patient"
       ],
       "scenes": [
-        "stabilizes a wounded stranger while hiding the cost of power"
+        "stabilizes a wounded stranger while hiding the cost of power",
+        "stabilize breathing while professional mercy conflicts with dangerous power",
+        "uses small diagnostic blade to keep the duty to protect a patient from failing under pressure",
+        "repositions around linen roll when community needs help from someone it fears becomes visible"
       ],
       "materials": [
         "clean linen",
@@ -31,6 +34,11 @@
       "tensions": [
         "professional mercy conflicts with dangerous power",
         "community needs help from someone it fears"
+      ],
+      "sceneArchetypes": [
+        "diagnosis",
+        "rescue",
+        "recovery"
       ]
     },
     {
@@ -55,7 +63,10 @@
         "avoid damaging the mechanism"
       ],
       "scenes": [
-        "opens a sealed reliquary while listening for approaching guards"
+        "opens a sealed reliquary while listening for approaching guards",
+        "open a sealed lock while legal craft resembles criminal skill",
+        "uses tension pick to keep the duty to avoid damaging the mechanism from failing under pressure",
+        "repositions around small file when truth hides behind property rights becomes visible"
       ],
       "materials": [
         "brass filings",
@@ -64,6 +75,11 @@
       "tensions": [
         "legal craft resembles criminal skill",
         "truth hides behind property rights"
+      ],
+      "sceneArchetypes": [
+        "repair",
+        "concealment",
+        "investigation"
       ]
     },
     {
@@ -88,7 +104,10 @@
         "read dangerous water"
       ],
       "scenes": [
-        "keeps a crossing stable during supernatural river turbulence"
+        "keeps a crossing stable during supernatural river turbulence",
+        "keep passengers balanced while owes duty to passengers on both sides",
+        "uses river pole to keep the duty to read dangerous water from failing under pressure",
+        "repositions around wet rope when river law conflicts with sacred or civic law becomes visible"
       ],
       "materials": [
         "oiled wool",
@@ -98,6 +117,11 @@
       "tensions": [
         "owes duty to passengers on both sides",
         "river law conflicts with sacred or civic law"
+      ],
+      "sceneArchetypes": [
+        "transport",
+        "navigation",
+        "rescue"
       ]
     },
     {
@@ -122,7 +146,10 @@
         "protect a witness"
       ],
       "scenes": [
-        "compares a physical trace with an impossible reflection"
+        "compares a physical trace with an impossible reflection",
+        "prove what happened while truth threatens the people who hired them",
+        "uses evidence lens to keep the duty to protect a witness from failing under pressure",
+        "repositions around sealed sample tube when trained suspicion conflicts with mercy becomes visible"
       ],
       "materials": [
         "creased wool",
@@ -132,6 +159,11 @@
       "tensions": [
         "truth threatens the people who hired them",
         "trained suspicion conflicts with mercy"
+      ],
+      "sceneArchetypes": [
+        "investigation",
+        "observation",
+        "confrontation"
       ]
     },
     {
@@ -156,7 +188,10 @@
         "notice unfinished business"
       ],
       "scenes": [
-        "prepares a body while noticing a sign of unfinished divine business"
+        "prepares a body while noticing a sign of unfinished divine business",
+        "prepare the dead respectfully while death work conflicts with life-giving class duty",
+        "uses plain linen shroud to keep the duty to notice unfinished business from failing under pressure",
+        "repositions around measuring cord when community superstition masks real grief becomes visible"
       ],
       "materials": [
         "plain linen",
@@ -166,6 +201,11 @@
       "tensions": [
         "death work conflicts with life-giving class duty",
         "community superstition masks real grief"
+      ],
+      "sceneArchetypes": [
+        "preparation",
+        "ritual",
+        "private_failure"
       ]
     },
     {
@@ -190,7 +230,10 @@
         "finish the lesson safely"
       ],
       "scenes": [
-        "shields a student from a magical consequence caused by the lesson"
+        "shields a student from a magical consequence caused by the lesson",
+        "shield a student while teaching exposes dangerous truth",
+        "uses chalk stick to keep the duty to finish the lesson safely from failing under pressure",
+        "repositions around lesson slate when authority over students conflicts with personal uncertainty becomes visible"
       ],
       "materials": [
         "chalk slate",
@@ -199,6 +242,11 @@
       "tensions": [
         "teaching exposes dangerous truth",
         "authority over students conflicts with personal uncertainty"
+      ],
+      "sceneArchetypes": [
+        "teaching",
+        "protection",
+        "containment"
       ]
     },
     {
@@ -223,7 +271,10 @@
         "avoid falsifying a vow"
       ],
       "scenes": [
-        "pauses mid-record as spoken words become dangerous"
+        "pauses mid-record as spoken words become dangerous",
+        "record true words while written law conflicts with lived justice",
+        "uses reed pen to keep the duty to avoid falsifying a vow from failing under pressure",
+        "repositions around knife for scraping when recording truth may endanger the vulnerable becomes visible"
       ],
       "materials": [
         "ink",
@@ -233,6 +284,11 @@
       "tensions": [
         "written law conflicts with lived justice",
         "recording truth may endanger the vulnerable"
+      ],
+      "sceneArchetypes": [
+        "public_duty",
+        "investigation",
+        "negotiation"
       ]
     },
     {
@@ -257,7 +313,10 @@
         "avoid poison"
       ],
       "scenes": [
-        "selects a remedy while the wrong plant reacts to power"
+        "selects a remedy while the wrong plant reacts to power",
+        "choose the right remedy while healing knowledge can become poison",
+        "uses plant knife to keep the duty to avoid poison from failing under pressure",
+        "repositions around wrapped herb bundle when wild knowledge is distrusted by urban authority becomes visible"
       ],
       "materials": [
         "pressed leaves",
@@ -266,6 +325,11 @@
       "tensions": [
         "healing knowledge can become poison",
         "wild knowledge is distrusted by urban authority"
+      ],
+      "sceneArchetypes": [
+        "diagnosis",
+        "preparation",
+        "containment"
       ]
     },
     {
@@ -290,7 +354,10 @@
         "lead others out"
       ],
       "scenes": [
-        "hears a tunnel shift before anyone else reacts"
+        "hears a tunnel shift before anyone else reacts",
+        "judge tunnel safety while underground caution conflicts with heroic urgency",
+        "uses short pick to keep the duty to lead others out from failing under pressure",
+        "repositions around lamp hook when labor scars are mistaken for violence becomes visible"
       ],
       "materials": [
         "coal dust",
@@ -300,6 +367,11 @@
       "tensions": [
         "underground caution conflicts with heroic urgency",
         "labor scars are mistaken for violence"
+      ],
+      "sceneArchetypes": [
+        "navigation",
+        "rescue",
+        "repair"
       ]
     },
     {
@@ -324,7 +396,10 @@
         "find a hidden record"
       ],
       "scenes": [
-        "protects a sealed record while someone demands it"
+        "protects a sealed record while someone demands it",
+        "preserve testimony while preservation conflicts with exposing truth",
+        "uses index cord to keep the duty to find a hidden record from failing under pressure",
+        "repositions around sealed folio when old records create new danger becomes visible"
       ],
       "materials": [
         "aged paper",
@@ -333,6 +408,11 @@
       "tensions": [
         "preservation conflicts with exposing truth",
         "old records create new danger"
+      ],
+      "sceneArchetypes": [
+        "investigation",
+        "protection",
+        "exchange"
       ]
     },
     {
@@ -357,7 +437,10 @@
         "avoid interception"
       ],
       "scenes": [
-        "chooses between a safe road and an urgent shortcut"
+        "chooses between a safe road and an urgent shortcut",
+        "deliver a message while message loyalty conflicts with personal knowledge",
+        "uses sealed message tube to keep the duty to avoid interception from failing under pressure",
+        "repositions around route cord when speed risks the person they carry news for becomes visible"
       ],
       "materials": [
         "road canvas",
@@ -367,6 +450,11 @@
       "tensions": [
         "message loyalty conflicts with personal knowledge",
         "speed risks the person they carry news for"
+      ],
+      "sceneArchetypes": [
+        "pursuit",
+        "navigation",
+        "exchange"
       ]
     },
     {
@@ -391,7 +479,10 @@
         "keep cargo moving"
       ],
       "scenes": [
-        "holds a roadside line while a wagon axle fails"
+        "holds a roadside line while a wagon axle fails",
+        "protect travelers while paid duty becomes real attachment",
+        "uses signal whistle to keep the duty to keep cargo moving from failing under pressure",
+        "repositions around short spear when protecting cargo conflicts with protecting people becomes visible"
       ],
       "materials": [
         "dusty canvas",
@@ -401,6 +492,11 @@
       "tensions": [
         "paid duty becomes real attachment",
         "protecting cargo conflicts with protecting people"
+      ],
+      "sceneArchetypes": [
+        "protection",
+        "confrontation",
+        "transport"
       ]
     },
     {
@@ -425,7 +521,10 @@
         "protect a petitioner"
       ],
       "scenes": [
-        "keeps a shrine door open while a forbidden petitioner arrives"
+        "keeps a shrine door open while a forbidden petitioner arrives",
+        "maintain a threshold while holy space shelters the profane",
+        "uses oil taper to keep the duty to protect a petitioner from failing under pressure",
+        "repositions around offering bowl when care for ritual conflicts with practical survival becomes visible"
       ],
       "materials": [
         "stone dust",
@@ -435,6 +534,11 @@
       "tensions": [
         "holy space shelters the profane",
         "care for ritual conflicts with practical survival"
+      ],
+      "sceneArchetypes": [
+        "ritual",
+        "public_duty",
+        "protection"
       ]
     },
     {
@@ -459,7 +563,10 @@
         "protect bystanders"
       ],
       "scenes": [
-        "steadies a panicked beast as hidden pressure ripples through the yard"
+        "steadies a panicked beast as hidden pressure ripples through the yard",
+        "calm a frightened animal while trust in animals conflicts with distrust of people",
+        "uses lead rope to keep the duty to protect bystanders from failing under pressure",
+        "repositions around feed pouch when a beast senses what doctrine denies becomes visible"
       ],
       "materials": [
         "hide straps",
@@ -469,6 +576,11 @@
       "tensions": [
         "trust in animals conflicts with distrust of people",
         "a beast senses what doctrine denies"
+      ],
+      "sceneArchetypes": [
+        "containment",
+        "guiding",
+        "rescue"
       ]
     },
     {
@@ -493,7 +605,10 @@
         "prevent a crowd from breaking"
       ],
       "scenes": [
-        "hesitates over a sentence when the condemned reveals impossible evidence"
+        "hesitates over a sentence when the condemned reveals impossible evidence",
+        "carry out a sentence while duty conflicts with conscience",
+        "uses weighted blade cover to keep the duty to prevent a crowd from breaking from failing under pressure",
+        "repositions around black warrant cord when public fear hides private mercy becomes visible"
       ],
       "materials": [
         "black wool",
@@ -503,6 +618,11 @@
       "tensions": [
         "duty conflicts with conscience",
         "public fear hides private mercy"
+      ],
+      "sceneArchetypes": [
+        "public_duty",
+        "confrontation",
+        "private_failure"
       ]
     },
     {
@@ -527,7 +647,10 @@
         "keep accomplices unnamed"
       ],
       "scenes": [
-        "hides contraband while a sacred duty demands honesty"
+        "hides contraband while a sacred duty demands honesty",
+        "move forbidden cargo while crime protects someone vulnerable",
+        "uses false-bottom satchel to keep the duty to keep accomplices unnamed from failing under pressure",
+        "repositions around river token when secrecy conflicts with oath or trust becomes visible"
       ],
       "materials": [
         "tarred cloth",
@@ -537,6 +660,11 @@
       "tensions": [
         "crime protects someone vulnerable",
         "secrecy conflicts with oath or trust"
+      ],
+      "sceneArchetypes": [
+        "concealment",
+        "exchange",
+        "pursuit"
       ]
     },
     {
@@ -561,7 +689,10 @@
         "settle conflict"
       ],
       "scenes": [
-        "steps between a frightened guest and a dangerous visitor"
+        "steps between a frightened guest and a dangerous visitor",
+        "protect guests while hospitality becomes battlefield control",
+        "uses heavy key ring to keep the duty to settle conflict from failing under pressure",
+        "repositions around ledger token when neutral ground collapses under old debts becomes visible"
       ],
       "materials": [
         "polished wood",
@@ -571,6 +702,11 @@
       "tensions": [
         "hospitality becomes battlefield control",
         "neutral ground collapses under old debts"
+      ],
+      "sceneArchetypes": [
+        "negotiation",
+        "protection",
+        "confrontation"
       ]
     },
     {
@@ -595,7 +731,10 @@
         "avoid a false bargain"
       ],
       "scenes": [
-        "recognizes a relic reacting to the wrong owner"
+        "recognizes a relic reacting to the wrong owner",
+        "identify a dangerous object while commerce with sacred objects strains belief",
+        "uses padded relic case to keep the duty to avoid a false bargain from failing under pressure",
+        "repositions around authentication lens when expertise is mistaken for greed becomes visible"
       ],
       "materials": [
         "velvet",
@@ -605,6 +744,11 @@
       "tensions": [
         "commerce with sacred objects strains belief",
         "expertise is mistaken for greed"
+      ],
+      "sceneArchetypes": [
+        "exchange",
+        "investigation",
+        "containment"
       ]
     },
     {
@@ -629,7 +773,10 @@
         "notice disturbed earth"
       ],
       "scenes": [
-        "finds the grave soil moving before mourners notice"
+        "finds the grave soil moving before mourners notice",
+        "prepare safe burial ground while practical death work reveals supernatural duty",
+        "uses grave spade to keep the duty to notice disturbed earth from failing under pressure",
+        "repositions around measuring cord when low-status labor carries community memory becomes visible"
       ],
       "materials": [
         "wet clay",
@@ -639,6 +786,11 @@
       "tensions": [
         "practical death work reveals supernatural duty",
         "low-status labor carries community memory"
+      ],
+      "sceneArchetypes": [
+        "preparation",
+        "observation",
+        "private_failure"
       ]
     },
     {
@@ -663,7 +815,10 @@
         "keep panic from spreading"
       ],
       "scenes": [
-        "triages two wounded allies while the line breaks nearby"
+        "triages two wounded allies while the line breaks nearby",
+        "choose who needs care first while mercy requires ruthless prioritizing",
+        "uses triage tags to keep the duty to keep panic from spreading from failing under pressure",
+        "repositions around bandage roll when healer must ignore one cry to save another becomes visible"
       ],
       "materials": [
         "boiled cloth",
@@ -673,6 +828,11 @@
       "tensions": [
         "mercy requires ruthless prioritizing",
         "healer must ignore one cry to save another"
+      ],
+      "sceneArchetypes": [
+        "rescue",
+        "recovery",
+        "sorting"
       ]
     },
     {
@@ -697,7 +857,10 @@
         "notice where darkness gathers"
       ],
       "scenes": [
-        "raises a lamp as one alley refuses the light"
+        "raises a lamp as one alley refuses the light",
+        "keep streets lit while public safety depends on small routine",
+        "uses lamp hook to keep the duty to notice where darkness gathers from failing under pressure",
+        "repositions around oil flask when darkness reveals class power temptation becomes visible"
       ],
       "materials": [
         "lamp oil",
@@ -707,6 +870,11 @@
       "tensions": [
         "public safety depends on small routine",
         "darkness reveals class power temptation"
+      ],
+      "sceneArchetypes": [
+        "observation",
+        "navigation",
+        "containment"
       ]
     },
     {
@@ -731,7 +899,10 @@
         "record unstable ground"
       ],
       "scenes": [
-        "measures a boundary that shifts whenever observed"
+        "measures a boundary that shifts whenever observed",
+        "mark a border while official borders conflict with lived territory",
+        "uses measuring chain to keep the duty to record unstable ground from failing under pressure",
+        "repositions around sighting rod when measurement fails before mystery becomes visible"
       ],
       "materials": [
         "field paper",
@@ -741,6 +912,11 @@
       "tensions": [
         "official borders conflict with lived territory",
         "measurement fails before mystery"
+      ],
+      "sceneArchetypes": [
+        "navigation",
+        "observation",
+        "repair"
       ]
     },
     {
@@ -765,7 +941,10 @@
         "avoid maiming the wrong creature"
       ],
       "scenes": [
-        "kneels by a sprung snare that caught something impossible"
+        "kneels by a sprung snare that caught something impossible",
+        "catch without waste while survival craft looks cruel from outside",
+        "uses snare cord to keep the duty to avoid maiming the wrong creature from failing under pressure",
+        "repositions around small hatchet when patience conflicts with urgent danger becomes visible"
       ],
       "materials": [
         "hide",
@@ -775,6 +954,11 @@
       "tensions": [
         "survival craft looks cruel from outside",
         "patience conflicts with urgent danger"
+      ],
+      "sceneArchetypes": [
+        "observation",
+        "containment",
+        "preparation"
       ]
     },
     {
@@ -799,7 +983,10 @@
         "protect a patron or dependent"
       ],
       "scenes": [
-        "deflects an insult while a private threat becomes visible"
+        "deflects an insult while a private threat becomes visible",
+        "negotiate status while polite role hides dangerous competence",
+        "uses folded petition to keep the duty to protect a patron or dependent from failing under pressure",
+        "repositions around signet ribbon when public grace conflicts with private fear becomes visible"
       ],
       "materials": [
         "silk worn at edges",
@@ -809,6 +996,11 @@
       "tensions": [
         "polite role hides dangerous competence",
         "public grace conflicts with private fear"
+      ],
+      "sceneArchetypes": [
+        "negotiation",
+        "public_duty",
+        "concealment"
       ]
     }
   ]

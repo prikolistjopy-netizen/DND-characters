@@ -672,5 +672,647 @@
         "partial"
       ]
     }
+  ],
+  "sceneArchetypes": [
+    {
+      "id": "rescue",
+      "label": "rescue",
+      "posture": [
+        "protective angle",
+        "urgent crouched support",
+        "braced reach toward a dependent"
+      ],
+      "gesture": [
+        "supporting",
+        "stabilizing",
+        "shielding"
+      ],
+      "composition": [
+        "subject-between-character-and-danger",
+        "diagonal rescue triangle",
+        "compressed foreground rescue"
+      ],
+      "obstacles": [
+        "failing structure",
+        "physical injury",
+        "crowd expectation"
+      ],
+      "focalOrder": [
+        "dependent person",
+        "hands and tool",
+        "face",
+        "pressure source",
+        "environment secondary"
+      ],
+      "environmentUse": "hazard presses inward from one side"
+    },
+    {
+      "id": "diagnosis",
+      "label": "diagnosis",
+      "posture": [
+        "crouched working stance",
+        "seated or kneeling task posture",
+        "forward-weighted inspection"
+      ],
+      "gesture": [
+        "inspection",
+        "testing",
+        "measuring"
+      ],
+      "composition": [
+        "tool-led close working composition",
+        "offset inspection profile",
+        "compressed diagnostic triangle"
+      ],
+      "obstacles": [
+        "contradictory evidence",
+        "frightened witness",
+        "time pressure"
+      ],
+      "focalOrder": [
+        "hands",
+        "tool",
+        "subject detail",
+        "face",
+        "environment secondary"
+      ],
+      "environmentUse": "background supplies only one clue"
+    },
+    {
+      "id": "repair",
+      "label": "repair",
+      "posture": [
+        "braced stance",
+        "practical lifting or carrying",
+        "tool-led crouch"
+      ],
+      "gesture": [
+        "repairing",
+        "testing",
+        "binding"
+      ],
+      "composition": [
+        "tool-led composition",
+        "low angle repair line",
+        "threshold composition"
+      ],
+      "obstacles": [
+        "failing structure",
+        "locked threshold",
+        "tool failure"
+      ],
+      "focalOrder": [
+        "tool",
+        "break point",
+        "hands",
+        "face",
+        "environment secondary"
+      ],
+      "environmentUse": "architecture shows the failure point"
+    },
+    {
+      "id": "negotiation",
+      "label": "negotiation",
+      "posture": [
+        "open social posture",
+        "restrained upright posture",
+        "defensive ceremonial stance"
+      ],
+      "gesture": [
+        "warning",
+        "signaling",
+        "concealing"
+      ],
+      "composition": [
+        "centered public-duty frame",
+        "character-between-community-and-threat",
+        "offset witness composition"
+      ],
+      "obstacles": [
+        "hostile suspicion",
+        "crowd expectation",
+        "contradictory evidence"
+      ],
+      "focalOrder": [
+        "face",
+        "open hand",
+        "opposing subject",
+        "tool if present",
+        "environment secondary"
+      ],
+      "environmentUse": "community pressure frames the body"
+    },
+    {
+      "id": "pursuit",
+      "label": "pursuit",
+      "posture": [
+        "interrupted motion",
+        "forward-weighted stride",
+        "covert observation"
+      ],
+      "gesture": [
+        "signaling",
+        "guiding",
+        "concealing"
+      ],
+      "composition": [
+        "diagonal pursuit line",
+        "profile motion frame",
+        "rear three-quarter with clear story reason"
+      ],
+      "obstacles": [
+        "lost evidence",
+        "locked threshold",
+        "unstable weather"
+      ],
+      "focalOrder": [
+        "direction of travel",
+        "face",
+        "hand near tool",
+        "obstacle",
+        "environment secondary"
+      ],
+      "environmentUse": "path line implies speed"
+    },
+    {
+      "id": "concealment",
+      "label": "concealment",
+      "posture": [
+        "asymmetrical covered stance",
+        "covert observation",
+        "restrained upright posture"
+      ],
+      "gesture": [
+        "concealing",
+        "restraint",
+        "listening"
+      ],
+      "composition": [
+        "partially occluded object frame",
+        "offset shadow composition",
+        "threshold composition"
+      ],
+      "obstacles": [
+        "hostile suspicion",
+        "someone watching",
+        "public exposure"
+      ],
+      "focalOrder": [
+        "concealing hand",
+        "eyes",
+        "covered object",
+        "watcher",
+        "environment secondary"
+      ],
+      "environmentUse": "architecture hides one edge of the action"
+    },
+    {
+      "id": "transport",
+      "label": "transport",
+      "posture": [
+        "balanced stance",
+        "burden-led stance",
+        "anchored stance"
+      ],
+      "gesture": [
+        "guiding",
+        "supporting",
+        "signaling"
+      ],
+      "composition": [
+        "diagonal transport path",
+        "character-between-community-and-threat",
+        "wide threshold crossing"
+      ],
+      "obstacles": [
+        "unstable weather",
+        "failing structure",
+        "frightened witness"
+      ],
+      "focalOrder": [
+        "body balance",
+        "dependent group",
+        "tool",
+        "face",
+        "environment secondary"
+      ],
+      "environmentUse": "terrain pushes against motion"
+    },
+    {
+      "id": "ritual",
+      "label": "ritual",
+      "posture": [
+        "ritual precision",
+        "restrained upright posture",
+        "ceremonial kneeling task posture"
+      ],
+      "gesture": [
+        "binding",
+        "measuring",
+        "warning"
+      ],
+      "composition": [
+        "centered ritual restraint",
+        "profile ritual precision",
+        "compressed ceremonial frame"
+      ],
+      "obstacles": [
+        "sacred boundary",
+        "unfinished obligation",
+        "crowd expectation"
+      ],
+      "focalOrder": [
+        "face",
+        "ritual hand",
+        "single object",
+        "subject",
+        "environment secondary"
+      ],
+      "environmentUse": "one ritual surface anchors the scene"
+    },
+    {
+      "id": "investigation",
+      "label": "investigation",
+      "posture": [
+        "covert observation",
+        "forward-weighted inspection",
+        "interrupted motion"
+      ],
+      "gesture": [
+        "inspection",
+        "measuring",
+        "testing"
+      ],
+      "composition": [
+        "offset evidence triangle",
+        "tool-led composition",
+        "profile observation frame"
+      ],
+      "obstacles": [
+        "contradictory evidence",
+        "lost evidence",
+        "hostile suspicion"
+      ],
+      "focalOrder": [
+        "evidence",
+        "tool",
+        "eyes",
+        "subject",
+        "environment secondary"
+      ],
+      "environmentUse": "one background clue contradicts the scene"
+    },
+    {
+      "id": "protection",
+      "label": "protection",
+      "posture": [
+        "protective angle",
+        "braced stance",
+        "character-between-community-and-threat"
+      ],
+      "gesture": [
+        "shielding",
+        "warning",
+        "supporting"
+      ],
+      "composition": [
+        "character-between-community-and-threat",
+        "low angle protective frame",
+        "compressed defensive doorway"
+      ],
+      "obstacles": [
+        "hostile suspicion",
+        "physical injury",
+        "public panic"
+      ],
+      "focalOrder": [
+        "protected subject",
+        "interposing body",
+        "face",
+        "tool",
+        "environment secondary"
+      ],
+      "environmentUse": "threat direction is readable"
+    },
+    {
+      "id": "teaching",
+      "label": "teaching",
+      "posture": [
+        "open social posture",
+        "protective angle",
+        "seated or kneeling task posture"
+      ],
+      "gesture": [
+        "guiding",
+        "measuring",
+        "warning"
+      ],
+      "composition": [
+        "subject-between-character-and-danger",
+        "centered lesson frame",
+        "tool-led teaching composition"
+      ],
+      "obstacles": [
+        "mistake becoming danger",
+        "frightened witness",
+        "hidden consequence"
+      ],
+      "focalOrder": [
+        "student/dependent",
+        "guiding hand",
+        "tool",
+        "face",
+        "environment secondary"
+      ],
+      "environmentUse": "lesson surface carries the risk"
+    },
+    {
+      "id": "preparation",
+      "label": "preparation",
+      "posture": [
+        "seated or kneeling task posture",
+        "ritual precision",
+        "tool-led crouch"
+      ],
+      "gesture": [
+        "sorting",
+        "binding",
+        "measuring"
+      ],
+      "composition": [
+        "compressed preparation plane",
+        "centered task frame",
+        "profile preparation study"
+      ],
+      "obstacles": [
+        "time is narrowing",
+        "missing piece",
+        "public expectation"
+      ],
+      "focalOrder": [
+        "prepared object",
+        "hands",
+        "face",
+        "single trace",
+        "environment secondary"
+      ],
+      "environmentUse": "workspace stays sparse"
+    },
+    {
+      "id": "confrontation",
+      "label": "confrontation",
+      "posture": [
+        "restrained upright posture",
+        "braced stance",
+        "open social posture"
+      ],
+      "gesture": [
+        "warning",
+        "restraint",
+        "signaling"
+      ],
+      "composition": [
+        "frontal confrontation",
+        "low angle public pressure",
+        "character-between-community-and-threat"
+      ],
+      "obstacles": [
+        "hostile suspicion",
+        "dangerous visitor",
+        "crowd expectation"
+      ],
+      "focalOrder": [
+        "face",
+        "warning hand",
+        "opponent",
+        "tool",
+        "environment secondary"
+      ],
+      "environmentUse": "crowd or doorway frames pressure"
+    },
+    {
+      "id": "observation",
+      "label": "observation",
+      "posture": [
+        "covert observation",
+        "profile stillness",
+        "interrupted motion"
+      ],
+      "gesture": [
+        "listening",
+        "testing",
+        "inspection"
+      ],
+      "composition": [
+        "profile observation frame",
+        "offset witness composition",
+        "compressed clue frame"
+      ],
+      "obstacles": [
+        "contradictory evidence",
+        "hidden pressure",
+        "wrong movement"
+      ],
+      "focalOrder": [
+        "eyes",
+        "clue",
+        "hand",
+        "tool",
+        "environment secondary"
+      ],
+      "environmentUse": "one environmental cue is watched"
+    },
+    {
+      "id": "containment",
+      "label": "containment",
+      "posture": [
+        "braced stance",
+        "asymmetrical covered stance",
+        "anchored stance"
+      ],
+      "gesture": [
+        "binding",
+        "restraint",
+        "stabilizing"
+      ],
+      "composition": [
+        "centered containment frame",
+        "compressed pressure frame",
+        "tool-led containment arc"
+      ],
+      "obstacles": [
+        "power exposure",
+        "physical injury",
+        "failing boundary"
+      ],
+      "focalOrder": [
+        "contained object",
+        "hands",
+        "face",
+        "pressure source",
+        "environment secondary"
+      ],
+      "environmentUse": "space feels sealed, not cluttered"
+    },
+    {
+      "id": "recovery",
+      "label": "recovery",
+      "posture": [
+        "exhausted recovery",
+        "seated or kneeling task posture",
+        "protective angle"
+      ],
+      "gesture": [
+        "supporting",
+        "stabilizing",
+        "sorting"
+      ],
+      "composition": [
+        "low recovery frame",
+        "compressed aftershock triangle",
+        "subject-between-character-and-danger"
+      ],
+      "obstacles": [
+        "weak breathing",
+        "broken trust",
+        "time pressure"
+      ],
+      "focalOrder": [
+        "subject",
+        "hands",
+        "face",
+        "tool",
+        "environment secondary"
+      ],
+      "environmentUse": "aftermath remains localized"
+    },
+    {
+      "id": "exchange",
+      "label": "exchange",
+      "posture": [
+        "open social posture",
+        "asymmetrical covered stance",
+        "restrained upright posture"
+      ],
+      "gesture": [
+        "offering",
+        "concealing",
+        "measuring"
+      ],
+      "composition": [
+        "offset exchange frame",
+        "threshold composition",
+        "hands-between-two-claims"
+      ],
+      "obstacles": [
+        "false bargain",
+        "hostile suspicion",
+        "public exposure"
+      ],
+      "focalOrder": [
+        "exchanged object",
+        "eyes",
+        "hands",
+        "watcher",
+        "environment secondary"
+      ],
+      "environmentUse": "threshold marks trust boundary"
+    },
+    {
+      "id": "navigation",
+      "label": "navigation",
+      "posture": [
+        "forward-weighted stance",
+        "balanced stance",
+        "tool-led vertical line"
+      ],
+      "gesture": [
+        "measuring",
+        "guiding",
+        "testing"
+      ],
+      "composition": [
+        "diagonal route composition",
+        "wide path frame",
+        "profile navigation line"
+      ],
+      "obstacles": [
+        "unstable weather",
+        "shifting boundary",
+        "lost route"
+      ],
+      "focalOrder": [
+        "route line",
+        "tool",
+        "face",
+        "dependent",
+        "environment secondary"
+      ],
+      "environmentUse": "terrain forms a readable path"
+    },
+    {
+      "id": "public_duty",
+      "label": "public duty",
+      "posture": [
+        "ceremonial upright restraint",
+        "character-between-community-and-threat",
+        "open social posture"
+      ],
+      "gesture": [
+        "warning",
+        "signaling",
+        "restraint"
+      ],
+      "composition": [
+        "centered public-duty frame",
+        "frontal civic pressure",
+        "low angle restrained authority"
+      ],
+      "obstacles": [
+        "crowd expectation",
+        "official pressure",
+        "public panic"
+      ],
+      "focalOrder": [
+        "face",
+        "public hand gesture",
+        "community",
+        "tool",
+        "environment secondary"
+      ],
+      "environmentUse": "public architecture weighs on figure"
+    },
+    {
+      "id": "private_failure",
+      "label": "private failure",
+      "posture": [
+        "exhausted recovery",
+        "interrupted motion",
+        "kneeling task posture"
+      ],
+      "gesture": [
+        "concealing",
+        "supporting",
+        "testing"
+      ],
+      "composition": [
+        "compressed private failure",
+        "offset solitary frame",
+        "low intimate frame"
+      ],
+      "obstacles": [
+        "personal evidence",
+        "broken trust",
+        "late realization"
+      ],
+      "focalOrder": [
+        "face",
+        "failed object",
+        "hand",
+        "single witness",
+        "environment secondary"
+      ],
+      "environmentUse": "background narrows around consequence"
+    }
   ]
 }

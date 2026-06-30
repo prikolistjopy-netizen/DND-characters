@@ -77,8 +77,8 @@ export function directVisual(seed: SemanticSeed, graph: SituationGraph): VisualD
     embodiment: {
       silhouette: seed.visualIntent.silhouettePrinciple,
       proportions: speciesProportions(seed.identity.speciesId),
-      posture: `${classEvidence(seed)}; energy state is ${seed.currentMoment.motionEnergy}`,
-      gesture: `hands use ${seed.life.personalObject} with ${seed.life.learnedSkill}; the gesture reveals ${seed.tension.professionClassFriction}`,
+      posture: `${classEvidence(seed)}; ${seed.currentMoment.visualConsequence}; energy state is ${seed.currentMoment.motionEnergy}`,
+      gesture: `hands use ${seed.life.personalObject} with ${seed.life.learnedSkill}; ${seed.currentMoment.sceneArchetype} shapes the gesture, revealing ${seed.tension.professionClassFriction}`,
       gaze: `attention fixed on ${seed.currentMoment.targetOfAttention} while aware of ${seed.currentMoment.hiddenPressure}`,
       expression: `${seed.psychology.emotionalRestraint}, showing ${seed.psychology.value} against ${seed.tension.innerConflict}`,
     },
@@ -112,7 +112,7 @@ export function directVisual(seed: SemanticSeed, graph: SituationGraph): VisualD
       stakes: seed.currentMoment.stakes,
     },
     artDirection: {
-      composition: `${seed.visualIntent.compositionIntent}; frame the failure point (${seed.currentMoment.failurePoint}) without adding extra props`,
+      composition: `${seed.visualIntent.compositionIntent}; frame the ${seed.currentMoment.sceneArchetype} failure point (${seed.currentMoment.failurePoint}) without adding extra props`,
       camera: 'front or side three-quarter camera with readable face and hands',
       lighting: `localized ${seed.world.weather} light with one focal accent and clean material planes`,
       paletteRoles: paletteRoles(seed),

@@ -14,6 +14,7 @@ export function buildSituationGraph(seed: SemanticSeed): SituationGraph {
     { id: 'object', type: 'personal_object' as const, label: seed.life.personalObject },
     { id: 'hidden-pressure', type: 'pressure' as const, label: seed.currentMoment.hiddenPressure },
     { id: 'failure', type: 'risk' as const, label: seed.currentMoment.failurePoint },
+    { id: 'archetype', type: 'pressure' as const, label: seed.currentMoment.sceneArchetype },
   ];
   const edges = [
     { from: 'character', to: 'subject', type: 'protects' as const, reason: seed.life.socialResponsibility },
@@ -27,6 +28,7 @@ export function buildSituationGraph(seed: SemanticSeed): SituationGraph {
     { from: 'hidden-pressure', to: 'character', type: 'under_pressure_from' as const, reason: seed.tension.socialTension },
     { from: 'tool', to: 'failure', type: 'depends_on' as const, reason: seed.currentMoment.failurePoint },
     { from: 'character', to: 'object', type: 'reveals' as const, reason: seed.tension.expectationVsBehavior },
+    { from: 'archetype', to: 'character', type: 'transforms' as const, reason: seed.currentMoment.visualConsequence },
   ];
   return { nodes, edges };
 }

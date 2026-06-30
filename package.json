@@ -21,7 +21,8 @@
     "visual-director-analysis": "node scripts/visual-director-vnext-analysis.cjs",
     "prompt-compiler-analysis": "node scripts/prompt-compiler-vnext-analysis.cjs",
     "semantic-legacy-comparison": "node scripts/semantic-legacy-comparison.cjs",
-    "validate-vnext-all": "node scripts/validate-vnext-all.cjs"
+    "validate-vnext-all": "node scripts/validate-vnext-all.cjs",
+    "visual-vnext-analysis": "node scripts/visual-vnext-repetition-analysis.cjs"
   },
   "dependencies": {
     "react": "18.3.1",

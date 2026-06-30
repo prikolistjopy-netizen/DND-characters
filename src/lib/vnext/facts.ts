@@ -9,7 +9,8 @@ export type SpeciesFact = { id: PilotSpeciesId; label: string; markers: string[]
 export type CultureFact = { id: string; label: string; materials: string[]; tensions: string[] };
 export type EnvironmentFact = { id: string; label: string; weather: string; architecture: string };
 export type PowerSourceFact = { id: string; label: string; classes: PilotClassId[]; visibility: PowerVisibility[] };
-export type ProfessionFact = { id: string; label: string; tools: string[]; habits: string[]; wear: string[]; responsibilities: string[]; scenes: string[]; materials: string[]; tensions: string[] };
+export type SceneArchetypeFact = { id: string; label: string; posture: string[]; gesture: string[]; composition: string[]; obstacles: string[]; focalOrder: string[]; environmentUse: string };
+export type ProfessionFact = { id: string; label: string; tools: string[]; habits: string[]; wear: string[]; responsibilities: string[]; scenes: string[]; materials: string[]; tensions: string[]; sceneArchetypes: string[] };
 
 type FactJson = {
   classes: ClassFact[];
@@ -19,6 +20,7 @@ type FactJson = {
   psychology: { drives: string[]; values: string[]; fears: string[]; contradictions: string[]; coping: string[]; restraint: string[] };
   tensionTemplates: { roleContradictions: string[]; socialTensions: string[]; innerConflicts: string[]; sacredProfane: string[]; expectations: string[] };
   powerSources: PowerSourceFact[];
+  sceneArchetypes: SceneArchetypeFact[];
 };
 
 type AffordanceJson = { professions: ProfessionFact[] };
