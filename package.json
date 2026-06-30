@@ -1,0 +1,43 @@
+{
+  "name": "diceborn",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "preview": "next start",
+    "debug-check": "node scripts/debug-check.cjs",
+    "identity-analysis": "node scripts/identity-analysis.cjs",
+    "validate-data": "node scripts/validate-data.cjs",
+    "start": "next start",
+    "type-check": "tsc --noEmit",
+    "validate-vnext-page": "npm run type-check && npm run build",
+    "validate-vnext": "node scripts/validate-vnext-data.cjs",
+    "semantic-analysis": "node scripts/semantic-vnext-analysis.cjs",
+    "semantic-rule-comparison": "node scripts/semantic-rule-comparison.cjs",
+    "semantic-incremental-analysis": "node scripts/semantic-incremental-analysis.cjs",
+    "semantic-situation-analysis": "node scripts/semantic-situation-analysis.cjs",
+    "visual-director-analysis": "node scripts/visual-director-vnext-analysis.cjs",
+    "prompt-compiler-analysis": "node scripts/prompt-compiler-vnext-analysis.cjs",
+    "semantic-legacy-comparison": "node scripts/semantic-legacy-comparison.cjs",
+    "validate-vnext-all": "node scripts/validate-vnext-all.cjs",
+    "visual-vnext-analysis": "node scripts/visual-vnext-repetition-analysis.cjs"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "next": "14.2.18"
+  },
+  "devDependencies": {
+    "@types/node": "20.17.10",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@vitejs/plugin-react": "4.3.4",
+    "typescript": "5.6.3",
+    "vite": "5.4.11"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}
