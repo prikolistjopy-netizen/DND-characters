@@ -1,10 +1,80 @@
 {
-  "schemaVersion": "diceborn-vnext-0.1",
+  "schemaVersion": "diceborn-vnext-0.2",
   "pilotScope": {
-    "classes": ["fighter", "cleric", "warlock"],
-    "species": ["human", "dwarf", "tiefling"],
-    "minimumProfessionCount": 20,
-    "powerVisibilityModes": ["none", "latent", "behavioral", "bodily", "object", "reflected", "shadow", "environmental", "symbolic", "relational", "social", "partial", "full_apparition"]
+    "classes": [
+      "fighter",
+      "cleric",
+      "warlock",
+      "rogue",
+      "ranger",
+      "paladin",
+      "wizard",
+      "druid",
+      "bard",
+      "monk",
+      "barbarian",
+      "sorcerer",
+      "artificer"
+    ],
+    "species": [
+      "human",
+      "dwarf",
+      "tiefling",
+      "elf",
+      "half_elf",
+      "halfling",
+      "half_orc",
+      "gnome",
+      "dragonborn",
+      "aasimar",
+      "firbolg",
+      "satyr"
+    ],
+    "professions": [
+      "physician",
+      "locksmith",
+      "ferryman",
+      "investigator",
+      "undertaker",
+      "tutor",
+      "scribe",
+      "herbalist",
+      "miner",
+      "archivist",
+      "messenger",
+      "caravan_guard",
+      "shrine_keeper",
+      "beast_handler",
+      "executioner",
+      "smuggler",
+      "tavern_keeper",
+      "relic_broker",
+      "gravedigger",
+      "battlefield_medic",
+      "lamplighter",
+      "surveyor",
+      "trapper",
+      "courtier"
+    ],
+    "powerVisibilityModes": [
+      "none",
+      "latent",
+      "behavioral",
+      "bodily",
+      "object",
+      "reflected",
+      "shadow",
+      "environmental",
+      "symbolic",
+      "relational",
+      "social",
+      "partial",
+      "full_apparition"
+    ]
   },
-  "dormantFacts": []
+  "featureFlags": {
+    "publicGenerateUsesVNext": true,
+    "legacyVisibleToggle": false,
+    "comparisonRouteEnabled": true
+  }
 }

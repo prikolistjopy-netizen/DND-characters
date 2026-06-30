@@ -21,12 +21,21 @@ const speciesIds = unique('species', facts.species);
 unique('cultures', facts.cultures);
 unique('environments', facts.environments);
 const professionIds = unique('professions', affordances.professions);
-if (professionIds.size < semantic.pilotScope.minimumProfessionCount) failures.push('profession coverage below pilot minimum');
+if (classIds.size < 13) failures.push(`class coverage below vNext expansion minimum: ${classIds.size}`);
+if (speciesIds.size < 12) failures.push(`species coverage below vNext expansion minimum: ${speciesIds.size}`);
+if (professionIds.size < 24) failures.push(`profession coverage below vNext expansion minimum: ${professionIds.size}`);
 for (const profession of affordances.professions) {
-  for (const field of ['tools', 'habits', 'wear', 'responsibilities', 'scenes']) if (!Array.isArray(profession[field]) || profession[field].length === 0) failures.push(`profession ${profession.id} missing ${field}`);
+  for (const field of ['tools', 'habits', 'wear', 'responsibilities', 'scenes', 'materials', 'tensions']) {
+    if (!Array.isArray(profession[field]) || profession[field].length === 0) failures.push(`profession ${profession.id} missing ${field}`);
+  }
 }
-for (const id of semantic.pilotScope.classes) if (!classIds.has(id)) failures.push(`pilot class missing ${id}`);
-for (const id of semantic.pilotScope.species) if (!speciesIds.has(id)) failures.push(`pilot species missing ${id}`);
+for (const id of semantic.pilotScope.classes) if (!classIds.has(id)) failures.push(`semantic class missing ${id}`);
+for (const id of semantic.pilotScope.species) if (!speciesIds.has(id)) failures.push(`semantic species missing ${id}`);
+for (const id of semantic.pilotScope.professions) if (!professionIds.has(id)) failures.push(`semantic profession missing ${id}`);
+for (const source of facts.powerSources || []) {
+  for (const classId of source.classes || []) if (!classIds.has(classId)) failures.push(`power source ${source.id} references unknown class ${classId}`);
+  for (const mode of source.visibility || []) if (!semantic.pilotScope.powerVisibilityModes.includes(mode)) failures.push(`power source ${source.id} references unknown visibility ${mode}`);
+}
 for (const rule of rules.rules || []) {
   if (!rule.id || !rule.type || !rule.when || !rule.severity) failures.push(`invalid rule ${rule.id || '<missing id>'}`);
   if (rule.type === 'requires' && !rule.require) failures.push(`requires rule missing require target ${rule.id}`);

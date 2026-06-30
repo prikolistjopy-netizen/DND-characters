@@ -37,10 +37,46 @@ function pick<T extends { id?: string } | string>(items: T[], rng: () => number,
 const ageBands: AgeBand[] = ['young_adult', 'adult', 'middle_aged', 'elder'];
 const genders: GenderPresentation[] = ['masculine', 'feminine', 'androgynous'];
 const socialRoles = ['trusted practical expert', 'uneasy community witness', 'quiet problem solver', 'responsible outsider'];
-const goals = ['prevent immediate harm', 'prove a hidden truth', 'finish a dangerous duty', 'protect someone dependent'];
-const obstacles = ['locked threshold', 'frightened witness', 'unstable weather', 'hostile suspicion', 'failing structure'];
-const risks = ['public panic', 'harmful power exposure', 'lost evidence', 'community blame', 'physical injury'];
-const pressures = ['time is narrowing', 'someone is watching', 'the room is losing trust', 'weather is worsening'];
+const goals = ['prevent immediate harm', 'prove a hidden truth', 'finish a dangerous duty', 'protect someone dependent', 'keep an agreement from collapsing', 'solve a practical problem before it becomes violence'];
+const obstacles = ['locked threshold', 'frightened witness', 'unstable weather', 'hostile suspicion', 'failing structure', 'contradictory evidence', 'crowd expectation'];
+const risks = ['public panic', 'harmful power exposure', 'lost evidence', 'community blame', 'physical injury', 'broken trust', 'a dependent person abandoned'];
+const pressures = ['time is narrowing', 'someone is watching', 'the room is losing trust', 'weather is worsening', 'authority is arriving', 'the tool may fail'];
+const motionStates = ['contained forward motion', 'braced stillness', 'measured crouch', 'controlled turn toward the threat', 'hands moving faster than the body', 'balanced step into pressure'];
+
+function relationshipToPower(classId: string) {
+  const relationships: Record<string, string> = {
+    warlock: 'bargains with power while limiting what it can claim',
+    cleric: 'serves power as responsibility rather than spectacle',
+    paladin: 'carries power as a public oath with private doubts',
+    wizard: 'treats power as a dangerous structure that must be proven',
+    druid: 'negotiates with living systems rather than commanding them',
+    bard: 'uses attention, timing, and shared feeling as leverage',
+    sorcerer: 'contains innate pressure before it spills into the room',
+    artificer: 'channels power through materials, repairs, and field devices',
+    monk: 'keeps power in breath, discipline, and redirection',
+    ranger: 'trusts trained attention to terrain before visible magic',
+    rogue: 'uses skill and timing before letting power be seen',
+    barbarian: 'turns endurance and fury into protection rather than display',
+    fighter: 'trusts training before supernatural answers',
+  };
+  return relationships[classId] ?? 'keeps power subordinate to the immediate task';
+}
+
+function pickPowerCost(classId: string) {
+  const costs: Record<string, string> = {
+    warlock: 'attention pulled toward the bargain',
+    cleric: 'personal exhaustion after mercy',
+    paladin: 'public certainty straining against private doubt',
+    wizard: 'mental strain from holding a pattern stable',
+    druid: 'pain carried through the local living world',
+    bard: 'voice or confidence spent at the wrong moment',
+    sorcerer: 'body pressure rising too fast to hide',
+    artificer: 'device heat and failing calibration',
+    monk: 'breath control stretched thin',
+    barbarian: 'physical fatigue sharpened into restraint',
+  };
+  return costs[classId] ?? 'physical fatigue';
+}
 
 export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
   const deterministicSeed = String(input.rngSeed);
@@ -71,6 +107,19 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
   const tool = pick(profession.tools, rng, 'life.tool', scoreTrace);
   const responsibility = pick(profession.responsibilities, rng, 'life.responsibility', scoreTrace);
   const scene = pick(profession.scenes, rng, 'currentMoment.scene', scoreTrace);
+  const professionTension = pick(profession.tensions, rng, 'tension.profession', scoreTrace);
+  const matchingContradiction = vnextFacts.tensionTemplates.roleContradictions.find((item) => item.includes(classId) && item.includes(profession.id.replace(/_/g, ' ')));
+  const roleContradiction = matchingContradiction ?? `${classFact.label.toLowerCase()} ${profession.label} balancing ${professionTension}`;
+  scoreTrace.push({ step: 'tension.roleContradiction', candidateId: roleContradiction, score: matchingContradiction ? 135 : 85, reasons: [matchingContradiction ? 'matched explicit role contradiction' : 'composed from class and profession tension'] });
+  const socialTension = pick([...vnextFacts.tensionTemplates.socialTensions, ...culture.tensions, ...profession.tensions], rng, 'tension.social', scoreTrace);
+  const innerConflict = pick(vnextFacts.tensionTemplates.innerConflicts, rng, 'tension.innerConflict', scoreTrace);
+  const sacredVsProfane = pick(vnextFacts.tensionTemplates.sacredProfane, rng, 'tension.sacredProfane', scoreTrace);
+  const expectationVsBehavior = pick(vnextFacts.tensionTemplates.expectations, rng, 'tension.expectation', scoreTrace);
+  const goal = pick(goals, rng, 'moment.goal', scoreTrace);
+  const obstacle = pick(obstacles, rng, 'moment.obstacle', scoreTrace);
+  const risk = pick(risks, rng, 'moment.risk', scoreTrace);
+  const pressure = pick(pressures, rng, 'moment.pressure', scoreTrace);
+  const motionEnergy = pick(motionStates, rng, 'moment.motionEnergy', scoreTrace);
 
   const seed: SemanticSeed = {
     schemaVersion: vnextSemanticFacts.schemaVersion,
@@ -91,10 +140,10 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
       dominantDrive: pick(vnextFacts.psychology.drives, rng, 'psychology.drive', scoreTrace),
       value: pick(vnextFacts.psychology.values, rng, 'psychology.value', scoreTrace),
       fear: pick(vnextFacts.psychology.fears, rng, 'psychology.fear', scoreTrace),
-      contradiction: pick(vnextFacts.psychology.contradictions, rng, 'psychology.contradiction', scoreTrace),
+      contradiction: professionTension,
       copingStrategy: pick(vnextFacts.psychology.coping, rng, 'psychology.coping', scoreTrace),
       emotionalRestraint: pick(vnextFacts.psychology.restraint, rng, 'psychology.restraint', scoreTrace),
-      relationshipToPower: classId === 'warlock' ? 'bargains with power while limiting what it can claim' : classId === 'cleric' ? 'serves power as responsibility rather than spectacle' : 'trusts training before supernatural answers',
+      relationshipToPower: relationshipToPower(classId),
     },
     life: {
       profession: profession.label,
@@ -103,27 +152,43 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
       bodyHabit: dailyHabit,
       socialResponsibility: responsibility,
       livedInTrace: profession.wear[0],
-      materialHistory: culture.materials[0],
+      materialHistory: profession.materials[0] ?? culture.materials[0],
       personalObject: tool,
+    },
+    tension: {
+      roleContradiction,
+      socialTension,
+      innerConflict,
+      dutyVsInstinct: innerConflict,
+      sacredVsProfane,
+      professionClassFriction: professionTension,
+      expectationVsBehavior,
     },
     currentMoment: {
       currentAction: scene,
-      goal: pick(goals, rng, 'moment.goal', scoreTrace),
-      obstacle: pick(obstacles, rng, 'moment.obstacle', scoreTrace),
-      risk: pick(risks, rng, 'moment.risk', scoreTrace),
-      pressure: pick(pressures, rng, 'moment.pressure', scoreTrace),
+      immediateTask: scene,
+      goal,
+      obstacle,
+      stakes: `if ${goal} fails, ${risk} follows`,
+      dependent: responsibility,
+      risk,
+      pressure,
+      hiddenPressure: socialTension,
       targetOfAttention: responsibility,
       urgency: 'immediate but controlled',
+      failurePoint: `the ${tool} or ${dailyHabit} fails under pressure`,
+      motionEnergy,
+      narrativeIntent: `${scene}; the image should show ${roleContradiction} through ${dailyHabit}`,
       consequenceOfFailure: `the ${responsibility} fails and the community pays the cost`,
     },
     power: {
       source: source.label,
       sourceId: source.id,
-      relationshipToSource: classId === 'warlock' ? 'private bargain with strict boundaries' : classId === 'cleric' ? 'witnessed obligation' : 'mundane discipline',
+      relationshipToSource: relationshipToPower(classId),
       visibility,
       intensity: visibility === 'none' ? 'none' : visibility === 'full_apparition' ? 'high' : 'low',
       control: visibility === 'full_apparition' ? 'unstable and rare' : 'contained by action',
-      cost: classId === 'warlock' ? 'attention pulled toward the bargain' : classId === 'cleric' ? 'personal exhaustion after mercy' : 'physical fatigue',
+      cost: pickPowerCost(classId),
       manifestationCarrier: visibility === 'object' ? tool : visibility === 'shadow' ? 'single shadow echo' : visibility === 'environmental' ? environment.weather : visibility,
       sourcePhysicallyVisible: visibility === 'full_apparition',
     },
@@ -141,10 +206,10 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
     visualIntent: {
       silhouettePrinciple: `${speciesFact.markers[0]} shaped by ${classFact.affordances[0]}`,
       primaryAnchor: scene,
-      secondaryAnchor: `${profession.label} handling of ${tool}`,
+      secondaryAnchor: `${profession.label} handling of ${tool} while ${professionTension}`,
       focalHierarchy: ['face and action', tool, 'profession wear', 'power only if visible', 'environment secondary'],
       detailBudget: 'controlled',
-      mood: `${input.noveltyMode === 'strong' ? 'unusual but grounded' : 'restrained cinematic'} pressure`,
+      mood: `${input.noveltyMode === 'strong' ? 'unusual but grounded' : 'restrained cinematic'} pressure shaped by ${roleContradiction}`,
       compositionIntent: 'full-body character concept caught in a specific working moment',
     },
     scoreTrace,

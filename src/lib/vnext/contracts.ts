@@ -1,5 +1,5 @@
-export type PilotClassId = 'fighter' | 'cleric' | 'warlock';
-export type PilotSpeciesId = 'human' | 'dwarf' | 'tiefling';
+export type PilotClassId = 'fighter' | 'cleric' | 'warlock' | 'rogue' | 'ranger' | 'paladin' | 'wizard' | 'druid' | 'bard' | 'monk' | 'barbarian' | 'sorcerer' | 'artificer';
+export type PilotSpeciesId = 'human' | 'dwarf' | 'tiefling' | 'elf' | 'half_elf' | 'halfling' | 'half_orc' | 'gnome' | 'dragonborn' | 'aasimar' | 'firbolg' | 'satyr';
 export type PowerVisibility = 'none' | 'latent' | 'behavioral' | 'bodily' | 'object' | 'reflected' | 'shadow' | 'environmental' | 'symbolic' | 'relational' | 'social' | 'partial' | 'full_apparition';
 export type AgeBand = 'young_adult' | 'adult' | 'middle_aged' | 'elder';
 export type GenderPresentation = 'masculine' | 'feminine' | 'androgynous';
@@ -77,14 +77,30 @@ export type SemanticSeed = {
     materialHistory: string;
     personalObject: string;
   };
+  tension: {
+    roleContradiction: string;
+    socialTension: string;
+    innerConflict: string;
+    dutyVsInstinct: string;
+    sacredVsProfane: string;
+    professionClassFriction: string;
+    expectationVsBehavior: string;
+  };
   currentMoment: {
     currentAction: string;
+    immediateTask: string;
     goal: string;
     obstacle: string;
+    stakes: string;
+    dependent: string;
     risk: string;
     pressure: string;
+    hiddenPressure: string;
     targetOfAttention: string;
     urgency: string;
+    failurePoint: string;
+    motionEnergy: string;
+    narrativeIntent: string;
     consequenceOfFailure: string;
   };
   power: {
@@ -136,7 +152,7 @@ export type VisualDirection = {
   embodiment: { silhouette: string; proportions: string; posture: string; gesture: string; gaze: string; expression: string };
   life: { clothing: string; materials: string; primaryTool: string; handling: string; personalObject: string; wear: string; repairs: string; stains: string; livedInTrace: string };
   power: { visibility: PowerVisibility; manifestation: string; carrier: string; intensity: string; cost: string; integrationWithAction: string; patronVisibility: boolean };
-  scene: { environment: string; activeObstacle: string; subjectOfAction: string; spatialRelation: string; currentMoment: string };
+  scene: { environment: string; activeObstacle: string; subjectOfAction: string; spatialRelation: string; currentMoment: string; narrativeIntent: string; stakes: string };
   artDirection: { composition: string; camera: string; lighting: string; paletteRoles: string[]; focalOrder: string[]; detailBudget: string; negativeConstraints: string[] };
 };
 

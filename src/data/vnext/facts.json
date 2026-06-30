@@ -1,38 +1,676 @@
 {
   "classes": [
-    {"id":"fighter","label":"Fighter","affordances":["trained weight distribution","protective positioning","weapon discipline","threat reading"],"evidence":["guarding footwork","controlled reach","practical armor choices"]},
-    {"id":"cleric","label":"Cleric","affordances":["ritual responsibility","care under pressure","community obligation","power restraint"],"evidence":["protective touch","witness posture","measured invocation"]},
-    {"id":"warlock","label":"Warlock","affordances":["bargained power","concealment","listening to unseen pressure","cost awareness"],"evidence":["asymmetric stillness","guarded hand","attention split between world and source"]}
+    {
+      "id": "fighter",
+      "label": "Fighter",
+      "affordances": [
+        "trained weight distribution",
+        "protective positioning",
+        "weapon discipline",
+        "threat reading"
+      ],
+      "evidence": [
+        "guarding footwork",
+        "controlled reach",
+        "practical armor choices"
+      ]
+    },
+    {
+      "id": "cleric",
+      "label": "Cleric",
+      "affordances": [
+        "ritual responsibility",
+        "care under pressure",
+        "community obligation",
+        "power restraint"
+      ],
+      "evidence": [
+        "protective touch",
+        "witness posture",
+        "measured invocation"
+      ]
+    },
+    {
+      "id": "warlock",
+      "label": "Warlock",
+      "affordances": [
+        "bargained power",
+        "concealment",
+        "listening to unseen pressure",
+        "cost awareness"
+      ],
+      "evidence": [
+        "asymmetric stillness",
+        "guarded hand",
+        "attention split between world and source"
+      ]
+    },
+    {
+      "id": "rogue",
+      "label": "Rogue",
+      "affordances": [
+        "quiet entry",
+        "exit awareness",
+        "precision under suspicion",
+        "evidence handling"
+      ],
+      "evidence": [
+        "soft foot placement",
+        "hidden-line observation",
+        "tool hand kept low"
+      ]
+    },
+    {
+      "id": "ranger",
+      "label": "Ranger",
+      "affordances": [
+        "route reading",
+        "distance control",
+        "weather attention",
+        "protective tracking"
+      ],
+      "evidence": [
+        "trail-wise gaze",
+        "bow or field tool economy",
+        "body angled to terrain"
+      ]
+    },
+    {
+      "id": "paladin",
+      "label": "Paladin",
+      "affordances": [
+        "public duty",
+        "interposition",
+        "measured authority",
+        "oath pressure"
+      ],
+      "evidence": [
+        "shielding stance",
+        "open challenge without spectacle",
+        "weight placed between threat and dependent"
+      ]
+    },
+    {
+      "id": "wizard",
+      "label": "Wizard",
+      "affordances": [
+        "structured study",
+        "pattern recognition",
+        "controlled experiment",
+        "arcane caution"
+      ],
+      "evidence": [
+        "notation marks",
+        "precise hand geometry",
+        "attention to cause and consequence"
+      ]
+    },
+    {
+      "id": "druid",
+      "label": "Druid",
+      "affordances": [
+        "ecological attention",
+        "reciprocal care",
+        "weather reading",
+        "living boundary sense"
+      ],
+      "evidence": [
+        "earth-aware footing",
+        "hands measuring growth or decay",
+        "posture aligned to terrain"
+      ]
+    },
+    {
+      "id": "bard",
+      "label": "Bard",
+      "affordances": [
+        "social reading",
+        "timed performance",
+        "morale control",
+        "story leverage"
+      ],
+      "evidence": [
+        "breath timed to speech or song",
+        "eyes measuring an audience",
+        "gesture shaped for attention"
+      ]
+    },
+    {
+      "id": "monk",
+      "label": "Monk",
+      "affordances": [
+        "trained stillness",
+        "body discipline",
+        "breath control",
+        "nonlethal redirection"
+      ],
+      "evidence": [
+        "balanced centerline",
+        "economical strike path",
+        "calm pressure under motion"
+      ]
+    },
+    {
+      "id": "barbarian",
+      "label": "Barbarian",
+      "affordances": [
+        "endurance",
+        "threshold defense",
+        "raw physical commitment",
+        "protective fury"
+      ],
+      "evidence": [
+        "grounded stance",
+        "breath visible through effort",
+        "force used with purpose"
+      ]
+    },
+    {
+      "id": "sorcerer",
+      "label": "Sorcerer",
+      "affordances": [
+        "innate pressure",
+        "emotional regulation",
+        "bodily magic feedback",
+        "dangerous spontaneity"
+      ],
+      "evidence": [
+        "power held in breath",
+        "hands restrained before release",
+        "expression tracking inner surge"
+      ]
+    },
+    {
+      "id": "artificer",
+      "label": "Artificer",
+      "affordances": [
+        "material problem solving",
+        "device logic",
+        "repair under pressure",
+        "field improvisation"
+      ],
+      "evidence": [
+        "tool-first posture",
+        "calibrating glance",
+        "hands choosing function over ornament"
+      ]
+    }
   ],
   "species": [
-    {"id":"human","label":"Human","markers":["varied human proportions","specific lived-in face","culture-shaped clothing"],"avoid":["blank default template"]},
-    {"id":"dwarf","label":"Dwarf","markers":["compact powerful build","low center of gravity","broad hands","dense practical clothing"],"avoid":["automatic smith stereotype"]},
-    {"id":"tiefling","label":"Tiefling","markers":["horn silhouette","tail balance","nonhuman eyes","intentional skin undertone"],"avoid":["automatic red skin","sexualized costume","automatic fire"]}
+    {
+      "id": "human",
+      "label": "Human",
+      "markers": [
+        "varied human proportions",
+        "specific lived-in face",
+        "culture-shaped clothing"
+      ],
+      "avoid": [
+        "blank default template"
+      ]
+    },
+    {
+      "id": "dwarf",
+      "label": "Dwarf",
+      "markers": [
+        "compact powerful build",
+        "low center of gravity",
+        "broad hands",
+        "dense practical clothing"
+      ],
+      "avoid": [
+        "automatic smith stereotype"
+      ]
+    },
+    {
+      "id": "tiefling",
+      "label": "Tiefling",
+      "markers": [
+        "horn silhouette",
+        "tail balance",
+        "nonhuman eyes",
+        "intentional skin undertone"
+      ],
+      "avoid": [
+        "automatic red skin",
+        "sexualized costume",
+        "automatic fire"
+      ]
+    },
+    {
+      "id": "elf",
+      "label": "Elf",
+      "markers": [
+        "long-lined frame",
+        "attentive ears and gaze",
+        "refined movement shaped by age"
+      ],
+      "avoid": [
+        "generic beautiful immortal template"
+      ]
+    },
+    {
+      "id": "half_elf",
+      "label": "Half-Elf",
+      "markers": [
+        "blended human and elven features",
+        "socially adaptable styling",
+        "watchful in-between presence"
+      ],
+      "avoid": [
+        "default human-with-pointed-ears"
+      ]
+    },
+    {
+      "id": "halfling",
+      "label": "Halfling",
+      "markers": [
+        "small compact scale",
+        "large practical hands and feet",
+        "environment scale cues"
+      ],
+      "avoid": [
+        "childlike proportions"
+      ]
+    },
+    {
+      "id": "half_orc",
+      "label": "Half-Orc",
+      "markers": [
+        "heavy jaw and tusk suggestion",
+        "powerful shoulders",
+        "scar or wear handled as lived history"
+      ],
+      "avoid": [
+        "brutish caricature"
+      ]
+    },
+    {
+      "id": "gnome",
+      "label": "Gnome",
+      "markers": [
+        "small nimble body",
+        "bright investigative focus",
+        "tool-scaled proportions"
+      ],
+      "avoid": [
+        "tiny human clone"
+      ]
+    },
+    {
+      "id": "dragonborn",
+      "label": "Dragonborn",
+      "markers": [
+        "draconic head silhouette",
+        "scaled hands",
+        "tail and crest balance"
+      ],
+      "avoid": [
+        "random facial spike clutter"
+      ]
+    },
+    {
+      "id": "aasimar",
+      "label": "Aasimar",
+      "markers": [
+        "subtle otherworldly symmetry",
+        "controlled luminous undertone",
+        "human-readable features"
+      ],
+      "avoid": [
+        "constant halo or holy glare"
+      ]
+    },
+    {
+      "id": "firbolg",
+      "label": "Firbolg",
+      "markers": [
+        "broad gentle nonhuman face",
+        "large pastoral frame",
+        "soft animal-like nose and ears"
+      ],
+      "avoid": [
+        "ordinary tall human"
+      ]
+    },
+    {
+      "id": "satyr",
+      "label": "Satyr",
+      "markers": [
+        "goatlike lower-body cues",
+        "expressive ears",
+        "springy posture"
+      ],
+      "avoid": [
+        "party stereotype only"
+      ]
+    }
   ],
   "cultures": [
-    {"id":"river_towns","label":"river-town commons","materials":["oiled wool","rope fiber","dark wet timber"],"tensions":["flood debt","crossing rights","missing passengers"]},
-    {"id":"border_city","label":"border city wards","materials":["patched linen","smoked brick","blackened iron"],"tensions":["curfew pressure","guild suspicion","refugee obligation"]},
-    {"id":"hill_parish","label":"hill parish","materials":["limestone dust","worn wool","candle soot"],"tensions":["burial dispute","winter stores","old vow"]},
-    {"id":"salt_archive","label":"salt archive district","materials":["salt-stained leather","aged paper","blue-gray stone"],"tensions":["sealed records","lost inheritance","forbidden testimony"]}
+    {
+      "id": "river_towns",
+      "label": "river-town commons",
+      "materials": [
+        "oiled wool",
+        "rope fiber",
+        "dark wet timber"
+      ],
+      "tensions": [
+        "flood debt",
+        "crossing rights",
+        "missing passengers"
+      ]
+    },
+    {
+      "id": "border_city",
+      "label": "border city wards",
+      "materials": [
+        "patched linen",
+        "smoked brick",
+        "blackened iron"
+      ],
+      "tensions": [
+        "curfew pressure",
+        "guild suspicion",
+        "refugee obligation"
+      ]
+    },
+    {
+      "id": "hill_parish",
+      "label": "hill parish",
+      "materials": [
+        "limestone dust",
+        "worn wool",
+        "candle soot"
+      ],
+      "tensions": [
+        "burial dispute",
+        "winter stores",
+        "old vow"
+      ]
+    },
+    {
+      "id": "salt_archive",
+      "label": "salt archive district",
+      "materials": [
+        "salt-stained leather",
+        "aged paper",
+        "blue-gray stone"
+      ],
+      "tensions": [
+        "sealed records",
+        "lost inheritance",
+        "forbidden testimony"
+      ]
+    },
+    {
+      "id": "market_court",
+      "label": "market court",
+      "materials": [
+        "worn stone",
+        "trade cloth",
+        "dull brass"
+      ],
+      "tensions": [
+        "tax pressure",
+        "public rumor",
+        "merchant debt"
+      ]
+    },
+    {
+      "id": "forest_edge",
+      "label": "forest-edge settlement",
+      "materials": [
+        "bark-stained wool",
+        "green wood",
+        "rawhide binding"
+      ],
+      "tensions": [
+        "encroaching road",
+        "missing livestock",
+        "old grove boundary"
+      ]
+    }
   ],
   "environments": [
-    {"id":"rain_doorway","label":"rain-dark doorway","weather":"cold rain","architecture":"narrow stone threshold"},
-    {"id":"river_crossing","label":"low ferry crossing","weather":"river mist","architecture":"wet planks and rope rail"},
-    {"id":"parish_room","label":"quiet parish room","weather":"still indoor chill","architecture":"plain plaster wall and candle niche"},
-    {"id":"archive_alley","label":"archive alley","weather":"salt haze","architecture":"tall records wall and shadowed arch"},
-    {"id":"workroom_edge","label":"workroom edge","weather":"dust in window light","architecture":"single bench edge and tool marks"}
+    {
+      "id": "rain_doorway",
+      "label": "rain-dark doorway",
+      "weather": "cold rain",
+      "architecture": "narrow stone threshold"
+    },
+    {
+      "id": "river_crossing",
+      "label": "low ferry crossing",
+      "weather": "river mist",
+      "architecture": "wet planks and rope rail"
+    },
+    {
+      "id": "parish_room",
+      "label": "quiet parish room",
+      "weather": "still indoor chill",
+      "architecture": "plain plaster wall and candle niche"
+    },
+    {
+      "id": "archive_alley",
+      "label": "archive alley",
+      "weather": "salt haze",
+      "architecture": "tall records wall and shadowed arch"
+    },
+    {
+      "id": "workroom_edge",
+      "label": "workroom edge",
+      "weather": "dust in window light",
+      "architecture": "single bench edge and tool marks"
+    },
+    {
+      "id": "market_threshold",
+      "label": "market threshold",
+      "weather": "thin winter sun",
+      "architecture": "stone arcade and awning ropes"
+    },
+    {
+      "id": "forest_track",
+      "label": "forest track",
+      "weather": "wet leaf shadow",
+      "architecture": "rooted path and leaning marker stones"
+    }
   ],
   "psychology": {
-    "drives": ["protect the vulnerable","finish an owed duty","expose a hidden truth","keep dangerous power contained","bring someone safely across a threshold"],
-    "values": ["competence","mercy","truth","debt","privacy","steadiness"],
-    "fears": ["causing harm through hesitation","being owned by power","failing a dependent person","letting a community lie stand"],
-    "contradictions": ["uses feared power to prevent worse harm","is trained for violence but trying to de-escalate","serves a community that distrusts them","keeps professional calm while personally implicated"],
-    "coping": ["economical movement","dry humor","ritualized breathing","checking tools twice","naming the risk plainly"],
-    "restraint": ["tight jaw","quiet voice","measured gaze","still shoulders","controlled hand pressure"]
+    "drives": [
+      "protect the vulnerable",
+      "finish an owed duty",
+      "expose a hidden truth",
+      "keep dangerous power contained",
+      "bring someone safely across a threshold",
+      "hold a fragile agreement together",
+      "repair damage before blame spreads"
+    ],
+    "values": [
+      "competence",
+      "mercy",
+      "truth",
+      "debt",
+      "privacy",
+      "steadiness",
+      "fair witness",
+      "earned trust"
+    ],
+    "fears": [
+      "causing harm through hesitation",
+      "being owned by power",
+      "failing a dependent person",
+      "letting a community lie stand",
+      "turning duty into cruelty",
+      "being seen only as a symbol"
+    ],
+    "contradictions": [
+      "uses feared power to prevent worse harm",
+      "is trained for violence but trying to de-escalate",
+      "serves a community that distrusts them",
+      "keeps professional calm while personally implicated",
+      "performs a humble trade with impossible authority nearby",
+      "is expected to be pure but survives by compromise"
+    ],
+    "coping": [
+      "economical movement",
+      "dry humor",
+      "ritualized breathing",
+      "checking tools twice",
+      "naming the risk plainly",
+      "counting exits before speaking"
+    ],
+    "restraint": [
+      "tight jaw",
+      "quiet voice",
+      "measured gaze",
+      "still shoulders",
+      "controlled hand pressure",
+      "half-finished breath"
+    ]
+  },
+  "tensionTemplates": {
+    "roleContradictions": [
+      "warlock healer",
+      "cleric smuggler",
+      "paladin tax enforcer",
+      "druid undertaker",
+      "rogue shrine caretaker",
+      "monk bounty hunter",
+      "barbarian tutor",
+      "wizard gravedigger"
+    ],
+    "socialTensions": [
+      "needed by people who distrust their power",
+      "paid by one faction while protecting another",
+      "carrying authority nobody fully accepts",
+      "serving a law that fails a person in front of them"
+    ],
+    "innerConflicts": [
+      "duty demands speed while conscience demands care",
+      "instinct says hide while responsibility says witness",
+      "training offers force while the moment needs restraint",
+      "power offers an easy answer at a visible cost"
+    ],
+    "sacredProfane": [
+      "sacred duty passes through dirty work",
+      "profane tools protect a holy promise",
+      "public ritual depends on private compromise",
+      "a forbidden method prevents a worse violation"
+    ],
+    "expectations": [
+      "expected to perform a class stereotype but chooses professional competence",
+      "expected to obey rank but follows evidence",
+      "expected to be ornamental but becomes practical",
+      "expected to be frightening but chooses care"
+    ]
   },
   "powerSources": [
-    {"id":"none","label":"no visible supernatural source","classes":["fighter"],"visibility":["none","behavioral","social"]},
-    {"id":"oath_witness","label":"witnessed sacred obligation","classes":["cleric"],"visibility":["latent","object","symbolic","relational","environmental"]},
-    {"id":"bargained_shadow","label":"private bargain with a distant power","classes":["warlock"],"visibility":["latent","behavioral","shadow","reflected","object","partial"]}
+    {
+      "id": "none",
+      "label": "no visible supernatural source",
+      "classes": [
+        "fighter",
+        "rogue",
+        "ranger",
+        "monk",
+        "barbarian"
+      ],
+      "visibility": [
+        "none",
+        "behavioral",
+        "social",
+        "latent"
+      ]
+    },
+    {
+      "id": "oath_witness",
+      "label": "witnessed sacred obligation",
+      "classes": [
+        "cleric",
+        "paladin"
+      ],
+      "visibility": [
+        "latent",
+        "object",
+        "symbolic",
+        "relational",
+        "environmental",
+        "social"
+      ]
+    },
+    {
+      "id": "bargained_shadow",
+      "label": "private bargain with a distant power",
+      "classes": [
+        "warlock"
+      ],
+      "visibility": [
+        "latent",
+        "behavioral",
+        "shadow",
+        "reflected",
+        "object",
+        "partial"
+      ]
+    },
+    {
+      "id": "structured_arcana",
+      "label": "disciplined arcane structure",
+      "classes": [
+        "wizard",
+        "artificer"
+      ],
+      "visibility": [
+        "latent",
+        "object",
+        "reflected",
+        "symbolic",
+        "environmental"
+      ]
+    },
+    {
+      "id": "wild_reciprocity",
+      "label": "reciprocal living-world pressure",
+      "classes": [
+        "druid",
+        "ranger"
+      ],
+      "visibility": [
+        "latent",
+        "behavioral",
+        "environmental",
+        "relational",
+        "bodily"
+      ]
+    },
+    {
+      "id": "resonant_presence",
+      "label": "voice, story, and presence shaped into power",
+      "classes": [
+        "bard"
+      ],
+      "visibility": [
+        "behavioral",
+        "social",
+        "object",
+        "reflected",
+        "latent"
+      ]
+    },
+    {
+      "id": "inner_surge",
+      "label": "innate pressure moving through the body",
+      "classes": [
+        "sorcerer"
+      ],
+      "visibility": [
+        "latent",
+        "bodily",
+        "reflected",
+        "environmental",
+        "partial"
+      ]
+    }
   ]
 }

@@ -69,20 +69,20 @@ Open `/vnext` to see six deterministic comparison cases:
 - Cleric Undertaker
 - Cleric Tutor
 
-## Pilot scope
+## Expanded Alpha scope
 
-Classes: Fighter, Cleric, Warlock.
-Species: Human, Dwarf, Tiefling.
-Professions: 20 practical professions.
+Classes: Fighter, Cleric, Warlock, Rogue, Ranger, Paladin, Wizard, Druid, Bard, Monk, Barbarian, Sorcerer, and Artificer.
+Species: Human, Dwarf, Tiefling, Elf, Half-Elf, Halfling, Half-Orc, Gnome, Dragonborn, Aasimar, Firbolg, and Satyr.
+Professions: 24 practical professions, each carrying tools, body habits, wear traces, responsibilities, scenes, materials, and tension hooks.
 
 ## Known limitations
 
-This is a pilot scope. QA scripts are intentionally lightweight and should be expanded before vNext replaces Legacy. The comparison page uses deterministic Legacy-style baseline text rather than replacing the production Legacy generator.
+The Alpha vNext library is now broad enough to drive `/generate`, but it is still intentionally text-only: no backend, account system, gallery sync, or image generation is part of this layer. QA scripts are stronger than the pilot scripts, but visual review is still required before replacing every downstream Legacy-only workflow. The comparison page remains an internal diagnostic route.
 
-## Criteria for replacing Legacy
+## Criteria for replacing remaining Legacy-only code paths
 
-Before replacement, vNext needs wider class/species/profession coverage, stronger statistical QA, visual review, route-level acceptance tests, and migration of UI controls behind a feature flag.
+Before removing internal fallback code, vNext needs route-level acceptance tests in the production environment, larger statistical QA, and manual visual review across expanded class/species/profession matrices.
 
 ## Migration plan
 
-Keep vNext isolated, iterate under `/vnext`, expand QA, add opt-in UI wiring, compare against Legacy, then replace `/generate` only after acceptance criteria pass.
+Use Semantic Core vNext as the primary `/generate` path, keep Legacy core files available as internal fallback/reference, continue expanding QA, and migrate collection/detail screens only after generated result contracts stabilize.

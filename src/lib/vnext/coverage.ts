@@ -43,6 +43,6 @@ export function analyzeVNextCoverage(sampleSize = 500) {
     missingSpecies,
     missingProfessions,
     professionVisualChannelCoverage: professionVisualChannels.size,
-    expectedProfessionVisualChannelCoverage: vnextSemanticFacts.pilotScope.minimumProfessionCount * 3,
+    expectedProfessionVisualChannelCoverage: vnextSemanticFacts.pilotScope.professions.length * 3,
   };
 }

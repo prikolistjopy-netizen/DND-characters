@@ -31,8 +31,8 @@ type ActiveResult = { engine: 'legacy'; legacy: GenerationResult } | { engine: '
 type ControlState = {
   engine: EngineMode;
   mode: Mode;
-  class: ManualGenerationControls['class'] | 'random';
-  race: ManualGenerationControls['race'] | 'random';
+  class: ManualGenerationControls['class'] | PilotClassId | 'random';
+  race: ManualGenerationControls['race'] | PilotSpeciesId | 'random';
   genderPresentation: GenderPresentation | 'random';
   ageBand: ApparentAgeBand | 'random';
   bodyType: string | 'random';
@@ -55,7 +55,6 @@ const styleOptions: Array<{ id: StylePreset; label: string }> = [
   { id: 'cinematic_painted_fantasy', label: 'Cinematic Painted Fantasy' },
   { id: 'painted_character_study_clean', label: 'Painted Character Study Clean' },
   { id: 'clean_concept_art', label: 'Clean Concept Art' },
-  { id: 'legacy_heroic_rpg', label: 'Legacy Heroic RPG' },
 ];
 const profileOptions: Array<{ id: GenerationProfile; label: string }> = [
   { id: 'classic_fantasy', label: 'Classic Fantasy' },
@@ -65,7 +64,7 @@ const profileOptions: Array<{ id: GenerationProfile; label: string }> = [
   { id: 'manual_custom', label: 'Manual Custom' },
 ];
 const noveltyOptions: Array<{ id: NoveltyMode; label: string }> = [
-  { id: 'off', label: 'Grounded Pilot' },
+  { id: 'off', label: 'Grounded' },
   { id: 'soft', label: 'Balanced Novelty' },
   { id: 'strong', label: 'Stronger Novelty' },
 ];
@@ -94,8 +93,8 @@ function titleCase(value: string) {
 
 function controlsToOptions(controls: ControlState): GenerationOptions {
   const manualControls: ManualGenerationControls = {
-    class: controls.class,
-    race: controls.race,
+    class: controls.class as ManualGenerationControls['class'],
+    race: controls.race as ManualGenerationControls['race'],
     genderPresentation: controls.genderPresentation,
     ageBand: controls.ageBand,
     bodyType: controls.bodyType,
@@ -216,7 +215,7 @@ export function GeneratorWorkspace() {
   const initial = useMemo(() => rollWithControls(defaultControls), []);
   const [controls, setControls] = useState<ControlState>(defaultControls);
   const [generation, setGeneration] = useState<ActiveResult>(initial);
-  const [status, setStatus] = useState('Semantic vNext result is ready.');
+  const [status, setStatus] = useState('Semantic Core vNext result is ready.');
   const [isGenerating, setIsGenerating] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -224,7 +223,7 @@ export function GeneratorWorkspace() {
     setControls((current) => ({ ...current, [key]: value }));
   }
 
-  function roll(nextControls = controls, message = controls.engine === 'vnext' ? 'Semantic vNext result is ready.' : 'Your character is ready.') {
+  function roll(nextControls = controls, message = 'Semantic Core vNext result is ready.') {
     setIsGenerating(true);
     setSaved(false);
     window.setTimeout(() => {
@@ -271,7 +270,7 @@ export function GeneratorWorkspace() {
           <p className="eyebrow">Generator</p>
           <h1 id="generate-title" className={styles.pageTitle}>Create a Diceborn character</h1>
         </div>
-        <p className={styles.headerText}>Roll freely or shape the result. Internal testing now supports the isolated Semantic Core vNext without replacing Legacy.</p>
+        <p className={styles.headerText}>Roll freely or shape the result. Semantic Core vNext now resolves identity, profession, tension, current moment, and visual direction as one grounded character system.</p>
       </header>
 
       <div className={styles.workspace}>
@@ -279,16 +278,11 @@ export function GeneratorWorkspace() {
           <div className={styles.panelHeading}>
             <Tag variant="accent">Create</Tag>
             <h2 id="create-title">Choose your path</h2>
-            <p>Start fast, lock essentials, and switch between Legacy and Semantic vNext.</p>
-          </div>
-
-          <div className={styles.modeGrid} role="radiogroup" aria-label="Generator engine">
-            <button className={controls.engine === 'legacy' ? styles.modeActive : styles.modeCard} type="button" role="radio" aria-checked={controls.engine === 'legacy'} onClick={() => updateControl('engine', 'legacy')}>Legacy<span>Current production generator</span></button>
-            <button className={controls.engine === 'vnext' ? styles.modeActive : styles.modeCard} type="button" role="radio" aria-checked={controls.engine === 'vnext'} onClick={() => updateControl('engine', 'vnext')}>Semantic vNext<span>Controlled semantic pilot</span></button>
+            <p>Start fast or lock essentials. Semantic Core vNext keeps profession, tension, scene, and visual direction connected.</p>
           </div>
 
           <div className={styles.modeGrid} role="radiogroup" aria-label="Generation mode">
-            <button className={controls.mode === 'random' ? styles.modeActive : styles.modeCard} type="button" role="radio" aria-checked={controls.mode === 'random'} onClick={() => updateControl('mode', 'random')}>Random<span>{controls.engine === 'vnext' ? 'No required locks' : 'Fast cinematic roll'}</span></button>
+            <button className={controls.mode === 'random' ? styles.modeActive : styles.modeCard} type="button" role="radio" aria-checked={controls.mode === 'random'} onClick={() => updateControl('mode', 'random')}>Random<span>No required locks</span></button>
             <button className={controls.mode === 'custom' ? styles.modeActive : styles.modeCard} type="button" role="radio" aria-checked={controls.mode === 'custom'} onClick={() => updateControl('mode', 'custom')}>Custom<span>Use selected locks</span></button>
           </div>
 
@@ -322,9 +316,9 @@ export function GeneratorWorkspace() {
 
           <div className={styles.createActions}>
             <Button loading={isGenerating} variant="primary" onClick={() => roll(controls)}>Roll Character</Button>
-            <Button variant="glass" onClick={() => roll({ ...defaultControls, engine: controls.engine, stylePreset: controls.stylePreset, seed: controls.engine === 'vnext' ? makeEphemeralSeed() : '' }, controls.engine === 'vnext' ? 'Semantic vNext surprise ready.' : 'Surprise character ready.')}>Surprise Me</Button>
+            <Button variant="glass" onClick={() => roll({ ...defaultControls, engine: 'vnext', stylePreset: controls.stylePreset, seed: makeEphemeralSeed() }, 'Semantic vNext surprise ready.')}>Surprise Me</Button>
           </div>
-          <p className={styles.helperText}>{controls.engine === 'vnext' ? 'Semantic vNext uses deterministic seeds. Same seed plus same locks produces the same result.' : 'Custom selections are respected when possible and repaired by the existing generator rules.'}</p>
+          <p className={styles.helperText}>Semantic vNext uses deterministic seeds. Same seed plus same locks produces the same result.</p>
         </Panel>
 
         <Panel variant="elevated" className={styles.resultPanel} aria-labelledby="result-title">
@@ -359,10 +353,11 @@ export function GeneratorWorkspace() {
                   <Tag>Current Moment</Tag>
                   <p>{vnext.semanticSeed.currentMoment.currentAction}</p>
                   <Tag>Story Hook</Tag>
-                  <p>{vnext.semanticSeed.currentMoment.goal}; if they fail, {vnext.semanticSeed.currentMoment.consequenceOfFailure}.</p>
+                  <p>{vnext.semanticSeed.currentMoment.narrativeIntent}; if they fail, {vnext.semanticSeed.currentMoment.consequenceOfFailure}.</p>
                   <div className={styles.metaGrid}>
                     <div><dt>Power visibility</dt><dd>{titleCase(vnext.semanticSeed.power.visibility)}</dd></div>
                     <div><dt>Profession posture</dt><dd>{vnext.visualDirection.embodiment.posture}</dd></div>
+                    <div><dt>Tension</dt><dd>{vnext.semanticSeed.tension.roleContradiction}</dd></div>
                     <div><dt>Primary tool</dt><dd>{vnext.visualDirection.life.primaryTool}</dd></div>
                     <div><dt>Lived-in trace</dt><dd>{vnext.visualDirection.life.livedInTrace}</dd></div>
                   </div>
@@ -416,7 +411,7 @@ export function GeneratorWorkspace() {
           <div className={styles.panelHeading}>
             <Tag>Refine</Tag>
             <h2 id="refine-title">Adjust the next roll</h2>
-            <p>{controls.engine === 'vnext' ? 'Locks here feed Semantic vNext directly.' : 'Secondary controls for the current generator state.'}</p>
+            <p>Locks here feed Semantic vNext directly.</p>
           </div>
 
           <details className={styles.refineGroup} open>
@@ -445,8 +440,8 @@ export function GeneratorWorkspace() {
             {controls.engine === 'vnext' ? <div className={styles.refineControls}><label>Visibility<select value={controls.powerVisibility} onChange={(event) => updateControl('powerVisibility', event.target.value as ControlState['powerVisibility'])}><option value="random">Resolved by vNext</option>{vnextSemanticFacts.pilotScope.powerVisibilityModes.map((option) => <option key={option} value={option}>{titleCase(option)}</option>)}</select></label></div> : <div className={styles.compactMeta}>{legacy!.seed.magicVisualLanguage.source} · {legacy!.seed.magicVisualLanguage.palette}</div>}
           </details>
 
-          <Button variant="secondary" onClick={() => roll({ ...controls, mode: 'custom' }, controls.engine === 'vnext' ? 'Semantic vNext regenerated with locks.' : 'Regenerated with refinements.')}>Regenerate with Refinements</Button>
-          <p className={styles.tip}>{controls.engine === 'vnext' ? 'Tip: set a Seed, switch to Custom, and lock class/species/profession to verify deterministic output.' : 'Tip: lock only the fields you need. Diceborn reads better when the generator can still direct the scene.'}</p>
+          <Button variant="secondary" onClick={() => roll({ ...controls, engine: 'vnext', mode: 'custom' }, 'Semantic vNext regenerated with locks.')}>Regenerate with Refinements</Button>
+          <p className={styles.tip}>Tip: set a Seed, switch to Custom, and lock class/species/profession to verify deterministic output.</p>
         </Panel>
       </div>
     </section>
