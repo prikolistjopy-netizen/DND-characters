@@ -351,3 +351,81 @@
     padding: var(--space-16);
   }
 }
+
+.optionGrid input,
+.refineControls select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-medium);
+  padding-inline: var(--space-12);
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-8);
+  margin-block-start: var(--space-12);
+}
+
+.metaGrid div {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-medium);
+  padding: var(--space-8);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.metaGrid dt {
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  font-weight: 720;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.metaGrid dd {
+  margin: var(--space-4) 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.qaFlags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  padding: 0 var(--space-16) var(--space-16);
+}
+
+.qaFlags span {
+  border: 1px solid rgba(94, 231, 255, 0.24);
+  border-radius: var(--radius-pill);
+  padding: 0.35rem 0.62rem;
+  color: var(--color-text-secondary);
+  background: rgba(94, 231, 255, 0.06);
+  font-size: 0.75rem;
+}
+
+.refineControls {
+  display: grid;
+  gap: var(--space-8);
+  padding: 0 var(--space-16) var(--space-12);
+}
+
+.refineControls label {
+  display: grid;
+  gap: var(--space-8);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 560px) {
+  .metaGrid {
+    grid-template-columns: 1fr;
+  }
+}
