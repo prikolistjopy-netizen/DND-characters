@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "diceborn-semantic-vnext-pilot-1",
+  "schemaVersion": "diceborn-vnext-0.1",
   "pilotScope": {
     "classes": ["fighter", "cleric", "warlock"],
     "species": ["human", "dwarf", "tiefling"],

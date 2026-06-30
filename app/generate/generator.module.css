@@ -429,3 +429,23 @@
     grid-template-columns: 1fr;
   }
 }
+
+.engineDiagnostic {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin-block-start: var(--space-4);
+}
+
+.engineDiagnostic span {
+  border: 1px solid rgba(94, 231, 255, 0.26);
+  border-radius: var(--radius-pill);
+  padding: 0.35rem 0.62rem;
+  color: var(--color-text-muted);
+  background: rgba(94, 231, 255, 0.07);
+  font-size: 0.76rem;
+}
+
+.engineDiagnostic strong {
+  color: var(--color-text-primary);
+}

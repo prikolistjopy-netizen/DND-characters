@@ -339,6 +339,13 @@ export function GeneratorWorkspace() {
                 <Tag variant={isVNext ? 'accent' : saved ? 'status' : 'standard'}>{isVNext ? 'Semantic vNext' : saved ? 'Saved' : 'Legacy'}</Tag>
                 <h2 id="result-title" className={styles.characterTitle}>{resultTitle}</h2>
                 <p className={styles.identityLine}>{vnextSeed ? `${titleCase(vnextSeed.identity.speciesId)} · ${titleCase(vnextSeed.identity.classId)} · ${titleCase(vnextSeed.identity.profession)}` : `${character!.race} · ${character!.primaryClass} · ${character!.archetype}`}</p>
+                {vnext ? (
+                  <div className={styles.engineDiagnostic} aria-label="Semantic vNext diagnostics">
+                    <span>Engine: <strong>Semantic vNext</strong></span>
+                    <span>Schema: <strong>{vnext.schemaVersion}</strong></span>
+                    <span>Seed: <strong>{vnext.semanticSeed.deterministicSeed}</strong></span>
+                  </div>
+                ) : null}
               </div>
 
               <ArtworkPlaceholder
