@@ -104,7 +104,12 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
   const state = { classId, speciesId, professionId: profession.id, powerSourceId: source.id, powerVisibility: visibility, professionToolSelected: true };
   const ruleResult = evaluateRules(state);
   const dailyHabit = pick(profession.habits, rng, 'life.dailyHabit', scoreTrace);
-  const tool = pick(profession.tools, rng, 'life.tool', scoreTrace);
+  const tool = pick(profession.tools, rng, 'life.tool', scoreTrace, (item) => {
+    if (profession.id !== 'courtier') return 0;
+    if (item === 'folded petition' || item === 'signet ribbon') return 45;
+    if (item === 'thin ceremonial blade') return -35;
+    return 0;
+  });
   const responsibility = pick(profession.responsibilities, rng, 'life.responsibility', scoreTrace);
   const sceneArchetypeId = pick(profession.sceneArchetypes, rng, 'currentMoment.sceneArchetype', scoreTrace);
   const sceneArchetype = vnextFacts.sceneArchetypes.find((item) => item.id === sceneArchetypeId) ?? vnextFacts.sceneArchetypes[0];
@@ -118,7 +123,7 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
   const sacredVsProfane = pick(vnextFacts.tensionTemplates.sacredProfane, rng, 'tension.sacredProfane', scoreTrace);
   const expectationVsBehavior = pick(vnextFacts.tensionTemplates.expectations, rng, 'tension.expectation', scoreTrace);
   const goal = pick(goals, rng, 'moment.goal', scoreTrace);
-  const obstacle = pick([...sceneArchetype.obstacles, ...obstacles], rng, 'moment.obstacle', scoreTrace);
+  const obstacle = pick([...sceneArchetype.obstacles, ...obstacles], rng, 'moment.obstacle', scoreTrace, (item) => profession.id === 'courtier' && item === 'locked threshold' ? 55 : 0);
   const risk = pick(risks, rng, 'moment.risk', scoreTrace);
   const pressure = pick(pressures, rng, 'moment.pressure', scoreTrace);
   const motionEnergy = pick(motionStates, rng, 'moment.motionEnergy', scoreTrace);
@@ -176,13 +181,13 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
       dependent: responsibility,
       risk,
       pressure,
-      hiddenPressure: socialTension,
-      targetOfAttention: responsibility,
+      hiddenPressure: profession.id === 'courtier' ? `${socialTension}; a sealed order in the witness hand marks the private threat` : socialTension,
+      targetOfAttention: profession.id === 'courtier' ? `${responsibility}, a witness, and the person harmed by the law` : responsibility,
       urgency: 'immediate but controlled',
       failurePoint: `${sceneArchetype.label} fails because the ${tool} or ${dailyHabit} gives way`,
       motionEnergy,
       narrativeIntent: `${scene}; the image should make ${roleContradiction} visible through ${sceneArchetype.gesture[0]} and ${dailyHabit}`,
-      visualConsequence: `${sceneArchetype.label} requires ${sceneArchetype.posture[0]}, ${sceneArchetype.gesture[0]}, and ${sceneArchetype.composition[0]}`,
+      visualConsequence: profession.id === 'courtier' ? 'courtier work requires a social gesture, witness relation, status material, and threshold composition' : `${sceneArchetype.label} requires ${sceneArchetype.posture[0]}, ${sceneArchetype.gesture[0]}, and ${sceneArchetype.composition[0]}`,
       consequenceOfFailure: `the ${responsibility} fails and the community pays the cost`,
     },
     power: {
@@ -210,7 +215,7 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
     visualIntent: {
       silhouettePrinciple: `${speciesFact.markers[0]} shaped by ${classFact.affordances[0]}`,
       primaryAnchor: scene,
-      secondaryAnchor: `${profession.label} handling of ${tool} while ${professionTension}`,
+      secondaryAnchor: profession.id === 'courtier' ? `${profession.label} controls the witness relation with ${tool} while a harmed petitioner waits at the locked threshold` : `${profession.label} handling of ${tool} while ${professionTension}`,
       focalHierarchy: sceneArchetype.focalOrder,
       detailBudget: 'controlled',
       mood: `${input.noveltyMode === 'strong' ? 'unusual but grounded' : 'restrained cinematic'} pressure shaped by ${roleContradiction}`,
@@ -219,7 +224,7 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
     scoreTrace,
     appliedRules: ruleResult.applied,
     rejectedCandidates: scoreTrace.filter((entry) => entry.rejected),
-    qaFlags: ruleResult.blockingErrors.length ? ruleResult.blockingErrors : ['hard-rules-passed', 'profession-influences-tool', 'deterministic-seed'],
+    qaFlags: ruleResult.blockingErrors.length ? ruleResult.blockingErrors : ['hard-rules-passed', 'profession-influences-tool', 'deterministic-seed', ...(profession.id === 'courtier' ? ['courtier-influences-social-gesture-witness-status-composition'] : [])],
   };
   return seed;
 }

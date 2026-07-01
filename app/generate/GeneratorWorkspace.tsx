@@ -121,11 +121,42 @@ function controlsToOptions(controls: ControlState): GenerationOptions {
 }
 
 function makeEphemeralSeed() {
-  return `diceborn-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
+  return `diceborn-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function controlsToVNextInput(controls: ControlState): VNextInput {
-  const rngSeed = controls.seed.trim() || makeEphemeralSeed();
+function hashText(value: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+function vnextFingerprint(result: VNextResult) {
+  const seed = result.semanticSeed;
+  return hashText(JSON.stringify({
+    selectedFactIds: seed.selectedFactIds,
+    classId: seed.identity.classId,
+    speciesId: seed.identity.speciesId,
+    professionId: seed.identity.professionId,
+    currentMoment: seed.currentMoment.currentAction,
+    prompt: result.prompt,
+  }));
+}
+
+function activeSeed(result: ActiveResult) {
+  return result.engine === 'vnext' ? result.vnext.semanticSeed.deterministicSeed : result.legacy.seedOutput;
+}
+
+function activeFingerprint(result: ActiveResult) {
+  return result.engine === 'vnext' ? vnextFingerprint(result.vnext) : hashText(result.legacy.imagePrompt);
+}
+
+function controlsToVNextInput(controls: ControlState, seedOverride?: string): VNextInput {
+  const trimmedSeed = controls.seed.trim();
+  const rngSeed = seedOverride ?? (trimmedSeed || makeEphemeralSeed());
   const input: VNextInput = {
     rngSeed,
     noveltyMode: controls.noveltyMode,
@@ -146,8 +177,8 @@ function controlsToVNextInput(controls: ControlState): VNextInput {
   return input;
 }
 
-function rollWithControls(controls: ControlState): ActiveResult {
-  if (controls.engine === 'vnext') return { engine: 'vnext', vnext: generateDicebornVNext(controlsToVNextInput(controls)) };
+function rollWithControls(controls: ControlState, seedOverride?: string): ActiveResult {
+  if (controls.engine === 'vnext') return { engine: 'vnext', vnext: generateDicebornVNext(controlsToVNextInput(controls, seedOverride)) };
   return { engine: 'legacy', legacy: generateCharacterSeed(controlsToOptions(controls)) };
 }
 
@@ -212,26 +243,58 @@ function saveVNextToCollection(result: VNextResult) {
 }
 
 export function GeneratorWorkspace() {
-  const initial = useMemo(() => rollWithControls(defaultControls), []);
+  const initial = useMemo(() => rollWithControls(defaultControls, defaultControls.seed), []);
   const [controls, setControls] = useState<ControlState>(defaultControls);
   const [generation, setGeneration] = useState<ActiveResult>(initial);
   const [status, setStatus] = useState('Semantic Core vNext result is ready.');
   const [isGenerating, setIsGenerating] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [generationCounter, setGenerationCounter] = useState(1);
+  const [previousSeed, setPreviousSeed] = useState('none');
+  const [generatedAt, setGeneratedAt] = useState(() => new Date().toISOString());
 
   function updateControl<K extends keyof ControlState>(key: K, value: ControlState[K]) {
     setControls((current) => ({ ...current, [key]: value }));
   }
 
-  function roll(nextControls = controls, message = 'Semantic Core vNext result is ready.') {
+  function commitGeneration(nextControls: ControlState, seed: string, message: string) {
     setIsGenerating(true);
     setSaved(false);
+    const lastSeed = activeSeed(generation);
+    const controlsWithSeed = { ...nextControls, seed };
+    setControls(controlsWithSeed);
     window.setTimeout(() => {
-      const next = rollWithControls(nextControls);
+      const next = rollWithControls(controlsWithSeed, seed);
+      setPreviousSeed(lastSeed);
       setGeneration(next);
+      setGenerationCounter((count) => count + 1);
+      setGeneratedAt(new Date().toISOString());
       setStatus(message);
       setIsGenerating(false);
     }, 280);
+  }
+
+  function rollCharacter(nextControls = controls) {
+    const nextSeed = nextControls.mode === 'random'
+      ? makeEphemeralSeed()
+      : nextControls.seed.trim() || makeEphemeralSeed();
+    commitGeneration(nextControls, nextSeed, nextControls.mode === 'random' ? 'New Semantic vNext character ready.' : 'Semantic vNext rebuilt from deterministic controls.');
+  }
+
+  function surpriseMe() {
+    const nextSeed = makeEphemeralSeed();
+    commitGeneration({ ...defaultControls, engine: 'vnext', stylePreset: controls.stylePreset, seed: nextSeed }, nextSeed, 'Semantic vNext surprise ready.');
+  }
+
+  function rollNewSeedWithCurrentLocks() {
+    const nextSeed = makeEphemeralSeed();
+    commitGeneration({ ...controls, engine: 'vnext', seed: nextSeed }, nextSeed, 'Semantic vNext variation ready.');
+  }
+
+  function rebuildSameSeedWithRefinements() {
+    const nextControls = { ...controls, engine: 'vnext' as const, mode: 'custom' as const };
+    const nextSeed = nextControls.seed.trim() || makeEphemeralSeed();
+    commitGeneration(nextControls, nextSeed, 'Semantic vNext regenerated with current seed and locks.');
   }
 
   async function copyPrompt() {
@@ -315,8 +378,8 @@ export function GeneratorWorkspace() {
           </details>
 
           <div className={styles.createActions}>
-            <Button loading={isGenerating} variant="primary" onClick={() => roll(controls)}>Roll Character</Button>
-            <Button variant="glass" onClick={() => roll({ ...defaultControls, engine: 'vnext', stylePreset: controls.stylePreset, seed: makeEphemeralSeed() }, 'Semantic vNext surprise ready.')}>Surprise Me</Button>
+            <Button loading={isGenerating} variant="primary" onClick={() => rollCharacter(controls)}>Roll Character</Button>
+            <Button variant="glass" onClick={surpriseMe}>Surprise Me</Button>
           </div>
           <p className={styles.helperText}>Semantic vNext uses deterministic seeds. Same seed plus same locks produces the same result.</p>
         </Panel>
@@ -338,6 +401,10 @@ export function GeneratorWorkspace() {
                     <span>Engine: <strong>Semantic vNext</strong></span>
                     <span>Schema: <strong>{vnext.schemaVersion}</strong></span>
                     <span>Seed: <strong>{vnext.semanticSeed.deterministicSeed}</strong></span>
+                    <span>Previous: <strong>{previousSeed}</strong></span>
+                    <span>Counter: <strong>{generationCounter}</strong></span>
+                    <span>Fingerprint: <strong>{activeFingerprint(generation)}</strong></span>
+                    <span>Generated: <strong>{generatedAt}</strong></span>
                   </div>
                 ) : null}
               </div>
@@ -400,7 +467,7 @@ export function GeneratorWorkspace() {
               <div className={styles.actionBar}>
                 <Button variant="primary" onClick={handleSave}>Save Character</Button>
                 <Button variant="secondary" onClick={copyPrompt}>Copy Prompt</Button>
-                <Button variant="ghost" onClick={() => roll(controls, isVNext ? 'Semantic vNext variation ready.' : 'Variation ready.')}>Roll Again</Button>
+                <Button variant="ghost" onClick={rollNewSeedWithCurrentLocks}>Roll Again</Button>
                 <Button variant="ghost" disabled>Share Later</Button>
               </div>
             </>
@@ -440,8 +507,8 @@ export function GeneratorWorkspace() {
             {controls.engine === 'vnext' ? <div className={styles.refineControls}><label>Visibility<select value={controls.powerVisibility} onChange={(event) => updateControl('powerVisibility', event.target.value as ControlState['powerVisibility'])}><option value="random">Resolved by vNext</option>{vnextSemanticFacts.pilotScope.powerVisibilityModes.map((option) => <option key={option} value={option}>{titleCase(option)}</option>)}</select></label></div> : <div className={styles.compactMeta}>{legacy!.seed.magicVisualLanguage.source} · {legacy!.seed.magicVisualLanguage.palette}</div>}
           </details>
 
-          <Button variant="secondary" onClick={() => roll({ ...controls, engine: 'vnext', mode: 'custom' }, 'Semantic vNext regenerated with locks.')}>Regenerate with Refinements</Button>
-          <p className={styles.tip}>Tip: set a Seed, switch to Custom, and lock class/species/profession to verify deterministic output.</p>
+          <Button variant="secondary" onClick={rebuildSameSeedWithRefinements}>Regenerate with Refinements</Button>
+          <p className={styles.tip}>Tip: Random rolls create a new seed. Custom + seed rebuilds the same character until a lock or seed changes.</p>
         </Panel>
       </div>
     </section>

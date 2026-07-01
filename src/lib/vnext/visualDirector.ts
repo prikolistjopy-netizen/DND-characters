@@ -23,7 +23,7 @@ function classEvidence(seed: SemanticSeed) {
   const byClass: Record<string, string> = {
     fighter: 'trained weight distribution and practical threat awareness',
     cleric: 'protective responsibility visible through action rather than a default prayer pose',
-    warlock: 'guarded asymmetry as pressure presses at the edge of attention',
+    warlock: 'guarded asymmetry; the free hand checks a private signal before power shows',
     rogue: 'exit awareness and quiet precision without generic assassin styling',
     ranger: 'terrain-aware stance and distance control shaped by the scene',
     paladin: 'interposing body language that reads as oath under public pressure',
@@ -39,6 +39,7 @@ function classEvidence(seed: SemanticSeed) {
 }
 
 function powerManifestation(seed: SemanticSeed) {
+  if (seed.identity.professionId === 'courtier' && seed.power.visibility === 'shadow') return 'one weak shadow echo beside the negotiating hand, kept below the level of face and status object';
   if (seed.power.visibility === 'none') return 'no visible magic; class evidence stays in training, duty, and action';
   if (seed.power.visibility === 'shadow') return 'one restrained shadow echo near the working hand, not a patron apparition';
   if (seed.power.visibility === 'object') return `a low contained response in the ${seed.life.personalObject}`;
@@ -51,6 +52,11 @@ function powerManifestation(seed: SemanticSeed) {
   if (seed.power.visibility === 'partial') return 'a partial manifestation kept secondary and tied to the obstacle';
   if (seed.power.visibility === 'full_apparition') return 'rare distant apparition kept behind the action and never dominating the face';
   return `${seed.power.visibility} power expressed through behavior and focal detail`;
+}
+
+function courtierGesture(seed: SemanticSeed) {
+  if (seed.identity.professionId !== 'courtier') return '';
+  return 'the blade stays ceremonial and lowered; the visible hand manages witnesses, the threshold, and the exchange with the signet or petition';
 }
 
 function paletteRoles(seed: SemanticSeed) {
@@ -78,13 +84,13 @@ export function directVisual(seed: SemanticSeed, graph: SituationGraph): VisualD
       silhouette: seed.visualIntent.silhouettePrinciple,
       proportions: speciesProportions(seed.identity.speciesId),
       posture: `${classEvidence(seed)}; ${seed.currentMoment.visualConsequence}; energy state is ${seed.currentMoment.motionEnergy}`,
-      gesture: `hands use ${seed.life.personalObject} with ${seed.life.learnedSkill}; ${seed.currentMoment.sceneArchetype} shapes the gesture, revealing ${seed.tension.professionClassFriction}`,
+      gesture: courtierGesture(seed) || `hands use ${seed.life.personalObject} with ${seed.life.learnedSkill}; ${seed.currentMoment.sceneArchetype} shapes the gesture, revealing ${seed.tension.professionClassFriction}`,
       gaze: `attention fixed on ${seed.currentMoment.targetOfAttention} while aware of ${seed.currentMoment.hiddenPressure}`,
-      expression: `${seed.psychology.emotionalRestraint}, showing ${seed.psychology.value} against ${seed.tension.innerConflict}`,
+      expression: `${seed.psychology.emotionalRestraint}; eyes track ${seed.currentMoment.targetOfAttention} while the mouth stays controlled around ${seed.currentMoment.risk}`,
     },
     life: {
       clothing: `practical ${seed.world.culture} clothing adapted for a ${seed.identity.profession}`,
-      materials: `${seed.life.materialHistory}, ${seed.world.architecture}, and restrained cloth or leather masses`,
+      materials: seed.identity.professionId === 'courtier' ? `${seed.life.materialHistory}, formal cloth at the cuffs, a status fastener, ${seed.world.architecture}` : `${seed.life.materialHistory}, ${seed.world.architecture}, and restrained cloth or leather masses`,
       primaryTool: seed.life.personalObject,
       handling: `${seed.life.dailyHabit}; no decorative duplicate tools`,
       personalObject: seed.life.personalObject,
@@ -106,13 +112,13 @@ export function directVisual(seed: SemanticSeed, graph: SituationGraph): VisualD
       environment: seed.world.environment,
       activeObstacle: seed.currentMoment.obstacle,
       subjectOfAction: seed.currentMoment.targetOfAttention,
-      spatialRelation: `character, ${seed.life.personalObject}, ${seed.currentMoment.obstacle}, and dependent are arranged in one readable triangle`,
+      spatialRelation: seed.identity.professionId === 'courtier' ? `character, witness, harmed petitioner, ${seed.currentMoment.obstacle}, and status object are arranged across a visible threshold` : `character, ${seed.life.personalObject}, ${seed.currentMoment.obstacle}, and dependent are arranged in one readable triangle`,
       currentMoment: seed.currentMoment.currentAction,
       narrativeIntent: seed.currentMoment.narrativeIntent,
       stakes: seed.currentMoment.stakes,
     },
     artDirection: {
-      composition: `${seed.visualIntent.compositionIntent}; frame the ${seed.currentMoment.sceneArchetype} failure point (${seed.currentMoment.failurePoint}) without adding extra props`,
+      composition: seed.identity.professionId === 'courtier' ? `threshold composition with the witness relation visible; frame the harmed petitioner, locked passage, and lowered ceremonial object without extra props` : `${seed.visualIntent.compositionIntent}; frame the ${seed.currentMoment.sceneArchetype} failure point (${seed.currentMoment.failurePoint}) without adding extra props`,
       camera: 'front or side three-quarter camera with readable face and hands',
       lighting: `localized ${seed.world.weather} light with one focal accent and clean material planes`,
       paletteRoles: paletteRoles(seed),
