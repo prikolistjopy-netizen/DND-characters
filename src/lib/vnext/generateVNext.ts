@@ -41,9 +41,8 @@ function runQa(result: Omit<VNextResult, 'qa'>): VNextQaReport {
   if (!visual.embodiment.gesture.includes(result.semanticSeed.life.personalObject)) blockingErrors.push('profession tool influence missing');
   if (visual.power.patronVisibility && result.semanticSeed.power.visibility !== 'full_apparition') blockingErrors.push('patron visibility leak');
   if (result.semanticSeed.power.visibility === 'latent' && /aura|halo|full apparition|floating rune/i.test(result.prompt)) blockingErrors.push('latent power leakage');
-  if (prompt.wordCount > (result.semanticSeed.schemaVersion ? 320 : 250)) blockingErrors.push('prompt too long');
-  const blockingLintWarnings = prompt.lintWarnings.filter((warning) => !['duplicated phrase risk', 'too many while clauses', 'abstract modifier repetition'].includes(warning));
-  if (blockingLintWarnings.length) blockingErrors.push(...blockingLintWarnings);
+  if (prompt.wordCount > 270) blockingErrors.push('prompt too long');
+  if (prompt.lintWarnings.length) blockingErrors.push(...prompt.lintWarnings);
   if (/white-gold cleric|purple warlock|red tiefling/i.test(result.prompt)) blockingErrors.push('class-color stereotype phrase');
 
   return {
