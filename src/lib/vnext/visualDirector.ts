@@ -87,22 +87,54 @@ function choosePrimaryTool(seed: SemanticSeed, plan: SemanticDirectorPlan) {
 }
 
 function chooseEnvironment(seed: SemanticSeed, plan: SemanticDirectorPlan) {
-  return plan.professionBudget.environmentControlAllowed ? seed.world.environment : classEnvironment(seed);
+  if (!plan.professionBudget.environmentControlAllowed) return classEnvironment(seed);
+  const strategyEnvironments: Record<string, string[]> = {
+    direct_action: [seed.world.environment, classEnvironment(seed), 'workroom edge'],
+    interrupted_action: [seed.world.environment, classEnvironment(seed), 'rain-dark doorway'],
+    aftermath: [seed.world.environment, classEnvironment(seed), 'quiet courtyard at the edge of conflict'],
+    anticipation: [seed.world.environment, classEnvironment(seed), 'sealed civic threshold'],
+    social_exchange: [seed.world.environment, classEnvironment(seed), 'market threshold'],
+    hidden_observation: [seed.world.environment, classEnvironment(seed), 'service passage with watched exits'],
+    protective_interposition: [seed.world.environment, classEnvironment(seed), 'narrow breach between danger and shelter'],
+    object_examination: [seed.world.environment, classEnvironment(seed), 'archive worktable under failing evidence'],
+    spatial_blockage: [seed.world.environment, classEnvironment(seed), 'sealed civic threshold'],
+    movement_through_space: [seed.world.environment, classEnvironment(seed), 'broken trail line near unsafe ground'],
+    public_role: [seed.world.environment, classEnvironment(seed), 'public steps before a judging crowd'],
+    private_decision: [seed.world.environment, classEnvironment(seed), 'community room under moral pressure'],
+  };
+  return hashChoice([seed.deterministicSeed, seed.identity.professionId, plan.sceneStrategy, plan.conflictCarrier], strategyEnvironments[plan.sceneStrategy] ?? [seed.world.environment, classEnvironment(seed)]);
+}
+
+function hashChoice(parts: string[], options: string[]) {
+  let hash = 2166136261;
+  for (const part of parts.join(':')) {
+    hash ^= part.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return options[(hash >>> 0) % options.length];
 }
 
 function chooseComposition(seed: SemanticSeed, plan: SemanticDirectorPlan) {
   if (plan.professionBudget.compositionControlAllowed && seed.identity.professionId === 'courtier') return 'threshold composition around official, witness, dependent, and status object';
-  const byAnchor: Record<string, string> = {
-    forbidden_power: 'offset composition with the power cue kept beside the working hand',
-    social_duty: 'character-between-community-and-threat composition',
-    personal_contradiction: 'diagonal composition between chosen duty and feared consequence',
-    class_conflict: 'tool-led composition that reveals trained behavior',
-    current_danger: 'compressed composition around obstacle, subject, and exit',
-    relationship: 'close relational composition with the dependent protected by body angle',
-    profession: seed.visualIntent.compositionIntent,
-    species_presence: 'full-body composition with silhouette and scale cues clear',
+  const strategyCompositions: Record<string, string[]> = {
+    direct_action: ['tool-led forward frame', 'close action triangle', 'frontal working plane'],
+    interrupted_action: ['broken diagonal with halted motion', 'offset pause before action', 'compressed interruption frame'],
+    aftermath: ['low recovery composition', 'scattered aftermath plane', 'quiet rear three-quarter aftermath'],
+    anticipation: ['threshold anticipation frame', 'held-breath centered frame', 'wide gap before movement'],
+    social_exchange: ['opposing witness line', 'triangular exchange composition', 'side-on negotiation frame'],
+    hidden_observation: ['partial occlusion frame', 'over-shoulder watch line', 'shadowed side composition'],
+    protective_interposition: ['character-between-community-and-threat composition', 'shielding body diagonal', 'subject-behind-shoulder frame'],
+    object_examination: ['object-centered inspection frame', 'hands-to-obstacle close frame', 'evidence table composition'],
+    spatial_blockage: ['visible blocked-threshold frame', 'barrier across midground', 'narrow gap composition'],
+    movement_through_space: ['diagonal route composition', 'receding path frame', 'crossing-line composition'],
+    public_role: ['public semicircle composition', 'raised witness-line frame', 'formal frontality under pressure'],
+    private_decision: ['tight inward frame', 'off-center private choice', 'small negative-space composition'],
   };
-  return byAnchor[plan.dominantNarrativeAnchor] ?? seed.visualIntent.compositionIntent;
+  const carrierModifier: Record<string, string> = {
+    body: 'body-led', relationship: 'relational', object: 'object-led', environment: 'environment-framed', institution: 'institutional', time_pressure: 'time-pressed', public_judgment: 'witnessed', physical_obstacle: 'barrier-led', internal_hesitation: 'held-motion',
+  };
+  const base = hashChoice([seed.deterministicSeed, plan.dominantNarrativeAnchor, plan.anchorInterpretation, plan.conflictCarrier], strategyCompositions[plan.sceneStrategy] ?? [seed.visualIntent.compositionIntent]);
+  return `${carrierModifier[plan.conflictCarrier]} ${base}`;
 }
 
 export function directVisual(seed: SemanticSeed, graph: SituationGraph, semanticPlan = directSemantic(seed)): VisualDirection {
@@ -118,16 +150,16 @@ export function directVisual(seed: SemanticSeed, graph: SituationGraph, semantic
   return {
     anchors: {
       primary: semanticPlan.dominantNarrativeAnchor,
-      primaryReason: `Priority plan makes ${semanticPlan.dominantNarrativeAnchor} the main image driver: ${primaryEdge}.`,
+      primaryReason: `Priority plan makes ${semanticPlan.dominantNarrativeAnchor}/${semanticPlan.anchorInterpretation} the main image driver: ${primaryEdge}.`,
       secondary: semanticPlan.supportingNarrativeAnchor,
       secondaryReason: `Supporting anchor keeps class and situation ahead of profession unless profession salience is dominant.`,
     },
     embodiment: {
       silhouette: `${speciesProportions(seed.identity.speciesId)} shaped by ${evidence.physical}`,
       proportions: speciesProportions(seed.identity.speciesId),
-      posture: `${evidence.physical}; ${seed.currentMoment.motionEnergy}; ${seed.currentMoment.obstacle} controls body angle`,
-      gesture: `${evidence.behavioral}; the working hand uses ${primaryTool}${professionDetail}`,
-      gaze: `attention fixed on ${seed.currentMoment.targetOfAttention} while tracking ${seed.currentMoment.hiddenPressure}`,
+      posture: `${evidence.physical}; ${semanticPlan.actionTiming}; ${semanticPlan.conflictCarrier} changes body angle around ${seed.currentMoment.obstacle}`,
+      gesture: `${evidence.behavioral}; ${semanticPlan.anchorInterpretation} is carried through ${semanticPlan.conflictCarrier}; the working hand uses ${primaryTool}${professionDetail}`,
+      gaze: `attention follows ${semanticPlan.subjectRole} while checking ${semanticPlan.obstacleRole} and ${semanticPlan.conflictCarrier}`,
       expression: `${seed.psychology.emotionalRestraint}; ${evidence.social}`,
     },
     life: {
@@ -154,7 +186,7 @@ export function directVisual(seed: SemanticSeed, graph: SituationGraph, semantic
       environment,
       activeObstacle: seed.currentMoment.obstacle,
       subjectOfAction: seed.currentMoment.targetOfAttention,
-      spatialRelation: `character, dependent, ${seed.currentMoment.obstacle}, and ${primaryTool} form one readable cause-and-effect arrangement`,
+      spatialRelation: `${semanticPlan.sceneStrategy} places character, ${semanticPlan.subjectRole}, ${seed.currentMoment.obstacle}, and ${primaryTool} in one cause-and-effect arrangement`,
       currentMoment: seed.currentMoment.currentAction,
       narrativeIntent: seed.currentMoment.narrativeIntent,
       stakes: seed.currentMoment.stakes,
@@ -164,7 +196,7 @@ export function directVisual(seed: SemanticSeed, graph: SituationGraph, semantic
       camera: seed.identity.speciesId === 'halfling' || seed.identity.speciesId === 'gnome' ? 'slightly lowered three-quarter camera with readable adult scale' : 'front or side three-quarter camera with readable face and hands',
       lighting: `scene-specific ${seed.world.weather} light catches face, working hand, and obstacle without class-color coding`,
       paletteRoles: [`environment:${environment}`, `material:${seed.life.materialHistory}`, `species morphology:${seed.identity.speciesId}`, `power cue:${seed.power.visibility}`, `pressure:${seed.currentMoment.hiddenPressure}`],
-      focalOrder: [semanticPlan.dominantNarrativeAnchor, semanticPlan.supportingNarrativeAnchor, primaryTool, seed.currentMoment.obstacle],
+      focalOrder: [semanticPlan.dominantNarrativeAnchor, semanticPlan.anchorInterpretation, semanticPlan.sceneStrategy, semanticPlan.supportingNarrativeAnchor, primaryTool, seed.currentMoment.obstacle],
       detailBudget: seed.visualIntent.detailBudget,
       negativeConstraints: ['no duplicate props', 'no belt clutter', 'no class-color stereotype', 'no visible patron unless selected', 'environment secondary', 'no text or logos'],
     },

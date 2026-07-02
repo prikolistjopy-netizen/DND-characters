@@ -24,7 +24,8 @@
     "validate-vnext-all": "node scripts/validate-vnext-all.cjs",
     "visual-vnext-analysis": "node scripts/visual-vnext-repetition-analysis.cjs",
     "runtime-vnext-generation-check": "node scripts/runtime-vnext-generation-check.cjs",
-    "semantic-seed-intelligence-analysis": "node scripts/semantic-seed-intelligence-analysis.cjs"
+    "semantic-seed-intelligence-analysis": "node scripts/semantic-seed-intelligence-analysis.cjs",
+    "semantic-anchor-diversity-analysis": "node scripts/semantic-anchor-diversity-analysis.cjs"
   },
   "dependencies": {
     "react": "18.3.1",

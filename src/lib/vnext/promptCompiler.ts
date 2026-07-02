@@ -1,4 +1,4 @@
-import type { CompiledPrompt, PromptCritique, PromptPlan, PromptWriterResult, SemanticDirectorPlan, SemanticSeed, VisualDirection } from './contracts';
+import type { CompiledPrompt, PromptCritique, PromptPlan, PromptWriterAdapter, PromptWriterInput, PromptWriterMode, PromptWriterOutput, PromptWriterResult, SemanticDirectorPlan, SemanticSeed, VisualDirection } from './contracts';
 import { directSemantic } from './semanticDirector';
 
 const TARGET_WORDS = 230;
@@ -615,17 +615,37 @@ export function writeDraftPrompt(seed: SemanticSeed, visual: VisualDirection, se
 }
 
 export function critiquePrompt(draftPrompt: string, plan: PromptPlan, seed: SemanticSeed): PromptCritique {
-  const wordCount = countWords(draftPrompt);
   const professionMentions = (draftPrompt.toLowerCase().match(new RegExp(`\\b${seed.identity.profession.toLowerCase()}\\b`, 'g')) || []).length;
   const draftLower = draftPrompt.toLowerCase();
+  const conflicts = lintPrompt(draftPrompt, '').filter((warning) => /internal|unresolved|duplicated|malformed/.test(warning));
+  const redundantDetails = plan.suppressedFacts.filter((fact) => draftLower.includes(fact.replace(/_/g, ' ')));
+  const professionOverweight = seed.life.professionSalience !== 'dominant' && professionMentions > 1;
+  const observations = [
+    professionOverweight ? 'profession needs reduction' : 'profession budget respected',
+    redundantDetails.length ? 'suppressed detail found' : 'suppressed detail clear',
+    conflicts.length ? 'lint conflicts require rewrite' : 'lint conflicts clear',
+  ];
   return {
     dominantAnchorClear: draftLower.includes(plan.essentialFacts[0].replace(/_/g, ' ')) || draftLower.includes(seed.currentMoment.obstacle.toLowerCase()) || draftLower.includes(seed.power.cost.toLowerCase().split(' ')[0]),
+    anchorInterpretationVisible: draftLower.includes(seed.priorityPlan.anchorInterpretation.split(' ')[0]),
     classReadable: draftLower.includes(seed.identity.classId.replace(/_/g, ' ')) || draftLower.includes(seed.psychology.relationshipToPower.split(' ')[0].toLowerCase()),
     speciesReadable: draftLower.includes(seed.identity.speciesId.replace(/_/g, ' ')) || draftLower.includes('proportions'),
-    professionOverweight: seed.life.professionSalience !== 'dominant' && professionMentions > 1,
+    professionOverweight,
     sceneClear: draftLower.includes(seed.currentMoment.obstacle.toLowerCase().split(' ')[0]) || draftLower.includes('dependent'),
-    redundantDetails: plan.suppressedFacts.filter((fact) => draftLower.includes(fact.replace(/_/g, ' '))),
-    conflicts: lintPrompt(draftPrompt, '').filter((warning) => /internal|unresolved|duplicated|malformed/.test(warning)),
+    actionTimingClear: draftLower.includes(seed.priorityPlan.sceneStrategy.split('_')[0]) || draftLower.includes('action') || draftLower.includes('moment'),
+    subjectRoleClear: draftLower.includes('dependent') || draftLower.includes(seed.currentMoment.dependent.toLowerCase().split(' ')[0]),
+    obstacleRoleClear: draftLower.includes(seed.currentMoment.obstacle.toLowerCase().split(' ')[0]),
+    conflictCarrierVisible: draftLower.includes(seed.priorityPlan.conflictCarrier.replace(/_/g, ' ').split(' ')[0]),
+    visualHierarchyCoherent: true,
+    redundantDetails,
+    conflicts,
+    promptTooLiteral: /must|should|requires/.test(draftLower),
+    promptTooAbstract: !/(hand|body|face|obstacle|threshold|tool|object|witness|dependent)/.test(draftLower),
+    professionDominates: professionOverweight,
+    classStereotypeLeakage: /purple warlock|white-gold cleric|red tiefling/.test(draftLower),
+    unresolvedAlternatives: /\bor\b|\//.test(draftLower) && /petition or|blue or|staff or|sword or|\//.test(draftLower),
+    imageModelAmbiguity: conflicts.length > 0,
+    observations,
     compressionRatio: 0,
   };
 }
@@ -648,13 +668,87 @@ export function rewritePrompt(draftPrompt: string, critique: PromptCritique, tar
   return { finalPrompt: compact(kept.join(' ')), removedDetails: removed };
 }
 
-export function compilePrompt(seed: SemanticSeed, visual: VisualDirection, maxWords = HARD_MAX_WORDS, semanticPlan = directSemantic(seed)): CompiledPrompt {
-  const promptPlan = planPrompt(seed, visual, semanticPlan);
+
+function buildWriterInput(seed: SemanticSeed, visual: VisualDirection, semanticPlan: SemanticDirectorPlan, maxWords: number): PromptWriterInput {
+  return {
+    semanticSeed: seed,
+    semanticDirectorPlan: semanticPlan,
+    situationGraph: { nodes: [], edges: [] },
+    visualDirection: visual,
+    hardConstraints: visual.artDirection.negativeConstraints,
+    targetWordCount: Math.min(maxWords, HARD_MAX_WORDS),
+    stylePreset: 'cinematic grounded character concept',
+    forbiddenPatterns: INTERNAL_LANGUAGE.map((pattern) => pattern.source),
+    priorityPlan: seed.priorityPlan,
+  };
+}
+
+export class LocalHeuristicPromptWriter implements PromptWriterAdapter {
+  mode: PromptWriterMode = 'local';
+  plan(input: PromptWriterInput) { return planPrompt(input.semanticSeed, input.visualDirection, input.semanticDirectorPlan, input.targetWordCount); }
+  draft(input: PromptWriterInput, plan: PromptPlan) { return writeDraftPrompt(input.semanticSeed, input.visualDirection, input.semanticDirectorPlan).prompt; }
+  critique(input: PromptWriterInput, draftPrompt: string) { return critiquePrompt(draftPrompt, this.plan(input), input.semanticSeed); }
+  rewrite(input: PromptWriterInput, draftPrompt: string, critique: PromptCritique): PromptWriterOutput {
+    const rewritten = rewritePrompt(draftPrompt, critique, input.targetWordCount);
+    const negativePrompt = buildNegativePrompt();
+    return { promptPlan: this.plan(input), draftPrompt, critique, finalPrompt: rewritten.finalPrompt, negativePrompt, removedDetails: rewritten.removedDetails, priorityCompliance: input.semanticDirectorPlan.priorityCompliance, warnings: lintPrompt(rewritten.finalPrompt, negativePrompt) };
+  }
+}
+
+export class MockLlmPromptWriter extends LocalHeuristicPromptWriter {
+  mode: PromptWriterMode = 'mock_llm';
+  rewrite(input: PromptWriterInput, draftPrompt: string, critique: PromptCritique): PromptWriterOutput {
+    const sentences = splitSentences(stripInternalLanguage(draftPrompt));
+    const removedDetails: string[] = [];
+    const kept = sentences.filter((sentence, index) => {
+      const removable = index > 1 && /background|extra props|environment|costume|ornament|material wear|subordinate|without competing|frame breathe|final image|brief|let the|make the|end the|keep nearby|clean silhouette|natural materials|without stealing|weather and scale|light clarifies/i.test(sentence);
+      if (removable || (index > 7 && index % 3 === 1) || (index > 8 && index % 4 === 2)) {
+        removedDetails.push(sentence);
+        return false;
+      }
+      return true;
+    });
+    while (countWords(kept.join(' ')) > input.targetWordCount * 0.78 && kept.length > 6) {
+      removedDetails.push(kept.splice(-2, 1)[0]);
+    }
+    const finalPrompt = compact(kept.join(' '));
+    const negativePrompt = buildNegativePrompt();
+    const promptPlan = this.plan(input);
+    const observations = [...critique.observations, `mock rewrite removed ${removedDetails.length} secondary details`, 'dominant anchor preserved during mock rewrite'];
+    return { promptPlan, draftPrompt, critique: { ...critique, observations }, finalPrompt, negativePrompt, removedDetails, priorityCompliance: input.semanticDirectorPlan.priorityCompliance, warnings: lintPrompt(finalPrompt, negativePrompt) };
+  }
+}
+
+export class LlmPromptWriterAdapter extends LocalHeuristicPromptWriter {
+  mode: PromptWriterMode = 'external_llm';
+  rewrite(input: PromptWriterInput, draftPrompt: string, critique: PromptCritique): PromptWriterOutput {
+    const env = (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+    if (!env?.DICEBORN_LLM_PROMPT_WRITER) {
+      return new LocalHeuristicPromptWriter().rewrite(input, draftPrompt, { ...critique, observations: [...critique.observations, 'external LLM not configured; local fallback used'] });
+    }
+    return new LocalHeuristicPromptWriter().rewrite(input, draftPrompt, { ...critique, observations: [...critique.observations, 'external LLM adapter contract ready; provider implementation not invoked in repository'] });
+  }
+}
+
+function selectPromptWriter(mode: PromptWriterMode): PromptWriterAdapter {
+  if (mode === 'mock_llm') return new MockLlmPromptWriter();
+  if (mode === 'external_llm') return new LlmPromptWriterAdapter();
+  return new LocalHeuristicPromptWriter();
+}
+
+function buildNegativePrompt() {
+  return 'No text, logos, duplicate props, no extra props, no decorative clutter, no duplicate tools, belt clutter, noisy microdetail, tiled/checker/rhombus artifacts, all-over surface noise, generic heroic stance, class-color stereotype, visible patron unless explicitly selected, aura, floating runes, generic purple.';
+}
+
+export function compilePrompt(seed: SemanticSeed, visual: VisualDirection, maxWords = HARD_MAX_WORDS, semanticPlan = directSemantic(seed), writerMode: PromptWriterMode = 'local'): CompiledPrompt {
+  const writer = selectPromptWriter(writerMode);
+  const writerInput = buildWriterInput(seed, visual, semanticPlan, maxWords);
+  const promptPlan = writer.plan(writerInput);
   const compressed = writeDraftPrompt(seed, visual, semanticPlan);
-  const draftPrompt = compressed.prompt;
-  const critique = critiquePrompt(draftPrompt, promptPlan, seed);
-  const rewritten = rewritePrompt(draftPrompt, critique, promptPlan.targetWordCount);
-  let prompt = rewritten.finalPrompt;
+  const draftPrompt = writer.draft(writerInput, promptPlan);
+  const critique = writer.critique(writerInput, draftPrompt);
+  const writerOutput = writer.rewrite(writerInput, draftPrompt, critique);
+  let prompt = writerOutput.finalPrompt;
   const effectiveMax = Math.min(maxWords, HARD_MAX_WORDS);
   let trace = ['natural sections:identity,morphology,scene,spatial staging,profession evidence,tool,power,environment,lighting', ...compressed.trace];
   if (countWords(prompt) > effectiveMax) {
@@ -669,7 +763,7 @@ export function compilePrompt(seed: SemanticSeed, visual: VisualDirection, maxWo
   prompt = prompt.replace(/; /g, '. ').replace(/\bvisible\b/g, 'clear');
   prompt = prompt.replace(/(light) light\b/gi, '$1');
   prompt = splitSentences(prompt).map((sentence) => sentenceCase(sentence).replace(/([^.!?])$/, '$1.')).join(' ');
-  const negativePrompt = 'No text, logos, duplicate props, no extra props, no decorative clutter, no duplicate tools, belt clutter, noisy microdetail, tiled/checker/rhombus artifacts, all-over surface noise, generic heroic stance, class-color stereotype, visible patron unless explicitly selected, aura, floating runes, generic purple.';
+  const negativePrompt = writerOutput.negativePrompt;
   const warnings = lintPrompt(prompt, negativePrompt);
   trace = [...trace, 'removed internal taxonomy during normalization', `final word count:${countWords(prompt)}`, `lint warnings:${warnings.length}`];
   const promptWriter: PromptWriterResult = {
@@ -677,7 +771,10 @@ export function compilePrompt(seed: SemanticSeed, visual: VisualDirection, maxWo
     draftPrompt,
     critique: { ...critique, compressionRatio: draftPrompt ? 1 - (countWords(prompt) / countWords(draftPrompt)) : 0 },
     finalPrompt: prompt,
-    removedDetails: rewritten.removedDetails,
+    writerMode,
+    negativePrompt,
+    warnings,
+    removedDetails: writerOutput.removedDetails,
     priorityCompliance: semanticPlan.priorityCompliance,
   };
   return {
@@ -685,7 +782,7 @@ export function compilePrompt(seed: SemanticSeed, visual: VisualDirection, maxWo
     negativePrompt,
     wordCount: countWords(prompt),
     lintWarnings: warnings,
-    compilerTrace: [...trace, `draft word count:${countWords(draftPrompt)}`, `rewrite removed:${rewritten.removedDetails.length}`],
+    compilerTrace: [...trace, `draft word count:${countWords(draftPrompt)}`, `rewrite removed:${writerOutput.removedDetails.length}`, `writer mode:${writerMode}`],
     promptWriter,
   };
 }

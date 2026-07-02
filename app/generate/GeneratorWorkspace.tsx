@@ -27,7 +27,7 @@ import styles from './generator.module.css';
 type Mode = 'random' | 'custom';
 type EngineMode = 'legacy' | 'vnext';
 type ActiveResult = { engine: 'legacy'; legacy: GenerationResult } | { engine: 'vnext'; vnext: VNextResult };
-type SessionHistory = { lastProfessions: string[]; lastProfessionSalience: Array<VNextResult['semanticSeed']['life']['professionSalience']>; lastSceneArchetypes: string[]; lastEnvironments: string[]; lastDominantAnchors: Array<VNextResult['semanticDirectorPlan']['dominantNarrativeAnchor']>; lastCompositions: string[]; lastTools: string[] };
+type SessionHistory = { lastProfessions: string[]; lastProfessionSalience: Array<VNextResult['semanticSeed']['life']['professionSalience']>; lastSceneArchetypes: string[]; lastEnvironments: string[]; lastDominantAnchors: Array<VNextResult['semanticDirectorPlan']['dominantNarrativeAnchor']>; lastCompositions: string[]; lastAnchorInterpretations: string[]; lastSceneStrategies: Array<VNextResult['semanticDirectorPlan']['sceneStrategy']>; lastConflictCarriers: Array<VNextResult['semanticDirectorPlan']['conflictCarrier']>; lastTools: string[] };
 
 type ControlState = {
   engine: EngineMode;
@@ -257,7 +257,7 @@ export function GeneratorWorkspace() {
   const [generationCounter, setGenerationCounter] = useState(1);
   const [previousSeed, setPreviousSeed] = useState('none');
   const [generatedAt, setGeneratedAt] = useState(() => new Date().toISOString());
-  const [sessionHistory, setSessionHistory] = useState<SessionHistory>({ lastProfessions: [], lastProfessionSalience: [], lastSceneArchetypes: [], lastEnvironments: [], lastDominantAnchors: [], lastCompositions: [], lastTools: [] });
+  const [sessionHistory, setSessionHistory] = useState<SessionHistory>({ lastProfessions: [], lastProfessionSalience: [], lastSceneArchetypes: [], lastEnvironments: [], lastDominantAnchors: [], lastCompositions: [], lastAnchorInterpretations: [], lastSceneStrategies: [], lastConflictCarriers: [], lastTools: [] });
 
   function updateControl<K extends keyof ControlState>(key: K, value: ControlState[K]) {
     setControls((current) => ({ ...current, [key]: value }));
@@ -281,6 +281,9 @@ export function GeneratorWorkspace() {
           lastEnvironments: [...history.lastEnvironments, next.vnext.visualDirection.scene.environment].slice(-16),
           lastDominantAnchors: [...history.lastDominantAnchors, next.vnext.semanticDirectorPlan.dominantNarrativeAnchor].slice(-16),
           lastCompositions: [...history.lastCompositions, next.vnext.visualDirection.artDirection.composition].slice(-16),
+          lastAnchorInterpretations: [...history.lastAnchorInterpretations, next.vnext.semanticDirectorPlan.anchorInterpretation].slice(-16),
+          lastSceneStrategies: [...history.lastSceneStrategies, next.vnext.semanticDirectorPlan.sceneStrategy].slice(-16),
+          lastConflictCarriers: [...history.lastConflictCarriers, next.vnext.semanticDirectorPlan.conflictCarrier].slice(-16),
           lastTools: [...history.lastTools, next.vnext.visualDirection.life.primaryTool].slice(-16),
         }));
       }
@@ -426,11 +429,17 @@ export function GeneratorWorkspace() {
                       <>
                         <span>Dominant: <strong>{vnext.semanticDirectorPlan.dominantNarrativeAnchor}</strong></span>
                         <span>Supporting: <strong>{vnext.semanticDirectorPlan.supportingNarrativeAnchor}</strong></span>
+                        <span>Interpretation: <strong>{vnext.semanticDirectorPlan.anchorInterpretation}</strong></span>
+                        <span>Scene strategy: <strong>{vnext.semanticDirectorPlan.sceneStrategy}</strong></span>
+                        <span>Conflict carrier: <strong>{vnext.semanticDirectorPlan.conflictCarrier}</strong></span>
                         <span>Profession salience: <strong>{vnext.semanticSeed.life.professionSalience}</strong></span>
                         <span>Affinity: <strong>{vnext.semanticSeed.life.professionAffinity}</strong></span>
                         <span>Budget: <strong>{vnext.semanticDirectorPlan.professionBudget.maxVisualChannels}</strong></span>
                         <span>Class evidence: <strong>{vnext.semanticDirectorPlan.classEvidencePlan.channels.join(', ')}</strong></span>
+                        <span>Writer: <strong>{vnext.compiledPrompt.promptWriter?.writerMode ?? 'local'}</strong></span>
                         <span>Draft/final: <strong>{vnext.compiledPrompt.promptWriter ? `${vnext.compiledPrompt.promptWriter.draftPrompt.split(/\s+/).filter(Boolean).length}/${vnext.compiledPrompt.wordCount}` : 'n/a'}</strong></span>
+                        <span>Removed: <strong>{vnext.compiledPrompt.promptWriter?.removedDetails.length ?? 0}</strong></span>
+                        <span>Critique: <strong>{vnext.compiledPrompt.promptWriter?.critique.observations?.slice(0, 2).join('; ') ?? 'n/a'}</strong></span>
                       </>
                     ) : null}
                   </div>

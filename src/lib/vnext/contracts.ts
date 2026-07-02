@@ -7,6 +7,9 @@ export type NoveltyMode = 'off' | 'soft' | 'strong';
 export type ProfessionSalience = 'background' | 'trace' | 'secondary' | 'strong' | 'dominant';
 export type ProfessionAffinity = 'high' | 'medium' | 'low' | 'rare_contrast';
 export type SemanticAnchor = 'class_conflict' | 'personal_contradiction' | 'current_danger' | 'relationship' | 'social_duty' | 'forbidden_power' | 'profession' | 'species_presence';
+export type SceneStrategy = 'direct_action' | 'interrupted_action' | 'aftermath' | 'anticipation' | 'social_exchange' | 'hidden_observation' | 'protective_interposition' | 'object_examination' | 'spatial_blockage' | 'movement_through_space' | 'public_role' | 'private_decision';
+export type ConflictCarrier = 'body' | 'relationship' | 'object' | 'environment' | 'institution' | 'time_pressure' | 'public_judgment' | 'physical_obstacle' | 'internal_hesitation';
+export type PromptWriterMode = 'local' | 'mock_llm' | 'external_llm';
 
 export type VNextInput = {
   rngSeed: string | number;
@@ -18,7 +21,7 @@ export type VNextInput = {
   preferences?: string[];
   noveltyMode?: NoveltyMode;
   beamWidth?: number;
-  promptOptions?: { maxWords?: number };
+  promptOptions?: { maxWords?: number; writerMode?: PromptWriterMode };
 };
 
 export type RuleType = 'requires' | 'excludes' | 'prefers' | 'discourages' | 'boosts' | 'penalizes' | 'conditional_override' | 'fallback';
@@ -154,6 +157,9 @@ export type SemanticSeed = {
 
 export type PriorityPlan = {
   dominant: SemanticAnchor;
+  anchorInterpretation: string;
+  sceneStrategy: SceneStrategy;
+  conflictCarrier: ConflictCarrier;
   supporting: SemanticAnchor;
   minor: SemanticAnchor | 'profession_trace' | 'none';
   suppressed: string[];
@@ -181,6 +187,9 @@ export type ClassEvidencePlan = {
 
 export type SemanticDirectorPlan = {
   dominantNarrativeAnchor: SemanticAnchor;
+  anchorInterpretation: string;
+  sceneStrategy: SceneStrategy;
+  conflictCarrier: ConflictCarrier;
   supportingNarrativeAnchor: SemanticAnchor;
   minorEcho: SemanticAnchor | 'profession_trace' | 'none';
   suppressedFacts: string[];
@@ -189,6 +198,11 @@ export type SemanticDirectorPlan = {
   speciesMorphologyPlan: string;
   sceneFocus: string;
   emotionalFocus: string;
+  emotionalAxis: string;
+  visualConflict: string;
+  actionTiming: string;
+  subjectRole: string;
+  obstacleRole: string;
   powerBudget: string;
   professionAffinity: ProfessionAffinity;
   priorityCompliance: string[];
@@ -220,13 +234,57 @@ export type PromptPlan = {
 
 export type PromptCritique = {
   dominantAnchorClear: boolean;
+  anchorInterpretationVisible: boolean;
   classReadable: boolean;
   speciesReadable: boolean;
   professionOverweight: boolean;
   sceneClear: boolean;
+  actionTimingClear: boolean;
+  subjectRoleClear: boolean;
+  obstacleRoleClear: boolean;
+  conflictCarrierVisible: boolean;
+  visualHierarchyCoherent: boolean;
   redundantDetails: string[];
   conflicts: string[];
+  promptTooLiteral: boolean;
+  promptTooAbstract: boolean;
+  professionDominates: boolean;
+  classStereotypeLeakage: boolean;
+  unresolvedAlternatives: boolean;
+  imageModelAmbiguity: boolean;
+  observations: string[];
   compressionRatio: number;
+};
+
+export type PromptWriterInput = {
+  semanticSeed: SemanticSeed;
+  semanticDirectorPlan: SemanticDirectorPlan;
+  situationGraph: SituationGraph;
+  visualDirection: VisualDirection;
+  hardConstraints: string[];
+  targetWordCount: number;
+  stylePreset: string;
+  forbiddenPatterns: string[];
+  priorityPlan: PriorityPlan;
+};
+
+export type PromptWriterOutput = {
+  promptPlan: PromptPlan;
+  draftPrompt: string;
+  critique: PromptCritique;
+  finalPrompt: string;
+  negativePrompt: string;
+  removedDetails: string[];
+  priorityCompliance: string[];
+  warnings: string[];
+};
+
+export type PromptWriterAdapter = {
+  mode: PromptWriterMode;
+  plan(input: PromptWriterInput): PromptPlan;
+  draft(input: PromptWriterInput, plan: PromptPlan): string;
+  critique(input: PromptWriterInput, draftPrompt: string): PromptCritique;
+  rewrite(input: PromptWriterInput, draftPrompt: string, critique: PromptCritique): PromptWriterOutput;
 };
 
 export type PromptWriterResult = {
@@ -234,6 +292,9 @@ export type PromptWriterResult = {
   draftPrompt: string;
   critique: PromptCritique;
   finalPrompt: string;
+  writerMode?: PromptWriterMode;
+  negativePrompt?: string;
+  warnings?: string[];
   removedDetails: string[];
   priorityCompliance: string[];
 };
@@ -295,5 +356,8 @@ export type VNextSessionHistory = {
   lastEnvironments?: string[];
   lastDominantAnchors?: SemanticAnchor[];
   lastCompositions?: string[];
+  lastAnchorInterpretations?: string[];
+  lastSceneStrategies?: SceneStrategy[];
+  lastConflictCarriers?: ConflictCarrier[];
   lastTools?: string[];
 };

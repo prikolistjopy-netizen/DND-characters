@@ -76,7 +76,7 @@ export function generateDicebornVNextDeterministic(input: VNextInput): VNextResu
   const situationGraph = buildSituationGraph(semanticSeed);
   const semanticDirectorPlan = directSemantic(semanticSeed);
   const visualDirection = directVisual(semanticSeed, situationGraph, semanticDirectorPlan);
-  const compiledPrompt = compilePrompt(semanticSeed, visualDirection, input.promptOptions?.maxWords, semanticDirectorPlan);
+  const compiledPrompt = compilePrompt(semanticSeed, visualDirection, input.promptOptions?.maxWords, semanticDirectorPlan, input.promptOptions?.writerMode ?? 'local');
   const base = {
     semanticSeed,
     situationGraph,
@@ -89,7 +89,7 @@ export function generateDicebornVNextDeterministic(input: VNextInput): VNextResu
       `seed:${semanticSeed.deterministicSeed}`,
       `selected:${semanticSeed.selectedFactIds.join(',')}`,
       `rules:${semanticSeed.appliedRules.join(',')}`,
-      `priority:${semanticDirectorPlan.dominantNarrativeAnchor}/${semanticDirectorPlan.supportingNarrativeAnchor}`,
+      `priority:${semanticDirectorPlan.dominantNarrativeAnchor}/${semanticDirectorPlan.anchorInterpretation}/${semanticDirectorPlan.sceneStrategy}/${semanticDirectorPlan.conflictCarrier}/${semanticDirectorPlan.supportingNarrativeAnchor}`,
       `profession:${semanticSeed.identity.professionId}:${semanticSeed.life.professionSalience}:${semanticSeed.life.professionAffinity}`,
       ...compiledPrompt.compilerTrace,
     ],
@@ -119,6 +119,9 @@ export function generateDicebornVNextForSession(input: VNextInput, history: VNex
     if (recentSceneArchetypes.has(candidate.semanticSeed.currentMoment.sceneArchetype)) penalty += 20;
     if (recentEnvironments.has(candidate.visualDirection.scene.environment)) penalty += 12;
     if (recentCompositions.has(candidate.visualDirection.artDirection.composition)) penalty += 12;
+    if (history.lastAnchorInterpretations?.slice(-6).includes(candidate.semanticDirectorPlan.anchorInterpretation)) penalty += 10;
+    if (history.lastSceneStrategies?.slice(-6).includes(candidate.semanticDirectorPlan.sceneStrategy)) penalty += 10;
+    if (history.lastConflictCarriers?.slice(-6).includes(candidate.semanticDirectorPlan.conflictCarrier)) penalty += 8;
     if (history.lastDominantAnchors?.slice(-2).every((anchor) => anchor === candidate.semanticDirectorPlan.dominantNarrativeAnchor)) penalty += 10;
     if (penalty < bestPenalty) {
       best = candidate;

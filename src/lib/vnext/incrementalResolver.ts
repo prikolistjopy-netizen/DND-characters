@@ -1,4 +1,4 @@
-import type { AgeBand, GenderPresentation, PilotClassId, PilotSpeciesId, PowerVisibility, ProfessionSalience, ScoreTraceEntry, SemanticAnchor, SemanticSeed, VNextInput } from './contracts';
+import type { AgeBand, ConflictCarrier, GenderPresentation, PilotClassId, PilotSpeciesId, PowerVisibility, ProfessionSalience, SceneStrategy, ScoreTraceEntry, SemanticAnchor, SemanticSeed, VNextInput } from './contracts';
 import { evaluateRules } from './ruleEngine';
 import { getProfession, vnextAffordances, vnextFacts, vnextSemanticFacts } from './facts';
 import { affinityWeight, professionAffinityFor } from './affinity';
@@ -115,12 +115,48 @@ function pickDramaticScene(classId: string, professionId: string, salience: Prof
   return premise;
 }
 
-function priorityFor(classId: string, salience: ProfessionSalience, visibility: PowerVisibility, roleContradiction: string): { dominant: SemanticAnchor; supporting: SemanticAnchor; minor: SemanticAnchor | 'profession_trace' | 'none'; suppressed: string[] } {
-  const dominant: SemanticAnchor = salience === 'dominant' ? 'profession' : visibility !== 'none' && (classId === 'warlock' || visibility === 'shadow' || visibility === 'latent') ? 'forbidden_power' : /protect|responsibility|community/i.test(roleContradiction) ? 'social_duty' : 'personal_contradiction';
-  const supporting: SemanticAnchor = dominant === 'forbidden_power' ? 'social_duty' : 'class_conflict';
+
+const anchorInterpretations: Record<SemanticAnchor, string[]> = {
+  forbidden_power: ['concealment', 'negotiation', 'accidental exposure', 'reluctant use', 'refusal', 'containment', 'transfer', 'aftermath', 'dependency', 'social suspicion'],
+  personal_contradiction: ['public restraint', 'private hesitation', 'divided loyalty', 'role reversal', 'protective choice', 'self-sabotage', 'ritual conflict', 'practical compromise', 'delayed decision', 'visible consequence'],
+  social_duty: ['protection', 'mediation', 'instruction', 'judgment', 'repair', 'escort', 'testimony', 'distribution', 'containment', 'public failure'],
+  current_danger: ['approach', 'aftermath', 'warning', 'evacuation', 'rescue', 'pursuit', 'concealment', 'preparation', 'standoff', 'recovery'],
+  relationship: ['dependence', 'mistrust', 'obligation', 'rivalry', 'mentorship', 'protection', 'negotiation', 'grief', 'accusation', 'reconciliation'],
+  class_conflict: ['trained restraint', 'failed expectation', 'improvised discipline', 'public competence', 'private cost', 'class pressure', 'reframed skill', 'withheld display'],
+  profession: ['direct work', 'public work', 'contested work', 'failed work', 'witnessed work', 'dangerous work', 'interrupted work', 'necessary work'],
+  species_presence: ['scale tension', 'adapted clothing', 'reach problem', 'gait pressure', 'body mechanics', 'spatial mismatch', 'social gaze', 'material fit'],
+};
+
+const sceneStrategies: SceneStrategy[] = ['direct_action', 'interrupted_action', 'aftermath', 'anticipation', 'social_exchange', 'hidden_observation', 'protective_interposition', 'object_examination', 'spatial_blockage', 'movement_through_space', 'public_role', 'private_decision'];
+const conflictCarriers: ConflictCarrier[] = ['body', 'relationship', 'object', 'environment', 'institution', 'time_pressure', 'public_judgment', 'physical_obstacle', 'internal_hesitation'];
+
+function pickPriorityElement<T extends string>(items: T[], rng: () => number, step: string, trace: ScoreTraceEntry[], saltBoost = 0) {
+  const picked = pick(items, rng, step, trace, (_item) => saltBoost);
+  return picked;
+}
+
+function priorityFor(classId: string, salience: ProfessionSalience, visibility: PowerVisibility, roleContradiction: string, rng: () => number, trace: ScoreTraceEntry[]): { dominant: SemanticAnchor; anchorInterpretation: string; sceneStrategy: SceneStrategy; conflictCarrier: ConflictCarrier; supporting: SemanticAnchor; minor: SemanticAnchor | 'profession_trace' | 'none'; suppressed: string[] } {
+  const anchorCandidates: Array<{ id: SemanticAnchor; weight: number }> = [
+    { id: 'personal_contradiction', weight: 24 },
+    { id: 'forbidden_power', weight: visibility !== 'none' ? 22 : 9 },
+    { id: 'social_duty', weight: /protect|responsibility|community/i.test(roleContradiction) ? 20 : 13 },
+    { id: 'current_danger', weight: 16 },
+    { id: 'relationship', weight: 14 },
+    { id: 'class_conflict', weight: 13 },
+    { id: 'species_presence', weight: 6 },
+  ];
+  if (salience === 'dominant') anchorCandidates.push({ id: 'profession', weight: 35 });
+  const dominant = weightedPick(anchorCandidates, rng);
+  const supportingPool = (['class_conflict', 'social_duty', 'forbidden_power', 'relationship', 'current_danger'] as SemanticAnchor[])
+    .filter((anchor) => anchor !== dominant)
+    .filter((anchor) => !(anchor === 'profession' && salience !== 'dominant'));
+  const supporting = pickPriorityElement(supportingPool, rng, 'priority.supportingAnchor', trace);
+  const anchorInterpretation = pickPriorityElement(anchorInterpretations[dominant], rng, 'priority.anchorInterpretation', trace);
+  const sceneStrategy = pickPriorityElement(sceneStrategies, rng, 'priority.sceneStrategy', trace);
+  const conflictCarrier = pickPriorityElement(conflictCarriers, rng, 'priority.conflictCarrier', trace);
   const minor = salience === 'background' ? 'none' : salience === 'trace' ? 'profession_trace' : 'profession';
   const suppressed = salience === 'background' ? ['profession_scene', 'profession_tool', 'profession_title', 'profession_environment', 'profession_composition'] : salience === 'trace' ? ['profession_scene', 'profession_tool_as_primary', 'profession_title', 'profession_environment', 'profession_composition'] : salience === 'secondary' ? ['profession_environment', 'profession_composition', 'profession_title_when_not_needed'] : [];
-  return { dominant, supporting, minor, suppressed };
+  return { dominant, anchorInterpretation, sceneStrategy, conflictCarrier, supporting, minor, suppressed };
 }
 
 
@@ -213,7 +249,7 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
   const pressure = pick(pressures, rng, 'moment.pressure', scoreTrace);
   const motionEnergy = pick(motionStates, rng, 'moment.motionEnergy', scoreTrace);
 
-  const priority = priorityFor(classId, professionSalience, visibility, roleContradiction);
+  const priority = priorityFor(classId, professionSalience, visibility, roleContradiction, rng, scoreTrace);
 
   const seed: SemanticSeed = {
     schemaVersion: vnextSemanticFacts.schemaVersion,
@@ -305,6 +341,9 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
     },
     priorityPlan: {
       dominant: priority.dominant,
+      anchorInterpretation: priority.anchorInterpretation,
+      sceneStrategy: priority.sceneStrategy,
+      conflictCarrier: priority.conflictCarrier,
       supporting: priority.supporting,
       minor: priority.minor,
       suppressed: priority.suppressed,
