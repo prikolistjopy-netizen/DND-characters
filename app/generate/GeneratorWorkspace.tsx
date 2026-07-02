@@ -20,13 +20,14 @@ import { Button } from '@/components/ui/Button';
 import { FeedbackState } from '@/components/ui/FeedbackState';
 import { Panel } from '@/components/ui/Panel';
 import { Tag } from '@/components/ui/Tag';
-import { generateDicebornVNext, type NoveltyMode, type PilotClassId, type PilotSpeciesId, type PowerVisibility, type VNextInput, type VNextResult } from '@/src/lib/vnext';
+import { generateDicebornVNext, generateDicebornVNextForSession, type NoveltyMode, type PilotClassId, type PilotSpeciesId, type PowerVisibility, type VNextInput, type VNextResult } from '@/src/lib/vnext';
 import { vnextAffordances, vnextFacts, vnextSemanticFacts } from '@/src/lib/vnext/facts';
 import styles from './generator.module.css';
 
 type Mode = 'random' | 'custom';
 type EngineMode = 'legacy' | 'vnext';
 type ActiveResult = { engine: 'legacy'; legacy: GenerationResult } | { engine: 'vnext'; vnext: VNextResult };
+type SessionHistory = { lastProfessions: string[]; lastProfessionSalience: Array<VNextResult['semanticSeed']['life']['professionSalience']>; lastSceneArchetypes: string[]; lastEnvironments: string[]; lastDominantAnchors: Array<VNextResult['semanticDirectorPlan']['dominantNarrativeAnchor']>; lastCompositions: string[]; lastTools: string[] };
 
 type ControlState = {
   engine: EngineMode;
@@ -177,8 +178,12 @@ function controlsToVNextInput(controls: ControlState, seedOverride?: string): VN
   return input;
 }
 
-function rollWithControls(controls: ControlState, seedOverride?: string): ActiveResult {
-  if (controls.engine === 'vnext') return { engine: 'vnext', vnext: generateDicebornVNext(controlsToVNextInput(controls, seedOverride)) };
+function rollWithControls(controls: ControlState, seedOverride?: string, sessionHistory?: SessionHistory): ActiveResult {
+  if (controls.engine === 'vnext') {
+    const input = controlsToVNextInput(controls, seedOverride);
+    const vnext = controls.mode === 'random' && sessionHistory ? generateDicebornVNextForSession(input, sessionHistory) : generateDicebornVNext(input);
+    return { engine: 'vnext', vnext };
+  }
   return { engine: 'legacy', legacy: generateCharacterSeed(controlsToOptions(controls)) };
 }
 
@@ -252,6 +257,7 @@ export function GeneratorWorkspace() {
   const [generationCounter, setGenerationCounter] = useState(1);
   const [previousSeed, setPreviousSeed] = useState('none');
   const [generatedAt, setGeneratedAt] = useState(() => new Date().toISOString());
+  const [sessionHistory, setSessionHistory] = useState<SessionHistory>({ lastProfessions: [], lastProfessionSalience: [], lastSceneArchetypes: [], lastEnvironments: [], lastDominantAnchors: [], lastCompositions: [], lastTools: [] });
 
   function updateControl<K extends keyof ControlState>(key: K, value: ControlState[K]) {
     setControls((current) => ({ ...current, [key]: value }));
@@ -264,9 +270,20 @@ export function GeneratorWorkspace() {
     const controlsWithSeed = { ...nextControls, seed };
     setControls(controlsWithSeed);
     window.setTimeout(() => {
-      const next = rollWithControls(controlsWithSeed, seed);
+      const next = rollWithControls(controlsWithSeed, seed, sessionHistory);
       setPreviousSeed(lastSeed);
       setGeneration(next);
+      if (next.engine === 'vnext' && controlsWithSeed.mode === 'random') {
+        setSessionHistory((history) => ({
+          lastProfessions: [...history.lastProfessions, next.vnext.semanticSeed.identity.professionId].slice(-16),
+          lastProfessionSalience: [...history.lastProfessionSalience, next.vnext.semanticSeed.life.professionSalience].slice(-16),
+          lastSceneArchetypes: [...history.lastSceneArchetypes, next.vnext.semanticSeed.currentMoment.sceneArchetype].slice(-16),
+          lastEnvironments: [...history.lastEnvironments, next.vnext.visualDirection.scene.environment].slice(-16),
+          lastDominantAnchors: [...history.lastDominantAnchors, next.vnext.semanticDirectorPlan.dominantNarrativeAnchor].slice(-16),
+          lastCompositions: [...history.lastCompositions, next.vnext.visualDirection.artDirection.composition].slice(-16),
+          lastTools: [...history.lastTools, next.vnext.visualDirection.life.primaryTool].slice(-16),
+        }));
+      }
       setGenerationCounter((count) => count + 1);
       setGeneratedAt(new Date().toISOString());
       setStatus(message);
@@ -405,6 +422,17 @@ export function GeneratorWorkspace() {
                     <span>Counter: <strong>{generationCounter}</strong></span>
                     <span>Fingerprint: <strong>{activeFingerprint(generation)}</strong></span>
                     <span>Generated: <strong>{generatedAt}</strong></span>
+                    {typeof window !== 'undefined' && window.location.hostname === 'localhost' ? (
+                      <>
+                        <span>Dominant: <strong>{vnext.semanticDirectorPlan.dominantNarrativeAnchor}</strong></span>
+                        <span>Supporting: <strong>{vnext.semanticDirectorPlan.supportingNarrativeAnchor}</strong></span>
+                        <span>Profession salience: <strong>{vnext.semanticSeed.life.professionSalience}</strong></span>
+                        <span>Affinity: <strong>{vnext.semanticSeed.life.professionAffinity}</strong></span>
+                        <span>Budget: <strong>{vnext.semanticDirectorPlan.professionBudget.maxVisualChannels}</strong></span>
+                        <span>Class evidence: <strong>{vnext.semanticDirectorPlan.classEvidencePlan.channels.join(', ')}</strong></span>
+                        <span>Draft/final: <strong>{vnext.compiledPrompt.promptWriter ? `${vnext.compiledPrompt.promptWriter.draftPrompt.split(/\s+/).filter(Boolean).length}/${vnext.compiledPrompt.wordCount}` : 'n/a'}</strong></span>
+                      </>
+                    ) : null}
                   </div>
                 ) : null}
               </div>

@@ -1,6 +1,7 @@
-import type { AgeBand, GenderPresentation, PilotClassId, PilotSpeciesId, PowerVisibility, ScoreTraceEntry, SemanticSeed, VNextInput } from './contracts';
+import type { AgeBand, GenderPresentation, PilotClassId, PilotSpeciesId, PowerVisibility, ProfessionSalience, ScoreTraceEntry, SemanticAnchor, SemanticSeed, VNextInput } from './contracts';
 import { evaluateRules } from './ruleEngine';
 import { getProfession, vnextAffordances, vnextFacts, vnextSemanticFacts } from './facts';
+import { affinityWeight, professionAffinityFor } from './affinity';
 
 function hashSeed(seed: string) {
   let hash = 2166136261;
@@ -42,6 +43,86 @@ const obstacles = ['locked threshold', 'frightened witness', 'unstable weather',
 const risks = ['public panic', 'harmful power exposure', 'lost evidence', 'community blame', 'physical injury', 'broken trust', 'a dependent person abandoned'];
 const pressures = ['time is narrowing', 'someone is watching', 'the room is losing trust', 'weather is worsening', 'authority is arriving', 'the tool may fail'];
 const motionStates = ['contained forward motion', 'braced stillness', 'measured crouch', 'controlled turn toward the threat', 'hands moving faster than the body', 'balanced step into pressure', 'interrupted recovery', 'quiet lateral repositioning', 'public stillness under pressure', 'tool-led forward lean'];
+
+const salienceWeights: Array<{ id: ProfessionSalience; weight: number }> = [
+  { id: 'background', weight: 20 },
+  { id: 'trace', weight: 30 },
+  { id: 'secondary', weight: 35 },
+  { id: 'strong', weight: 12 },
+  { id: 'dominant', weight: 3 },
+];
+
+function weightedPick<T extends string>(items: Array<{ id: T; weight: number }>, rng: () => number) {
+  const total = items.reduce((sum, item) => sum + item.weight, 0);
+  let cursor = rng() * total;
+  for (const item of items) {
+    cursor -= item.weight;
+    if (cursor <= 0) return item.id;
+  }
+  return items[items.length - 1].id;
+}
+
+function selectProfession(classId: PilotClassId, explicitId: string | undefined, rng: () => number, trace: ScoreTraceEntry[], preferences: string[] = []) {
+  const locked = explicitId ? getProfession(explicitId) : undefined;
+  if (locked) return locked;
+  return pick(vnextAffordances.professions, rng, 'identity.profession', trace, (item) => {
+    const affinity = professionAffinityFor(classId, item.id);
+    const preferenceBoost = preferences.includes(item.id) ? 25 : 0;
+    return affinityWeight(affinity) * 3 + preferenceBoost;
+  });
+}
+
+function selectProfessionSalience(input: VNextInput, affinity: ReturnType<typeof professionAffinityFor>, rng: () => number, trace: ScoreTraceEntry[]): ProfessionSalience {
+  const locked = input.professionSalience ?? input.locks?.professionSalience;
+  if (locked) {
+    trace.push({ step: 'life.professionSalience', candidateId: locked, score: 200, reasons: ['locked salience'] });
+    return locked;
+  }
+  const weights = salienceWeights.map((item) => ({ ...item }));
+  if (affinity === 'rare_contrast') {
+    for (const item of weights) {
+      if (item.id === 'background' || item.id === 'trace') item.weight *= 1.7;
+      if (item.id === 'strong') item.weight *= 0.45;
+      if (item.id === 'dominant') item.weight *= 0.15;
+    }
+  }
+  const salience = weightedPick(weights, rng);
+  trace.push({ step: 'life.professionSalience', candidateId: salience, score: Math.round(rng() * 100), reasons: [`affinity ${affinity}`, 'weighted salience'] });
+  return salience;
+}
+
+const classPremises: Record<string, string[]> = {
+  warlock: ['refuse a bargain payment while someone vulnerable waits nearby', 'hide the cost of borrowed power during a public decision', 'break a promise to the source before it claims another witness'],
+  paladin: ['choose mercy where the law expects punishment', 'hold an oath steady while a frightened crowd demands certainty', 'stand between public duty and private harm'],
+  barbarian: ['withhold force long enough to protect the wrongfully accused', 'turn rage into shelter while the real threat draws closer', 'carry pain without letting it decide the next action'],
+  fighter: ['hold the line while a practical failure threatens someone behind them', 'read the threat before anyone else understands its angle', 'recover from a blow while keeping another person shielded'],
+  cleric: ['offer aid where doctrine gives no easy answer', 'protect a dependent person while a sacred duty becomes ambiguous', 'keep a community ritual from turning into judgment'],
+  rogue: ['protect someone without revealing the escape route', 'use precision to prevent violence before the room notices', 'hide the useful truth until it can save the right person'],
+  wizard: ['test a dangerous pattern while refusing the obvious shortcut', 'prove what failed before the evidence is destroyed', 'hold a fragile conclusion against public pressure'],
+  druid: ['answer a living system under stress while people demand control', 'protect a boundary that is ecological before it is legal', 'read a natural warning before the community panics'],
+  bard: ['redirect a crowd with timing instead of spectacle', 'turn a public accusation into a moment of listening', 'keep a fragile agreement alive with one measured gesture'],
+  monk: ['absorb pressure without letting it become violence', 'redirect a threat while keeping a student or dependent calm', 'choose stillness where force would be easier'],
+  ranger: ['guide someone through danger while the terrain changes underfoot', 'read a distant threat before it reaches the dependent person', 'choose the safe route that looks wrong to everyone else'],
+  sorcerer: ['contain a bodily surge while protecting the nearest witness', 'make one careful choice before innate power answers too loudly', 'keep fear from becoming the trigger everyone expects'],
+  artificer: ['repair the only practical option before panic breaks it', 'trust one field device while people demand a miracle', 'keep heat and failure contained inside the work'],
+};
+
+function pickDramaticScene(classId: string, professionId: string, salience: ProfessionSalience, profession: { scenes: string[] }, rng: () => number, trace: ScoreTraceEntry[]) {
+  if (salience === 'dominant') return pick(profession.scenes, rng, 'currentMoment.scene', trace);
+  if (salience === 'strong' && rng() > 0.45) return pick(profession.scenes, rng, 'currentMoment.scene', trace);
+  const premise = pick(classPremises[classId] ?? goals, rng, 'currentMoment.dramaticPremise', trace);
+  if (salience === 'trace' && professionId === 'lamplighter') return `${premise}; a soot mark at one cuff hints at lamp work without setting the scene`;
+  return premise;
+}
+
+function priorityFor(classId: string, salience: ProfessionSalience, visibility: PowerVisibility, roleContradiction: string): { dominant: SemanticAnchor; supporting: SemanticAnchor; minor: SemanticAnchor | 'profession_trace' | 'none'; suppressed: string[] } {
+  const dominant: SemanticAnchor = salience === 'dominant' ? 'profession' : visibility !== 'none' && (classId === 'warlock' || visibility === 'shadow' || visibility === 'latent') ? 'forbidden_power' : /protect|responsibility|community/i.test(roleContradiction) ? 'social_duty' : 'personal_contradiction';
+  const supporting: SemanticAnchor = dominant === 'forbidden_power' ? 'social_duty' : 'class_conflict';
+  const minor = salience === 'background' ? 'none' : salience === 'trace' ? 'profession_trace' : 'profession';
+  const suppressed = salience === 'background' ? ['profession_scene', 'profession_tool', 'profession_title', 'profession_environment', 'profession_composition'] : salience === 'trace' ? ['profession_scene', 'profession_tool_as_primary', 'profession_title', 'profession_environment', 'profession_composition'] : salience === 'secondary' ? ['profession_environment', 'profession_composition', 'profession_title_when_not_needed'] : [];
+  return { dominant, supporting, minor, suppressed };
+}
+
 
 function relationshipToPower(classId: string) {
   const relationships: Record<string, string> = {
@@ -88,8 +169,11 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
   if (input.classId || input.locks?.classId) lockedFields.push('classId');
   const speciesId = input.speciesId ?? input.locks?.speciesId ?? (pick(vnextFacts.species, rng, 'identity.species', scoreTrace).id);
   if (input.speciesId || input.locks?.speciesId) lockedFields.push('speciesId');
-  const profession = getProfession(input.professionId ?? input.locks?.professionId ?? '') ?? pick(vnextAffordances.professions, rng, 'identity.profession', scoreTrace, (item) => input.preferences?.includes(item.id) ? 25 : 0);
+  const profession = selectProfession(classId as PilotClassId, input.professionId ?? input.locks?.professionId, rng, scoreTrace, input.preferences);
   if (input.professionId || input.locks?.professionId) lockedFields.push('professionId');
+  const professionAffinity = professionAffinityFor(classId as PilotClassId, profession.id);
+  const professionSalience = selectProfessionSalience(input, professionAffinity, rng, scoreTrace);
+  if (input.professionSalience || input.locks?.professionSalience) lockedFields.push('professionSalience');
 
   const ageBand = input.locks?.ageBand ?? pick(ageBands, rng, 'identity.age', scoreTrace);
   const genderPresentation = input.locks?.genderPresentation ?? pick(genders, rng, 'identity.gender', scoreTrace);
@@ -111,12 +195,13 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
     return 0;
   });
   const responsibility = pick(profession.responsibilities, rng, 'life.responsibility', scoreTrace);
-  const sceneArchetypeId = pick(profession.sceneArchetypes, rng, 'currentMoment.sceneArchetype', scoreTrace);
+  const sceneArchetypePool = professionSalience === 'dominant' ? profession.sceneArchetypes : vnextFacts.sceneArchetypes.map((item) => item.id);
+  const sceneArchetypeId = pick(sceneArchetypePool, rng, 'currentMoment.sceneArchetype', scoreTrace);
   const sceneArchetype = vnextFacts.sceneArchetypes.find((item) => item.id === sceneArchetypeId) ?? vnextFacts.sceneArchetypes[0];
-  const scene = pick(profession.scenes, rng, 'currentMoment.scene', scoreTrace, (item) => item.includes(sceneArchetype.label) ? 20 : 0);
+  const scene = pickDramaticScene(classId, profession.id, professionSalience, profession, rng, scoreTrace);
   const professionTension = pick(profession.tensions, rng, 'tension.profession', scoreTrace);
   const matchingContradiction = vnextFacts.tensionTemplates.roleContradictions.find((item) => item.includes(classId) && item.includes(profession.id.replace(/_/g, ' ')));
-  const roleContradiction = matchingContradiction ?? `${classFact.label.toLowerCase()} ${profession.label} balancing ${professionTension}`;
+  const roleContradiction = matchingContradiction ?? (professionAffinity === 'rare_contrast' ? `${classFact.label.toLowerCase()} carrying a rare ${profession.label.toLowerCase()} history without letting it define the scene` : `${classFact.label.toLowerCase()} balancing ${professionTension}`);
   scoreTrace.push({ step: 'tension.roleContradiction', candidateId: roleContradiction, score: matchingContradiction ? 135 : 85, reasons: [matchingContradiction ? 'matched explicit role contradiction' : 'composed from class and profession tension'] });
   const socialTension = pick([...vnextFacts.tensionTemplates.socialTensions, ...culture.tensions, ...profession.tensions], rng, 'tension.social', scoreTrace);
   const innerConflict = pick(vnextFacts.tensionTemplates.innerConflicts, rng, 'tension.innerConflict', scoreTrace);
@@ -128,11 +213,13 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
   const pressure = pick(pressures, rng, 'moment.pressure', scoreTrace);
   const motionEnergy = pick(motionStates, rng, 'moment.motionEnergy', scoreTrace);
 
+  const priority = priorityFor(classId, professionSalience, visibility, roleContradiction);
+
   const seed: SemanticSeed = {
     schemaVersion: vnextSemanticFacts.schemaVersion,
     deterministicSeed,
     lockedFields,
-    selectedFactIds: [classId, speciesId, profession.id, culture.id, environment.id, source.id, visibility],
+    selectedFactIds: [classId, speciesId, profession.id, professionSalience, professionAffinity, culture.id, environment.id, source.id, visibility],
     identity: {
       classId: classId as PilotClassId,
       speciesId: speciesId as PilotSpeciesId,
@@ -161,6 +248,10 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
       livedInTrace: profession.wear[0],
       materialHistory: profession.materials[0] ?? culture.materials[0],
       personalObject: tool,
+      professionSalience,
+      professionAffinity,
+      professionEvidenceChannels: professionSalience === 'background' ? [] : professionSalience === 'trace' ? ['wear'] : professionSalience === 'secondary' ? ['habit', 'wear'] : professionSalience === 'strong' ? ['skill', 'habit', 'wear', 'tool'] : ['skill', 'habit', 'wear', 'tool', 'direct work scene'],
+      reputation: professionAffinity === 'rare_contrast' ? `known for unlikely ${profession.label.toLowerCase()} experience` : `known locally as a ${profession.label.toLowerCase()}`,
     },
     tension: {
       roleContradiction,
@@ -212,10 +303,18 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
       socialTension: culture.tensions[0],
       currentScene: scene,
     },
+    priorityPlan: {
+      dominant: priority.dominant,
+      supporting: priority.supporting,
+      minor: priority.minor,
+      suppressed: priority.suppressed,
+      professionSalience,
+      professionAffinity,
+    },
     visualIntent: {
       silhouettePrinciple: `${speciesFact.markers[0]} shaped by ${classFact.affordances[0]}`,
       primaryAnchor: scene,
-      secondaryAnchor: profession.id === 'courtier' ? `${profession.label} controls the witness relation with ${tool} while a harmed petitioner waits at the locked threshold` : `${profession.label} handling of ${tool} while ${professionTension}`,
+      secondaryAnchor: professionSalience === 'dominant' ? `${profession.label} work controls the immediate action` : `${classFact.label} evidence and ${relationshipToPower(classId)} shape the decision`,
       focalHierarchy: sceneArchetype.focalOrder,
       detailBudget: 'controlled',
       mood: `${input.noveltyMode === 'strong' ? 'unusual but grounded' : 'restrained cinematic'} pressure shaped by ${roleContradiction}`,
@@ -224,7 +323,7 @@ export function resolveSemanticSeed(input: VNextInput): SemanticSeed {
     scoreTrace,
     appliedRules: ruleResult.applied,
     rejectedCandidates: scoreTrace.filter((entry) => entry.rejected),
-    qaFlags: ruleResult.blockingErrors.length ? ruleResult.blockingErrors : ['hard-rules-passed', 'profession-influences-tool', 'deterministic-seed', ...(profession.id === 'courtier' ? ['courtier-influences-social-gesture-witness-status-composition'] : [])],
+    qaFlags: ruleResult.blockingErrors.length ? ruleResult.blockingErrors : ['hard-rules-passed', 'deterministic-seed', `profession-salience:${professionSalience}`, `profession-affinity:${professionAffinity}`, 'priority-plan-applied'],
   };
   return seed;
 }

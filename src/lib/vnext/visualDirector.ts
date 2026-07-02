@@ -1,4 +1,5 @@
-import type { SemanticSeed, SituationGraph, VisualDirection } from './contracts';
+import type { SemanticDirectorPlan, SemanticSeed, SituationGraph, VisualDirection } from './contracts';
+import { directSemantic } from './semanticDirector';
 
 function speciesProportions(speciesId: string) {
   const proportions: Record<string, string> = {
@@ -18,86 +19,127 @@ function speciesProportions(speciesId: string) {
   return proportions[speciesId] ?? proportions.human;
 }
 
-function classEvidence(seed: SemanticSeed) {
-  const habit = seed.life.bodyHabit;
-  const byClass: Record<string, string> = {
-    fighter: 'trained weight distribution and practical threat awareness',
-    cleric: 'protective responsibility visible through action rather than a default prayer pose',
-    warlock: 'guarded asymmetry; the free hand checks a private signal before power shows',
-    rogue: 'exit awareness and quiet precision without generic assassin styling',
-    ranger: 'terrain-aware stance and distance control shaped by the scene',
-    paladin: 'interposing body language that reads as oath under public pressure',
-    wizard: 'careful pattern control and cause-and-effect attention rather than holy symbolism',
-    druid: 'earth-aware footing and reciprocal attention to the living environment',
-    bard: 'timed social presence and breath control used as practical leverage',
-    monk: 'balanced centerline, breath discipline, and economical redirection',
-    barbarian: 'endurance and protective force held in purposeful restraint',
-    sorcerer: 'contained bodily pressure and emotional regulation before release',
-    artificer: 'tool-first posture and repair logic under pressure',
+function classTool(seed: SemanticSeed) {
+  const tools: Record<string, string> = {
+    warlock: 'sealed bargain token',
+    paladin: 'lowered oath blade',
+    barbarian: 'wrapped handaxe held low',
+    fighter: 'plain sidearm kept close',
+    cleric: 'communal token or bandage roll',
+    rogue: 'small working knife',
+    wizard: 'marked measuring page',
+    druid: 'living branch or soil-marked cord',
+    bard: 'folded message card',
+    monk: 'empty guiding hand',
+    ranger: 'route cord and field knife',
+    sorcerer: 'bare hand held under pressure',
+    artificer: 'single calibrated field tool',
   };
-  return `${habit}, with ${byClass[seed.identity.classId] ?? 'class evidence grounded in action'}`;
+  return tools[seed.identity.classId] ?? 'single necessary object';
+}
+
+function professionTrace(seed: SemanticSeed) {
+  if (seed.life.professionSalience === 'background') return '';
+  if (seed.identity.professionId === 'lamplighter') return 'a faint soot mark under one cuff';
+  if (seed.identity.professionId === 'physician') return 'clean repaired cuffs and precise hand pressure';
+  if (seed.identity.professionId === 'mason') return 'stone dust caught in repaired seams';
+  if (seed.identity.professionId === 'courtier') return 'worn formal cuff material and a controlled exchange habit';
+  return seed.life.livedInTrace;
+}
+
+function classEnvironment(seed: SemanticSeed) {
+  const byClass: Record<string, string> = {
+    warlock: 'sealed civic threshold',
+    paladin: 'public steps before a judging crowd',
+    barbarian: 'wind-cut boundary path',
+    fighter: 'narrow breach between danger and shelter',
+    cleric: 'community room under moral pressure',
+    rogue: 'service passage with watched exits',
+    wizard: 'archive worktable under failing evidence',
+    druid: 'edge where settlement meets living ground',
+    bard: 'public hall where attention can turn',
+    monk: 'quiet courtyard at the edge of conflict',
+    ranger: 'broken trail line near unsafe ground',
+    sorcerer: 'crowded room holding its breath',
+    artificer: 'repair bay around a failing device',
+  };
+  return byClass[seed.identity.classId] ?? seed.world.environment;
 }
 
 function powerManifestation(seed: SemanticSeed) {
-  if (seed.identity.professionId === 'courtier' && seed.power.visibility === 'shadow') return 'one weak shadow echo beside the negotiating hand, kept below the level of face and status object';
   if (seed.power.visibility === 'none') return 'no visible magic; class evidence stays in training, duty, and action';
-  if (seed.power.visibility === 'shadow') return 'one restrained shadow echo near the working hand, not a patron apparition';
-  if (seed.power.visibility === 'object') return `a low contained response in the ${seed.life.personalObject}`;
+  if (seed.power.visibility === 'latent') return 'a held breath and still hand mark the hidden force without light';
+  if (seed.power.visibility === 'shadow') return 'one weak shadow echo beside the working hand, not a patron apparition';
+  if (seed.power.visibility === 'object') return `a low contained response inside the ${seed.life.professionSalience === 'dominant' ? seed.life.personalObject : classTool(seed)}`;
   if (seed.power.visibility === 'reflected') return 'a single impossible reflection close to the immediate task';
   if (seed.power.visibility === 'environmental') return `the ${seed.world.weather} answers the action in one localized place`;
-  if (seed.power.visibility === 'bodily') return 'subtle bodily pressure visible in breath, skin tension, or hand restraint';
-  if (seed.power.visibility === 'symbolic') return 'one small symbol or mark responding to the current duty';
-  if (seed.power.visibility === 'relational') return 'power implied through how another person reacts to the character';
-  if (seed.power.visibility === 'social') return 'authority or reputation visible through the crowd response rather than glow';
-  if (seed.power.visibility === 'partial') return 'a partial manifestation kept secondary and tied to the obstacle';
-  if (seed.power.visibility === 'full_apparition') return 'rare distant apparition kept behind the action and never dominating the face';
+  if (seed.power.visibility === 'bodily') return 'subtle pressure in breath, skin tension, and hand restraint';
+  if (seed.power.visibility === 'symbolic') return 'one small sign responding on the necessary object';
+  if (seed.power.visibility === 'relational') return 'another person reacts before the character moves';
+  if (seed.power.visibility === 'social') return 'authority visible through surrounding reaction rather than glow';
+  if (seed.power.visibility === 'partial') return 'a partial manifestation kept behind face and hands';
+  if (seed.power.visibility === 'full_apparition') return 'rare distant apparition kept far behind the action';
   return `${seed.power.visibility} power expressed through behavior and focal detail`;
 }
 
-function courtierGesture(seed: SemanticSeed) {
-  if (seed.identity.professionId !== 'courtier') return '';
-  return 'the blade stays ceremonial and lowered; the visible hand manages witnesses, the threshold, and the exchange with the signet or petition';
+function choosePrimaryTool(seed: SemanticSeed, plan: SemanticDirectorPlan) {
+  return plan.professionBudget.directSceneAllowed || seed.life.professionSalience === 'strong' ? seed.life.personalObject : classTool(seed);
 }
 
-function paletteRoles(seed: SemanticSeed) {
-  const focal = seed.power.visibility === 'none' ? seed.life.materialHistory : `${seed.power.visibility} accent restrained to ${seed.power.manifestationCarrier}`;
-  return [
-    `dominant environment: ${seed.world.weather}`,
-    `material base: ${seed.life.materialHistory}`,
-    `species read: ${seed.identity.speciesId.replace(/_/g, ' ')}`,
-    `focal accent: ${focal}`,
-    `pressure accent: ${seed.currentMoment.hiddenPressure}`,
-  ];
+function chooseEnvironment(seed: SemanticSeed, plan: SemanticDirectorPlan) {
+  return plan.professionBudget.environmentControlAllowed ? seed.world.environment : classEnvironment(seed);
 }
 
-export function directVisual(seed: SemanticSeed, graph: SituationGraph): VisualDirection {
+function chooseComposition(seed: SemanticSeed, plan: SemanticDirectorPlan) {
+  if (plan.professionBudget.compositionControlAllowed && seed.identity.professionId === 'courtier') return 'threshold composition around official, witness, dependent, and status object';
+  const byAnchor: Record<string, string> = {
+    forbidden_power: 'offset composition with the power cue kept beside the working hand',
+    social_duty: 'character-between-community-and-threat composition',
+    personal_contradiction: 'diagonal composition between chosen duty and feared consequence',
+    class_conflict: 'tool-led composition that reveals trained behavior',
+    current_danger: 'compressed composition around obstacle, subject, and exit',
+    relationship: 'close relational composition with the dependent protected by body angle',
+    profession: seed.visualIntent.compositionIntent,
+    species_presence: 'full-body composition with silhouette and scale cues clear',
+  };
+  return byAnchor[plan.dominantNarrativeAnchor] ?? seed.visualIntent.compositionIntent;
+}
+
+export function directVisual(seed: SemanticSeed, graph: SituationGraph, semanticPlan = directSemantic(seed)): VisualDirection {
   const primaryEdge = graph.edges.find((edge) => edge.type === 'protects')?.reason ?? seed.currentMoment.goal;
   const manifestation = powerManifestation(seed);
+  const primaryTool = choosePrimaryTool(seed, semanticPlan);
+  const environment = chooseEnvironment(seed, semanticPlan);
+  const professionMark = professionTrace(seed);
+  const evidence = semanticPlan.classEvidencePlan;
+  const composition = chooseComposition(seed, semanticPlan);
+  const professionDetail = professionMark ? `; ${professionMark}` : '';
+
   return {
     anchors: {
-      primary: seed.visualIntent.primaryAnchor,
-      primaryReason: `Current moment drives the image: ${primaryEdge}.`,
-      secondary: seed.visualIntent.secondaryAnchor,
-      secondaryReason: 'Profession must be visible through handling, wear, posture, and responsibility.',
+      primary: semanticPlan.dominantNarrativeAnchor,
+      primaryReason: `Priority plan makes ${semanticPlan.dominantNarrativeAnchor} the main image driver: ${primaryEdge}.`,
+      secondary: semanticPlan.supportingNarrativeAnchor,
+      secondaryReason: `Supporting anchor keeps class and situation ahead of profession unless profession salience is dominant.`,
     },
     embodiment: {
-      silhouette: seed.visualIntent.silhouettePrinciple,
+      silhouette: `${speciesProportions(seed.identity.speciesId)} shaped by ${evidence.physical}`,
       proportions: speciesProportions(seed.identity.speciesId),
-      posture: `${classEvidence(seed)}; ${seed.currentMoment.visualConsequence}; energy state is ${seed.currentMoment.motionEnergy}`,
-      gesture: courtierGesture(seed) || `hands use ${seed.life.personalObject} with ${seed.life.learnedSkill}; ${seed.currentMoment.sceneArchetype} shapes the gesture, revealing ${seed.tension.professionClassFriction}`,
-      gaze: `attention fixed on ${seed.currentMoment.targetOfAttention} while aware of ${seed.currentMoment.hiddenPressure}`,
-      expression: `${seed.psychology.emotionalRestraint}; eyes track ${seed.currentMoment.targetOfAttention} while the mouth stays controlled around ${seed.currentMoment.risk}`,
+      posture: `${evidence.physical}; ${seed.currentMoment.motionEnergy}; ${seed.currentMoment.obstacle} controls body angle`,
+      gesture: `${evidence.behavioral}; the working hand uses ${primaryTool}${professionDetail}`,
+      gaze: `attention fixed on ${seed.currentMoment.targetOfAttention} while tracking ${seed.currentMoment.hiddenPressure}`,
+      expression: `${seed.psychology.emotionalRestraint}; ${evidence.social}`,
     },
     life: {
-      clothing: `practical ${seed.world.culture} clothing adapted for a ${seed.identity.profession}`,
-      materials: seed.identity.professionId === 'courtier' ? `${seed.life.materialHistory}, formal cloth at the cuffs, a status fastener, ${seed.world.architecture}` : `${seed.life.materialHistory}, ${seed.world.architecture}, and restrained cloth or leather masses`,
-      primaryTool: seed.life.personalObject,
-      handling: `${seed.life.dailyHabit}; no decorative duplicate tools`,
-      personalObject: seed.life.personalObject,
-      wear: seed.life.livedInTrace,
-      repairs: 'visible repairs only where work would cause stress',
-      stains: seed.life.livedInTrace,
-      livedInTrace: seed.life.livedInTrace,
+      clothing: seed.life.professionSalience === 'dominant' ? `clothing adapted for direct ${seed.identity.profession} work` : `clothing shaped by class pressure, species fit, and local material history`,
+      materials: `${seed.life.materialHistory}, ${seed.world.architecture}, and material choices subordinate to ${semanticPlan.dominantNarrativeAnchor}`,
+      primaryTool,
+      handling: seed.life.professionSalience === 'dominant' ? seed.life.dailyHabit : `handling follows ${evidence.behavioral}`,
+      personalObject: seed.life.professionSalience === 'dominant' ? seed.life.personalObject : primaryTool,
+      wear: professionMark || 'wear appears only where the current danger stresses clothing',
+      repairs: 'visible repairs only where work, class discipline, or species fit would cause stress',
+      stains: professionMark || 'no decorative stains',
+      livedInTrace: professionMark || 'lived-in detail stays secondary to class and scene',
     },
     power: {
       visibility: seed.power.visibility,
@@ -105,24 +147,24 @@ export function directVisual(seed: SemanticSeed, graph: SituationGraph): VisualD
       carrier: seed.power.manifestationCarrier,
       intensity: seed.power.intensity,
       cost: seed.power.cost,
-      integrationWithAction: `power supports ${seed.currentMoment.currentAction} without overtaking tool, face, or scene`,
+      integrationWithAction: `${semanticPlan.powerBudget}; cue stays tied to ${primaryTool} or body action`,
       patronVisibility: seed.power.sourcePhysicallyVisible,
     },
     scene: {
-      environment: seed.world.environment,
+      environment,
       activeObstacle: seed.currentMoment.obstacle,
       subjectOfAction: seed.currentMoment.targetOfAttention,
-      spatialRelation: seed.identity.professionId === 'courtier' ? `character, witness, harmed petitioner, ${seed.currentMoment.obstacle}, and status object are arranged across a visible threshold` : `character, ${seed.life.personalObject}, ${seed.currentMoment.obstacle}, and dependent are arranged in one readable triangle`,
+      spatialRelation: `character, dependent, ${seed.currentMoment.obstacle}, and ${primaryTool} form one readable cause-and-effect arrangement`,
       currentMoment: seed.currentMoment.currentAction,
       narrativeIntent: seed.currentMoment.narrativeIntent,
       stakes: seed.currentMoment.stakes,
     },
     artDirection: {
-      composition: seed.identity.professionId === 'courtier' ? `threshold composition with the witness relation visible; frame the harmed petitioner, locked passage, and lowered ceremonial object without extra props` : `${seed.visualIntent.compositionIntent}; frame the ${seed.currentMoment.sceneArchetype} failure point (${seed.currentMoment.failurePoint}) without adding extra props`,
-      camera: 'front or side three-quarter camera with readable face and hands',
-      lighting: `localized ${seed.world.weather} light with one focal accent and clean material planes`,
-      paletteRoles: paletteRoles(seed),
-      focalOrder: seed.visualIntent.focalHierarchy,
+      composition,
+      camera: seed.identity.speciesId === 'halfling' || seed.identity.speciesId === 'gnome' ? 'slightly lowered three-quarter camera with readable adult scale' : 'front or side three-quarter camera with readable face and hands',
+      lighting: `scene-specific ${seed.world.weather} light catches face, working hand, and obstacle without class-color coding`,
+      paletteRoles: [`environment:${environment}`, `material:${seed.life.materialHistory}`, `species morphology:${seed.identity.speciesId}`, `power cue:${seed.power.visibility}`, `pressure:${seed.currentMoment.hiddenPressure}`],
+      focalOrder: [semanticPlan.dominantNarrativeAnchor, semanticPlan.supportingNarrativeAnchor, primaryTool, seed.currentMoment.obstacle],
       detailBudget: seed.visualIntent.detailBudget,
       negativeConstraints: ['no duplicate props', 'no belt clutter', 'no class-color stereotype', 'no visible patron unless selected', 'environment secondary', 'no text or logos'],
     },

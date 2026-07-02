@@ -1,4 +1,5 @@
-import type { CompiledPrompt, SemanticSeed, VisualDirection } from './contracts';
+import type { CompiledPrompt, PromptCritique, PromptPlan, PromptWriterResult, SemanticDirectorPlan, SemanticSeed, VisualDirection } from './contracts';
+import { directSemantic } from './semanticDirector';
 
 const TARGET_WORDS = 230;
 const HARD_MAX_WORDS = 270;
@@ -61,6 +62,29 @@ function choose<T>(seed: SemanticSeed, salt: string, options: T[]) {
   return options[hashText(`${seed.deterministicSeed}:${seed.identity.classId}:${seed.identity.speciesId}:${seed.identity.professionId}:${salt}`) % options.length];
 }
 
+function professionInTitle(seed: SemanticSeed) {
+  return seed.life.professionSalience === 'strong' || seed.life.professionSalience === 'dominant';
+}
+
+function anchorTitle(anchor: string) {
+  const labels: Record<string, string> = {
+    forbidden_power: 'Keeper of a Costly Bargain',
+    social_duty: 'Keeper of the Last Oath',
+    personal_contradiction: 'Bearer of a Divided Duty',
+    current_danger: 'Watcher at the Breaking Point',
+    class_conflict: 'Witness Under Pressure',
+    relationship: 'Shield of the Dependent',
+    species_presence: 'Figure at the Threshold',
+    profession: 'At Work Under Judgment',
+  };
+  return labels[anchor] ?? 'Figure Under Pressure';
+}
+
+function promptTitle(seed: SemanticSeed, plan: SemanticDirectorPlan) {
+  const identity = `${label(seed.identity.speciesId)} ${label(seed.identity.classId)}`;
+  return professionInTitle(seed) ? `${identity} ${seed.identity.profession}` : `${identity} — ${anchorTitle(plan.dominantNarrativeAnchor)}`;
+}
+
 function stripInternalLanguage(text: string) {
   let next = text;
   for (const pattern of INTERNAL_LANGUAGE) next = next.replace(pattern, '');
@@ -81,6 +105,9 @@ function clauseKey(text: string) {
 }
 
 function professionSubject(seed: SemanticSeed) {
+  if (seed.life.professionSalience === 'background' || seed.life.professionSalience === 'trace') {
+    return seed.currentMoment.dependent || seed.currentMoment.targetOfAttention || 'person depending on them';
+  }
   const subjects: Record<string, string[]> = {
     physician: ['injured traveler', 'patient on a low cot', 'feverish villager'],
     ferryman: ['river passenger', 'cargo owner', 'nervous child near the gangplank'],
@@ -104,6 +131,26 @@ function environmentBridge(seed: SemanticSeed) {
   const subject = professionSubject(seed);
   const environment = seed.world.environment;
   const obstacle = seed.currentMoment.obstacle;
+  if (seed.life.professionSalience === 'background' || seed.life.professionSalience === 'trace') {
+    return choose(seed, 'environment-low-salience', [
+      `The ${environment} holds the class conflict in front of the dependent figure, leaving the old trade as a minor trace.`,
+      `Near edges of the ${environment} place the obstacle and dependent figure in the same pressure line.`,
+      `Useful surfaces in the ${environment} keep attention on body angle, choice, and consequence.`,
+      `Scale cues from the ${environment} make the danger clear while the occupational mark stays small.`,
+      `The ${environment} narrows around the class decision instead of becoming a workplace vignette.`,
+      `Blocked movement in the ${environment} explains why the character has to act now.`,
+      `The ${environment} gives the dependent figure a place in the frame without turning into trade scenery.`,
+      `Weather and hard surfaces in the ${environment} push attention toward the choice in the foreground.`,
+      `The ${environment} stays close to the obstacle, not to the character's former routine.`,
+      `A few hard edges in the ${environment} point back to the dependent figure and the risk.`,
+      `The ${environment} supports the class-led scene through blocked movement and near-space pressure.`,
+      `Only the necessary parts of the ${environment} appear, enough to place the body, obstacle, and subject.`,
+      `The ${environment} gives practical footing for the scene while the profession remains only a residue.`,
+      `Foreground pressure in the ${environment} keeps the visual story on the current danger.`,
+      `The ${environment} sets distance between safety and consequence without becoming a worksite.`,
+      `Light and surface in the ${environment} locate the task before any trade detail is noticed.`,
+    ]);
+  }
   if (seed.identity.professionId === 'ferryman') {
     return choose(seed, 'ferry-bridge', [
       `A river toll table and damp cargo ropes pull the ${environment} back toward the crossing dispute.`,
@@ -192,7 +239,7 @@ function naturalAction(seed: SemanticSeed) {
   const tool = seed.life.personalObject;
   const subject = professionSubject(seed);
   const action = seed.currentMoment.currentAction.toLowerCase();
-  if (seed.identity.professionId === 'courtier') return `They hold the ${courtierStatusObject(seed)} between their body and the gate official, using the lowered ceremonial blade only as a sign of rank.`;
+  if (seed.identity.professionId === 'courtier' && (seed.life.professionSalience === 'strong' || seed.life.professionSalience === 'dominant')) return `They hold the ${courtierStatusObject(seed)} between their body and the gate official, using the lowered ceremonial blade only as a sign of rank.`;
   if (/keep streets lit/.test(action)) return `They relight the last street lamp as a nearby resident watches from the edge of the street.`;
   if (/prepare the dead/.test(action)) return `They straighten the funeral cloth over the ${subject} while watching for the sign that the rite is not finished.`;
   if (/mark a border/.test(action)) return `They set the measuring line against the ${subject}, checking the angle before anyone can move the marker.`;
@@ -261,13 +308,16 @@ function spatialSentence(seed: SemanticSeed) {
     `The character occupies the narrow gap where the obstacle, dependent figure, and exit meet.`,
     `A tight foreground hand points to the failure point while the background recedes into quiet pressure.`,
     `The composition turns the obstacle into a physical barrier rather than a mood word.`,
-    `The dependent figure remains offset from the main action, close enough to explain the urgency.`,
+    `The person at risk stays offset from the main action, close enough to explain the urgency.`,
+    `The dependent figure waits near the edge of the action, close enough to make the stakes clear.`,
     `The working object anchors the foreground as the obstacle interrupts the path beyond it.`,
     `The gaze line runs across the tool, through the obstacle, and back to the person waiting for the result.`,
   ]);
 }
 
 function clothingSentence(seed: SemanticSeed) {
+  if (seed.life.professionSalience === 'background') return `${sentenceCase(seed.life.materialHistory)} and species-fitted layers show only the wear needed by the current danger.`;
+  if (seed.life.professionSalience === 'trace') return `${sentenceCase(seed.life.livedInTrace)} appears as a single occupational trace, and the clothing follows class pressure and body scale.`;
   if (seed.identity.professionId === 'courtier') {
     const statusDetail = courtierStatusObject(seed) === 'signet ribbon' ? 'a signet cord catching the light' : 'a petition crease catching the light';
     return `Formal court silk is repaired at the wrist, with ${statusDetail}.`;
@@ -288,18 +338,22 @@ function clothingSentence(seed: SemanticSeed) {
 }
 
 function toolSentence(seed: SemanticSeed) {
-  if (seed.identity.professionId === 'courtier') return `The ${courtierStatusObject(seed)} is the visible status object; the ceremonial blade remains lowered and never becomes a dueling weapon.`;
+  if (seed.identity.professionId === 'courtier' && (seed.life.professionSalience === 'strong' || seed.life.professionSalience === 'dominant')) return `The ${courtierStatusObject(seed)} is the clear status object; the ceremonial blade remains lowered and never becomes a dueling weapon.`;
   return choose(seed, 'tool', [
     `No trophy pose interrupts the work; the object stays close to the task.`,
     `Only one primary tool matters, kept low instead of displayed like a trophy.`,
     `The working object points the viewer back to the immediate problem.`,
     `The hand treats the object as equipment, not ornament.`,
+    `The grip keeps the object useful rather than ornamental.`,
+    `The object sits in a working grip instead of a display grip.`,
     `The tool is caught mid-use, close enough to explain the next decision.`,
+    `The next decision is clear from how the object sits between hand and obstacle.`,
     `A single object carries the work, leaving no room for duplicate props.`,
     `The object remains near the point of failure instead of becoming a costume accent.`,
     `The grip shows familiarity without turning the tool toward the viewer.`,
     `The tool sits where the action needs it, between hand and obstacle.`,
-    `One handled object defines the task and keeps the silhouette uncluttered.`,
+    `A single handled object keeps the task clear without crowding the outline.`,
+    `The object gives the hand a purpose and leaves the outline simple.`,
     `The working hand makes the tool feel necessary rather than decorative.`,
     `The object is placed for use, not display, and stays subordinate to face and action.`,
     `The tool's scale matches the body and keeps attention on the task.`,
@@ -314,7 +368,7 @@ function powerSentence(seed: SemanticSeed, visual: VisualDirection) {
   if (seed.identity.professionId === 'courtier' && seed.power.visibility === 'shadow') return 'A faint shadow echo curls once beside the negotiating hand, barely darker than the archway shade.';
   if (seed.power.visibility === 'none') return choose(seed, 'no-power', [
     'No glow appears because skill, timing, and responsibility carry the tension.',
-    'Nothing supernatural shows; the pressure comes from trained hands and public consequence.',
+    'Nothing supernatural is shown, leaving trained hands and public consequence to carry the pressure.',
     'The scene stays non-magical, relying on posture, tool use, and urgent attention.',
     `No visible effect appears, leaving the character's choices to carry the moment.`,
     'The uncanny is absent; only discipline and responsibility shape the image.',
@@ -379,7 +433,8 @@ function lightingSentence(seed: SemanticSeed) {
     tavern_keeper: ['Low hearth light catches the counter edge and leaves the doorway colder'],
     undertaker: ['Soft grey light rests on the funeral cloth and leaves the room edges quiet'],
   };
-  return `${choose(seed, 'lighting', byProfession[seed.identity.professionId] ?? [
+  const professionLighting = (seed.life.professionSalience === 'strong' || seed.life.professionSalience === 'dominant') ? byProfession[seed.identity.professionId] : undefined;
+  return `${choose(seed, 'lighting', professionLighting ?? [
     `${sentenceCase(seed.world.weather)} light catches the tool and hands while the background stays quiet`,
     `A narrow band of ${seed.world.weather} light picks out the working hand and the obstacle`,
     `Low ${seed.world.weather} light separates the face from the object in use`,
@@ -407,14 +462,24 @@ function closingSentence(seed: SemanticSeed) {
     'Keep the final image focused on a single decision under pressure.',
     'Let the obstacle, body angle, and tool carry the last note of the brief.',
     'Hold the scene at the moment where action still matters.',
-    'Keep the environment useful, close, and subordinate to the figure.',
+    'Keep nearby surfaces useful, close, and subordinate to the figure.',
     'Let the subject, obstacle, and hand position remain easy to parse.',
+    'Keep the last note on the choice, not the costume.',
+    'Let the frame breathe around face, hand, and obstacle.',
+    'Hold extra material outside the frame so the decision leads.',
+    'Make the body angle explain the risk before decoration appears.',
+    'Keep the nearest subject and obstacle clear at thumbnail scale.',
+    'End the brief with one readable action and no ornamental noise.',
+    'Let the scene stay close enough for the viewer to understand the stakes.',
+    'Use empty space around the hand to protect the main action.',
+    'Keep the figure grounded in the moment instead of display.',
+    'Let the final image favor consequence over costume inventory.',
   ]);
 }
 
-function buildPromptSections(seed: SemanticSeed, visual: VisualDirection) {
+function buildPromptSections(seed: SemanticSeed, visual: VisualDirection, plan: SemanticDirectorPlan) {
   return [
-    `Full-body cinematic painted fantasy character concept: ${label(seed.identity.speciesId)} ${label(seed.identity.classId)} ${seed.identity.profession}.`,
+    `Full-body cinematic painted fantasy character concept: ${promptTitle(seed, plan)}.`,
     morphologySentence(seed, visual),
     naturalAction(seed),
     spatialSentence(seed),
@@ -534,10 +599,62 @@ export function lintPrompt(prompt: string, negativePrompt: string) {
   return [...new Set(warnings)];
 }
 
-export function compilePrompt(seed: SemanticSeed, visual: VisualDirection, maxWords = HARD_MAX_WORDS): CompiledPrompt {
-  const sections = buildPromptSections(seed, visual).flatMap((section) => splitSentences(section));
-  const compressed = compressPrompt(sections);
-  let prompt = compressed.prompt;
+
+export function planPrompt(seed: SemanticSeed, visual: VisualDirection, semanticPlan: SemanticDirectorPlan, targetWordCount = TARGET_WORDS): PromptPlan {
+  return {
+    title: promptTitle(seed, semanticPlan),
+    essentialFacts: [semanticPlan.dominantNarrativeAnchor, semanticPlan.supportingNarrativeAnchor, seed.identity.classId, seed.identity.speciesId, seed.currentMoment.obstacle, visual.life.primaryTool],
+    suppressedFacts: semanticPlan.suppressedFacts,
+    targetWordCount,
+    stylePreset: 'cinematic grounded character concept',
+  };
+}
+
+export function writeDraftPrompt(seed: SemanticSeed, visual: VisualDirection, semanticPlan: SemanticDirectorPlan) {
+  return compressPrompt(buildPromptSections(seed, visual, semanticPlan).flatMap((section) => splitSentences(section)));
+}
+
+export function critiquePrompt(draftPrompt: string, plan: PromptPlan, seed: SemanticSeed): PromptCritique {
+  const wordCount = countWords(draftPrompt);
+  const professionMentions = (draftPrompt.toLowerCase().match(new RegExp(`\\b${seed.identity.profession.toLowerCase()}\\b`, 'g')) || []).length;
+  const draftLower = draftPrompt.toLowerCase();
+  return {
+    dominantAnchorClear: draftLower.includes(plan.essentialFacts[0].replace(/_/g, ' ')) || draftLower.includes(seed.currentMoment.obstacle.toLowerCase()) || draftLower.includes(seed.power.cost.toLowerCase().split(' ')[0]),
+    classReadable: draftLower.includes(seed.identity.classId.replace(/_/g, ' ')) || draftLower.includes(seed.psychology.relationshipToPower.split(' ')[0].toLowerCase()),
+    speciesReadable: draftLower.includes(seed.identity.speciesId.replace(/_/g, ' ')) || draftLower.includes('proportions'),
+    professionOverweight: seed.life.professionSalience !== 'dominant' && professionMentions > 1,
+    sceneClear: draftLower.includes(seed.currentMoment.obstacle.toLowerCase().split(' ')[0]) || draftLower.includes('dependent'),
+    redundantDetails: plan.suppressedFacts.filter((fact) => draftLower.includes(fact.replace(/_/g, ' '))),
+    conflicts: lintPrompt(draftPrompt, '').filter((warning) => /internal|unresolved|duplicated|malformed/.test(warning)),
+    compressionRatio: 0,
+  };
+}
+
+export function rewritePrompt(draftPrompt: string, critique: PromptCritique, targetWordCount = TARGET_WORDS) {
+  const sentences = splitSentences(stripInternalLanguage(draftPrompt));
+  const kept: string[] = [];
+  const removed: string[] = [];
+  for (const sentence of sentences) {
+    if (/profession scene|profession tool|profession title|profession environment|profession composition/i.test(sentence)) {
+      removed.push(sentence);
+      continue;
+    }
+    kept.push(sentence);
+  }
+  while (countWords(kept.join(' ')) > targetWordCount && kept.length > 7) {
+    const removedSentence = kept.splice(-2, 1)[0];
+    removed.push(removedSentence);
+  }
+  return { finalPrompt: compact(kept.join(' ')), removedDetails: removed };
+}
+
+export function compilePrompt(seed: SemanticSeed, visual: VisualDirection, maxWords = HARD_MAX_WORDS, semanticPlan = directSemantic(seed)): CompiledPrompt {
+  const promptPlan = planPrompt(seed, visual, semanticPlan);
+  const compressed = writeDraftPrompt(seed, visual, semanticPlan);
+  const draftPrompt = compressed.prompt;
+  const critique = critiquePrompt(draftPrompt, promptPlan, seed);
+  const rewritten = rewritePrompt(draftPrompt, critique, promptPlan.targetWordCount);
+  let prompt = rewritten.finalPrompt;
   const effectiveMax = Math.min(maxWords, HARD_MAX_WORDS);
   let trace = ['natural sections:identity,morphology,scene,spatial staging,profession evidence,tool,power,environment,lighting', ...compressed.trace];
   if (countWords(prompt) > effectiveMax) {
@@ -555,11 +672,20 @@ export function compilePrompt(seed: SemanticSeed, visual: VisualDirection, maxWo
   const negativePrompt = 'No text, logos, duplicate props, no extra props, no decorative clutter, no duplicate tools, belt clutter, noisy microdetail, tiled/checker/rhombus artifacts, all-over surface noise, generic heroic stance, class-color stereotype, visible patron unless explicitly selected, aura, floating runes, generic purple.';
   const warnings = lintPrompt(prompt, negativePrompt);
   trace = [...trace, 'removed internal taxonomy during normalization', `final word count:${countWords(prompt)}`, `lint warnings:${warnings.length}`];
+  const promptWriter: PromptWriterResult = {
+    promptPlan,
+    draftPrompt,
+    critique: { ...critique, compressionRatio: draftPrompt ? 1 - (countWords(prompt) / countWords(draftPrompt)) : 0 },
+    finalPrompt: prompt,
+    removedDetails: rewritten.removedDetails,
+    priorityCompliance: semanticPlan.priorityCompliance,
+  };
   return {
     prompt,
     negativePrompt,
     wordCount: countWords(prompt),
     lintWarnings: warnings,
-    compilerTrace: trace,
+    compilerTrace: [...trace, `draft word count:${countWords(draftPrompt)}`, `rewrite removed:${rewritten.removedDetails.length}`],
+    promptWriter,
   };
 }

@@ -23,7 +23,8 @@
     "semantic-legacy-comparison": "node scripts/semantic-legacy-comparison.cjs",
     "validate-vnext-all": "node scripts/validate-vnext-all.cjs",
     "visual-vnext-analysis": "node scripts/visual-vnext-repetition-analysis.cjs",
-    "runtime-vnext-generation-check": "node scripts/runtime-vnext-generation-check.cjs"
+    "runtime-vnext-generation-check": "node scripts/runtime-vnext-generation-check.cjs",
+    "semantic-seed-intelligence-analysis": "node scripts/semantic-seed-intelligence-analysis.cjs"
   },
   "dependencies": {
     "react": "18.3.1",

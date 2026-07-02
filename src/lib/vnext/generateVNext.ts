@@ -1,7 +1,8 @@
-import type { ImageReviewFields, VNextInput, VNextQaReport, VNextResult } from './contracts';
+import type { ImageReviewFields, VNextInput, VNextQaReport, VNextResult, VNextSessionHistory } from './contracts';
 import { resolveSemanticSeed } from './incrementalResolver';
 import { buildSituationGraph } from './situationGraph';
 import { directVisual } from './visualDirector';
+import { directSemantic } from './semanticDirector';
 import { compilePrompt } from './promptCompiler';
 
 function emptyImageReview(): ImageReviewFields {
@@ -32,13 +33,18 @@ function runQa(result: Omit<VNextResult, 'qa'>): VNextQaReport {
   if (!visual.embodiment.gaze) blockingErrors.push('gaze target missing');
   if (!visual.scene.activeObstacle) blockingErrors.push('scene obstacle missing');
   if (!visual.life.livedInTrace) blockingErrors.push('lived-in trace missing');
+  if (result.semanticDirectorPlan.classEvidencePlan.channels.length < 2) blockingErrors.push('class evidence under budget');
+  if (!result.semanticDirectorPlan.speciesMorphologyPlan) blockingErrors.push('species morphology absent');
+  if (result.semanticSeed.life.professionSalience !== 'dominant' && result.semanticSeed.priorityPlan.dominant === 'profession') blockingErrors.push('profession dominance leakage');
+  if (result.semanticSeed.life.professionSalience === 'background' && result.semanticSeed.life.professionEvidenceChannels.length > 0) blockingErrors.push('background profession over budget');
+  if (result.semanticSeed.life.professionEvidenceChannels.length > result.semanticDirectorPlan.professionBudget.maxVisualChannels) blockingErrors.push('profession controls more channels than salience allows');
   if (!result.semanticSeed.tension.roleContradiction) blockingErrors.push('role contradiction missing');
   if (!result.semanticSeed.currentMoment.narrativeIntent) blockingErrors.push('narrative intent missing');
   if (!result.semanticSeed.currentMoment.sceneArchetype) blockingErrors.push('scene archetype missing');
   if (!result.semanticSeed.currentMoment.visualConsequence) blockingErrors.push('visual consequence missing');
   if (!result.semanticSeed.currentMoment.motionEnergy) blockingErrors.push('motion energy missing');
-  if (!visual.embodiment.posture.includes(result.semanticSeed.life.bodyHabit)) blockingErrors.push('profession posture influence missing');
-  if (!visual.embodiment.gesture.includes(result.semanticSeed.life.personalObject)) blockingErrors.push('profession tool influence missing');
+  if (result.semanticSeed.life.professionSalience === 'dominant' && !visual.embodiment.posture.includes(result.semanticSeed.life.bodyHabit)) blockingErrors.push('dominant profession posture influence missing');
+  if (result.semanticSeed.life.professionSalience === 'dominant' && !visual.embodiment.gesture.includes(result.semanticSeed.life.personalObject)) blockingErrors.push('dominant profession tool influence missing');
   if (visual.power.patronVisibility && result.semanticSeed.power.visibility !== 'full_apparition') blockingErrors.push('patron visibility leak');
   if (result.semanticSeed.power.visibility === 'latent' && /aura|halo|full apparition|floating rune/i.test(result.prompt)) blockingErrors.push('latent power leakage');
   if (prompt.wordCount > 270) blockingErrors.push('prompt too long');
@@ -58,19 +64,23 @@ function runQa(result: Omit<VNextResult, 'qa'>): VNextQaReport {
       anchorCount: 2,
       primaryToolCount: 1,
       sceneArchetypePresent: result.semanticSeed.currentMoment.sceneArchetype ? 1 : 0,
+      classEvidenceChannels: result.semanticDirectorPlan.classEvidencePlan.channels.length,
+      professionBudgetChannels: result.semanticDirectorPlan.professionBudget.maxVisualChannels,
     },
     imageReview: emptyImageReview(),
   };
 }
 
-export function generateDicebornVNext(input: VNextInput): VNextResult {
+export function generateDicebornVNextDeterministic(input: VNextInput): VNextResult {
   const semanticSeed = resolveSemanticSeed(input);
   const situationGraph = buildSituationGraph(semanticSeed);
-  const visualDirection = directVisual(semanticSeed, situationGraph);
-  const compiledPrompt = compilePrompt(semanticSeed, visualDirection, input.promptOptions?.maxWords);
+  const semanticDirectorPlan = directSemantic(semanticSeed);
+  const visualDirection = directVisual(semanticSeed, situationGraph, semanticDirectorPlan);
+  const compiledPrompt = compilePrompt(semanticSeed, visualDirection, input.promptOptions?.maxWords, semanticDirectorPlan);
   const base = {
     semanticSeed,
     situationGraph,
+    semanticDirectorPlan,
     visualDirection,
     prompt: compiledPrompt.prompt,
     negativePrompt: compiledPrompt.negativePrompt,
@@ -79,9 +89,42 @@ export function generateDicebornVNext(input: VNextInput): VNextResult {
       `seed:${semanticSeed.deterministicSeed}`,
       `selected:${semanticSeed.selectedFactIds.join(',')}`,
       `rules:${semanticSeed.appliedRules.join(',')}`,
+      `priority:${semanticDirectorPlan.dominantNarrativeAnchor}/${semanticDirectorPlan.supportingNarrativeAnchor}`,
+      `profession:${semanticSeed.identity.professionId}:${semanticSeed.life.professionSalience}:${semanticSeed.life.professionAffinity}`,
       ...compiledPrompt.compilerTrace,
     ],
     schemaVersion: semanticSeed.schemaVersion,
   };
   return { ...base, qa: runQa(base) };
+}
+
+export function generateDicebornVNext(input: VNextInput): VNextResult {
+  return generateDicebornVNextDeterministic(input);
+}
+
+export function generateDicebornVNextForSession(input: VNextInput, history: VNextSessionHistory = {}): VNextResult {
+  const recentProfessions = new Set(history.lastProfessions?.slice(-8) ?? []);
+  const recentSceneArchetypes = new Set(history.lastSceneArchetypes?.slice(-5) ?? []);
+  const recentEnvironments = new Set(history.lastEnvironments?.slice(-4) ?? []);
+  const recentCompositions = new Set(history.lastCompositions?.slice(-4) ?? []);
+  const baseSeed = String(input.rngSeed);
+  let best: VNextResult | null = null;
+  let bestPenalty = Infinity;
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    const candidate = generateDicebornVNextDeterministic({ ...input, rngSeed: attempt === 0 ? baseSeed : `${baseSeed}:session:${attempt}` });
+    const lockedProfession = input.professionId ?? input.locks?.professionId;
+    let penalty = 0;
+    if (!lockedProfession && recentProfessions.has(candidate.semanticSeed.identity.professionId)) penalty += 100;
+    if (candidate.semanticSeed.life.professionSalience === 'dominant' && history.lastProfessionSalience?.slice(-12).includes('dominant')) penalty += 60;
+    if (recentSceneArchetypes.has(candidate.semanticSeed.currentMoment.sceneArchetype)) penalty += 20;
+    if (recentEnvironments.has(candidate.visualDirection.scene.environment)) penalty += 12;
+    if (recentCompositions.has(candidate.visualDirection.artDirection.composition)) penalty += 12;
+    if (history.lastDominantAnchors?.slice(-2).every((anchor) => anchor === candidate.semanticDirectorPlan.dominantNarrativeAnchor)) penalty += 10;
+    if (penalty < bestPenalty) {
+      best = candidate;
+      bestPenalty = penalty;
+    }
+    if (penalty === 0) return candidate;
+  }
+  return best ?? generateDicebornVNextDeterministic(input);
 }

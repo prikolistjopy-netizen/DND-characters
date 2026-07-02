@@ -4,13 +4,17 @@ export type PowerVisibility = 'none' | 'latent' | 'behavioral' | 'bodily' | 'obj
 export type AgeBand = 'young_adult' | 'adult' | 'middle_aged' | 'elder';
 export type GenderPresentation = 'masculine' | 'feminine' | 'androgynous';
 export type NoveltyMode = 'off' | 'soft' | 'strong';
+export type ProfessionSalience = 'background' | 'trace' | 'secondary' | 'strong' | 'dominant';
+export type ProfessionAffinity = 'high' | 'medium' | 'low' | 'rare_contrast';
+export type SemanticAnchor = 'class_conflict' | 'personal_contradiction' | 'current_danger' | 'relationship' | 'social_duty' | 'forbidden_power' | 'profession' | 'species_presence';
 
 export type VNextInput = {
   rngSeed: string | number;
   classId?: PilotClassId;
   speciesId?: PilotSpeciesId;
   professionId?: string;
-  locks?: Partial<Pick<SemanticSeed['identity'], 'classId' | 'speciesId' | 'professionId' | 'ageBand' | 'genderPresentation'>> & Partial<Pick<SemanticSeed['power'], 'visibility'>>;
+  professionSalience?: ProfessionSalience;
+  locks?: Partial<Pick<SemanticSeed['identity'], 'classId' | 'speciesId' | 'professionId' | 'ageBand' | 'genderPresentation'>> & Partial<Pick<SemanticSeed['power'], 'visibility'>> & { professionSalience?: ProfessionSalience };
   preferences?: string[];
   noveltyMode?: NoveltyMode;
   beamWidth?: number;
@@ -76,6 +80,11 @@ export type SemanticSeed = {
     livedInTrace: string;
     materialHistory: string;
     personalObject: string;
+    professionSalience: ProfessionSalience;
+    professionAffinity: ProfessionAffinity;
+    professionEvidenceChannels: string[];
+    formerProfession?: string;
+    reputation: string;
   };
   tension: {
     roleContradiction: string;
@@ -127,6 +136,7 @@ export type SemanticSeed = {
     socialTension: string;
     currentScene: string;
   };
+  priorityPlan: PriorityPlan;
   visualIntent: {
     silhouettePrinciple: string;
     primaryAnchor: string;
@@ -140,6 +150,48 @@ export type SemanticSeed = {
   appliedRules: string[];
   rejectedCandidates: ScoreTraceEntry[];
   qaFlags: string[];
+};
+
+export type PriorityPlan = {
+  dominant: SemanticAnchor;
+  supporting: SemanticAnchor;
+  minor: SemanticAnchor | 'profession_trace' | 'none';
+  suppressed: string[];
+  professionSalience: ProfessionSalience;
+  professionAffinity: ProfessionAffinity;
+};
+
+export type ProfessionBudget = {
+  salience: ProfessionSalience;
+  maxVisualChannels: number;
+  allowedChannels: string[];
+  directSceneAllowed: boolean;
+  environmentControlAllowed: boolean;
+  compositionControlAllowed: boolean;
+};
+
+export type ClassEvidencePlan = {
+  behavioral: string;
+  physical: string;
+  social: string;
+  object?: string;
+  power?: string;
+  channels: string[];
+};
+
+export type SemanticDirectorPlan = {
+  dominantNarrativeAnchor: SemanticAnchor;
+  supportingNarrativeAnchor: SemanticAnchor;
+  minorEcho: SemanticAnchor | 'profession_trace' | 'none';
+  suppressedFacts: string[];
+  professionBudget: ProfessionBudget;
+  classEvidencePlan: ClassEvidencePlan;
+  speciesMorphologyPlan: string;
+  sceneFocus: string;
+  emotionalFocus: string;
+  powerBudget: string;
+  professionAffinity: ProfessionAffinity;
+  priorityCompliance: string[];
 };
 
 export type SituationNodeType = 'character' | 'subject_person' | 'tool' | 'obstacle' | 'risk' | 'pressure' | 'community' | 'environment' | 'power_source' | 'personal_object';
@@ -158,12 +210,46 @@ export type VisualDirection = {
   artDirection: { composition: string; camera: string; lighting: string; paletteRoles: string[]; focalOrder: string[]; detailBudget: string; negativeConstraints: string[] };
 };
 
+export type PromptPlan = {
+  title: string;
+  essentialFacts: string[];
+  suppressedFacts: string[];
+  targetWordCount: number;
+  stylePreset: string;
+};
+
+export type PromptCritique = {
+  dominantAnchorClear: boolean;
+  classReadable: boolean;
+  speciesReadable: boolean;
+  professionOverweight: boolean;
+  sceneClear: boolean;
+  redundantDetails: string[];
+  conflicts: string[];
+  compressionRatio: number;
+};
+
+export type PromptWriterResult = {
+  promptPlan: PromptPlan;
+  draftPrompt: string;
+  critique: PromptCritique;
+  finalPrompt: string;
+  removedDetails: string[];
+  priorityCompliance: string[];
+};
+
+export type LlmPromptWriterContract = {
+  input: { semanticSeed: SemanticSeed; semanticDirectorPlan: SemanticDirectorPlan; visualDirection: VisualDirection; hardConstraints: string[]; targetWordCount: number; stylePreset: string };
+  expectedResponse: { draftPrompt: string; critique: PromptCritique; finalPrompt: string; negativePrompt: string; removedDetails: string[] };
+};
+
 export type CompiledPrompt = {
   prompt: string;
   negativePrompt: string;
   wordCount: number;
   lintWarnings: string[];
   compilerTrace: string[];
+  promptWriter?: PromptWriterResult;
 };
 
 export type ImageReviewFields = {
@@ -192,6 +278,7 @@ export type VNextQaReport = {
 export type VNextResult = {
   semanticSeed: SemanticSeed;
   situationGraph: SituationGraph;
+  semanticDirectorPlan: SemanticDirectorPlan;
   visualDirection: VisualDirection;
   prompt: string;
   negativePrompt: string;
@@ -199,4 +286,14 @@ export type VNextResult = {
   qa: VNextQaReport;
   trace: string[];
   schemaVersion: string;
+};
+
+export type VNextSessionHistory = {
+  lastProfessions?: string[];
+  lastProfessionSalience?: ProfessionSalience[];
+  lastSceneArchetypes?: string[];
+  lastEnvironments?: string[];
+  lastDominantAnchors?: SemanticAnchor[];
+  lastCompositions?: string[];
+  lastTools?: string[];
 };

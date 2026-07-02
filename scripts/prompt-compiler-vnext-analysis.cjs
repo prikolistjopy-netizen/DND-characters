@@ -75,6 +75,7 @@ function normalizeFrame(sentence) {
     .trim();
 }
 function environmentMismatch(input, text) {
+  if (input.salience === 'background' || input.salience === 'trace') return false;
   const lower = text.toLowerCase();
   const profession = input.professionId;
   if (profession === 'ferryman' && !/river|ferry|boat|passenger|crossing|toll|cargo|flood|mooring/.test(lower)) return true;
@@ -106,7 +107,7 @@ for (let index = 0; index < sample; index += 1) {
   if (internalTaxonomy(prompt)) counts.internalTaxonomy += 1;
   if (unnaturalPhrase(prompt)) counts.unnaturalPhrase += 1;
   if (/Keep the silhouette clean, the detail restrained, and the background secondary|Use natural materials, clear hand shapes, and controlled detail without clutter|Keep props minimal, surfaces calm, and the scene readable at full-body scale|Favor grounded materials, clear spacing, and a single readable action/i.test(prompt)) counts.genericClosing += 1;
-  if (environmentMismatch({ professionId: result.semanticSeed.identity.professionId }, prompt)) counts.environmentMismatch += 1;
+  if (environmentMismatch({ professionId: result.semanticSeed.identity.professionId, salience: result.semanticSeed.life.professionSalience }, prompt)) counts.environmentMismatch += 1;
   if (unclearSubjectObstacle(prompt)) counts.unclearSubjectObstacle += 1;
   counts.controlled += count(prompt, /\bcontrolled\b/gi);
   counts.restrained += count(prompt, /\brestrained\b/gi);
