@@ -1,0 +1,40 @@
+<svg width="1600" height="1000" viewBox="0 0 1600 1000" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Diceborn hero artwork</title>
+  <desc id="desc">Diceborn wordmark with the O as a glowing gate, a star inside the gate, and a lone wanderer approaching through a blue violet fantasy landscape.</desc>
+  <defs>
+    <radialGradient id="starGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(807 346) rotate(90) scale(265)">
+      <stop stop-color="#79F3FF" stop-opacity="0.9"/>
+      <stop offset="0.44" stop-color="#487CFF" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#050816" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sky" x1="800" y1="0" x2="800" y2="1000" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#030712"/>
+      <stop offset="0.45" stop-color="#091B36"/>
+      <stop offset="1" stop-color="#02040B"/>
+    </linearGradient>
+    <linearGradient id="gate" x1="800" y1="142" x2="800" y2="704" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C5FBFF"/>
+      <stop offset="0.45" stop-color="#54E6FF"/>
+      <stop offset="1" stop-color="#8B6DFF"/>
+    </linearGradient>
+    <filter id="softGlow" x="416" y="44" width="768" height="760" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="30" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.32 0 0 0 0 0.9 0 0 0 0 1 0 0 0 0.75 0"/>
+      <feBlend in2="SourceGraphic" mode="screen"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#sky)"/>
+  <rect width="1600" height="1000" fill="url(#starGlow)"/>
+  <path d="M0 715C210 640 338 673 520 610C655 564 768 509 910 560C1100 628 1220 610 1600 520V1000H0V715Z" fill="#091225"/>
+  <path d="M0 828C202 762 374 774 552 720C726 666 844 672 1038 731C1191 778 1378 767 1600 697V1000H0V828Z" fill="#050A15"/>
+  <path d="M560 704C622 575 664 464 660 348C655 201 716 120 800 120C884 120 945 201 940 348C936 464 978 575 1040 704" stroke="url(#gate)" stroke-width="34" stroke-linecap="round" filter="url(#softGlow)"/>
+  <path d="M604 704C650 590 696 474 695 356C694 247 738 178 800 178C862 178 906 247 905 356C904 474 950 590 996 704" stroke="#D8FBFF" stroke-opacity="0.34" stroke-width="5" stroke-linecap="round"/>
+  <path d="M800 284L817 329L865 333L828 363L839 410L800 384L761 410L772 363L735 333L783 329L800 284Z" fill="#F4FFFF"/>
+  <path d="M800 284L817 329L865 333L828 363L839 410L800 384L761 410L772 363L735 333L783 329L800 284Z" stroke="#54E6FF" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M788 724C789 689 792 665 800 650C808 665 811 689 812 724H788Z" fill="#030712"/>
+  <path d="M770 768C782 740 788 720 800 704C812 720 818 740 830 768H770Z" fill="#02040B"/>
+  <path d="M758 808C778 785 789 772 800 745C811 772 822 785 842 808H758Z" fill="#01030A"/>
+  <path d="M676 806C730 790 772 781 800 781C828 781 870 790 924 806" stroke="#54E6FF" stroke-opacity="0.28" stroke-width="3"/>
+  <text x="800" y="208" text-anchor="middle" fill="#F3F8FF" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="118" font-weight="800" letter-spacing="0.045em">DICEBORN</text>
+  <text x="800" y="877" text-anchor="middle" fill="#B9C8DC" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="32" font-weight="500" letter-spacing="0.16em">EVERY ROLL BEGINS A STORY</text>
+</svg>

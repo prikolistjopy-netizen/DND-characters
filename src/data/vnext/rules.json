@@ -1,0 +1,9 @@
+{
+  "rules": [
+    {"id":"warlock_requires_bargain","description":"Warlocks require a relationship to bargained power.","type":"requires","when":{"field":"classId","equals":"warlock"},"require":{"field":"powerSourceId","oneOf":["bargained_shadow"]},"weight":100,"severity":"hard","explanation":"Warlock evidence comes from a negotiated source, not automatic visible demons."},
+    {"id":"cleric_requires_witness","description":"Clerics require a witnessed sacred obligation source.","type":"requires","when":{"field":"classId","equals":"cleric"},"require":{"field":"powerSourceId","oneOf":["oath_witness"]},"weight":100,"severity":"hard","explanation":"Cleric power is tied to responsibility and witness."},
+    {"id":"fighter_discourages_aura","description":"Fighters should not receive automatic aura language.","type":"excludes","when":{"field":"classId","equals":"fighter"},"exclude":{"field":"powerVisibility","oneOf":["full_apparition","bodily"]},"weight":100,"severity":"hard","explanation":"Fighter readability should come through training and action."},
+    {"id":"patron_apparition_rare","description":"Full apparition requires explicit high-risk selection.","type":"discourages","when":{"field":"powerVisibility","equals":"full_apparition"},"penalize":{"field":"powerVisibility","oneOf":["full_apparition"]},"weight":80,"severity":"soft","explanation":"Visible patrons must not be default."},
+    {"id":"profession_tool_required","description":"Profession must influence the primary tool.","type":"requires","when":{"field":"professionId","exists":true},"require":{"field":"professionToolSelected","equals":true},"weight":100,"severity":"hard","explanation":"Profession is first-class and must change handling/tool read."}
+  ]
+}
